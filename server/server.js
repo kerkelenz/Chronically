@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const { connectDB, sequelize } = require("./config/db");
+const authRoutes = require("./routes/authRoutes");
 require("./models/User");
 require("./models/CheckIn");
 
@@ -16,6 +17,8 @@ const startServer = async () => {
   app.use(helmet());
   app.use(cors());
   app.use(express.json());
+
+  app.use("/api/auth", authRoutes);
 
   app.get("/api/test", (req, res) => {
     res.json({ message: "Chronically backend is working!" });
