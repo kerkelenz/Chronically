@@ -41,6 +41,12 @@ const startServer = async () => {
     res.json({ message: "Chronically backend is working!" });
   });
 
+  const authenticateToken = require("./middleware/auth");
+
+  app.get("/api/protected", authenticateToken, (req, res) => {
+    res.json({ message: `Hello ${req.user.username}, you are authenticated!` });
+  });
+
   // use the PORT from .env if it exists, otherwise default to 3001
   const PORT = process.env.PORT || 3001;
   app.listen(PORT, () => {
