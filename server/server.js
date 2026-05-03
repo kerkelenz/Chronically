@@ -2,21 +2,29 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-const { connectDB } = require("./config/db");
+const { connectDB, sequelize } = require("./config/db");
+require("./models/User");
+require("./models/CheckIn");
 
 const app = express();
 
-connectDB();
+const startServer = async () => {
+  await connectDB();
+  await sequelize.sync({ alter: true });
+  console.log("Database synced");
 
-app.use(helmet());
-app.use(cors());
-app.use(express.json());
+  app.use(helmet());
+  app.use(cors());
+  app.use(express.json());
 
-app.get("/api/test", (req, res) => {
-  res.json({ message: "Chronically backend is working!" });
-});
+  app.get("/api/test", (req, res) => {
+    res.json({ message: "Chronically backend is working!" });
+  });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+};
+
+startServer();
