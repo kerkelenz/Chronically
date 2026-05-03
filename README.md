@@ -53,27 +53,6 @@ Built for my girlfriend, who has multiple sclerosis. ❤️
 
 ---
 
-## Project Structure
-
-chronically/
-├── client/ (React frontend)
-│ └── src/
-│ ├── components/
-│ ├── pages/
-│ ├── hooks/
-│ ├── context/
-│ └── utils/
-├── server/ (Express backend)
-│ ├── config/
-│ ├── controllers/
-│ ├── middleware/
-│ ├── models/
-│ ├── routes/
-│ └── utils/
-└── README.md
-
----
-
 ## Getting Started
 
 ### Prerequisites
