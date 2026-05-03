@@ -65,7 +65,7 @@ Built for my girlfriend, who has multiple sclerosis. ❤️
 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOURUSERNAME/chronically.git
+git clone https://github.com/kerkelenz/chronically.git
 cd chronically
 ```
 
