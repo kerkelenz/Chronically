@@ -41,8 +41,13 @@ const startServer = async () => {
     res.json({ message: "Chronically backend is working!" });
   });
 
+  // importing the JWT middleware we created in middleware/auth.js
   const authenticateToken = require("./middleware/auth");
 
+  // this is just a test route to make sure the middleware is working correctly
+  // authenticateToken sits between the route path and the handler function
+  // it runs first, and only calls next() if the token is valid
+  // req.user is available here because authenticateToken attached it after verifying the token
   app.get("/api/protected", authenticateToken, (req, res) => {
     res.json({ message: `Hello ${req.user.username}, you are authenticated!` });
   });
