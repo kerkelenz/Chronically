@@ -53,27 +53,6 @@ Built for my girlfriend, who has multiple sclerosis. ❤️
 
 ---
 
-## Project Structure
-
-chronically/
-├── client/ (React frontend)
-│ └── src/
-│ ├── components/
-│ ├── pages/
-│ ├── hooks/
-│ ├── context/
-│ └── utils/
-├── server/ (Express backend)
-│ ├── config/
-│ ├── controllers/
-│ ├── middleware/
-│ ├── models/
-│ ├── routes/
-│ └── utils/
-└── README.md
-
----
-
 ## Getting Started
 
 ### Prerequisites
@@ -86,7 +65,7 @@ chronically/
 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOURUSERNAME/chronically.git
+git clone https://github.com/kerkelenz/chronically.git
 cd chronically
 ```
 
