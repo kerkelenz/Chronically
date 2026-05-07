@@ -99,4 +99,32 @@ const updateCheckIn = async (req, res) => {
   }
 };
 
-module.exports = { createCheckIn, getCheckIns, updateCheckIn };
+const deleteCheckIn = async (req, res) => {
+  try {
+    // get the check-in id from the URL
+    const { id } = req.params;
+
+    // find the check-in and verify it belongs to the logged in user
+    const checkIn = await CheckIn.findOne({
+      where: {
+        id: id,
+        userId: req.user.id,
+      },
+    });
+
+    // if we can't find it, return 404
+    if (!checkIn) {
+      return res.status(404).json({ error: "Check-in not found" });
+    }
+
+    // destroy() permanently deletes the record from the database
+    await checkIn.destroy();
+
+    res.status(200).json({ message: "Check-in deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting check-in", error);
+    res.status(500).json({ error: "Server error deleting check-in" });
+  }
+};
+
+module.exports = { createCheckIn, getCheckIns, updateCheckIn, deleteCheckIn };
