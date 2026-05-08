@@ -5,6 +5,8 @@ const cors = require("cors");
 const helmet = require("helmet");
 const { connectDB, sequelize } = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
+const checkInRoutes = require("./routes/checkInRoutes");
+const authenticateToken = require("./middleware/auth");
 // importing the models here so Sequelize knows about them before we call sync
 // if we don't import them they won't get created in the database
 require("./models/User");
@@ -36,13 +38,12 @@ const startServer = async () => {
   // so /register becomes /api/auth/register and /login becomes /api/auth/login
   app.use("/api/auth", authRoutes);
 
+  app.use("/api/checkins", checkInRoutes);
+
   // simple test route to confirm the server is running
   app.get("/api/test", (req, res) => {
     res.json({ message: "Chronically backend is working!" });
   });
-
-  // importing the JWT middleware we created in middleware/auth.js
-  const authenticateToken = require("./middleware/auth");
 
   // this is just a test route to make sure the middleware is working correctly
   // authenticateToken sits between the route path and the handler function
