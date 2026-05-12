@@ -38,6 +38,52 @@ function RegisterPage() {
       }}
     >
       <div
+        className="petal"
+        style={{
+          left: "10%",
+          animationDuration: "8s",
+          animationDelay: "0s",
+          bottom: "-10px",
+        }}
+      />
+      <div
+        className="petal"
+        style={{
+          left: "25%",
+          animationDuration: "11s",
+          animationDelay: "2s",
+          bottom: "-10px",
+        }}
+      />
+      <div
+        className="petal"
+        style={{
+          left: "50%",
+          animationDuration: "9s",
+          animationDelay: "4s",
+          bottom: "-10px",
+        }}
+      />
+      <div
+        className="petal"
+        style={{
+          left: "70%",
+          animationDuration: "12s",
+          animationDelay: "1s",
+          bottom: "-10px",
+        }}
+      />
+      <div
+        className="petal"
+        style={{
+          left: "85%",
+          animationDuration: "10s",
+          animationDelay: "3s",
+          bottom: "-10px",
+        }}
+      />
+
+      <div
         className="absolute rounded-full opacity-30"
         style={{
           width: "200px",
