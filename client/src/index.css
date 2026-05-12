@@ -61,3 +61,10 @@
 .shockwave-btn:active::before {
   animation: shockwave 0.5s ease-out forwards;
 }
+
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.25) !important;
+  border-color: rgba(255, 255, 255, 0.7) !important;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+  outline: none;
+}
