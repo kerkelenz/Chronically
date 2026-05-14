@@ -7,14 +7,20 @@ const User = require("./User");
 const CheckIn = sequelize.define("CheckIn", {
   // painLevel can only be one of these three values - ENUM prevents anything else getting in
   painLevel: {
-    type: DataTypes.ENUM("light", "moderate", "severe"),
-    // every check-in must have a pain level - can't submit without it
+    type: DataTypes.INTEGER,
     allowNull: false,
+    validate: {
+      min: 1,
+      max: 5,
+    },
   },
-  // same idea for mood - locked to three options to keep the data consistent
   moodLevel: {
-    type: DataTypes.ENUM("good", "okay", "low"),
+    type: DataTypes.INTEGER,
     allowNull: false,
+    validate: {
+      min: 1,
+      max: 5,
+    },
   },
   // follow-up answers vary depending on what the user selected for pain and mood
   // JSON lets us store whatever shape of data comes back without needing extra columns

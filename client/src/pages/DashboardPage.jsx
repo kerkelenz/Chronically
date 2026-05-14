@@ -9,6 +9,7 @@ function DashboardPage() {
 
   const [checkIns, setCheckIns] = useState([]);
   const [todaysDone, setTodaysDone] = useState(false);
+  const [showCheckIn, setShowCheckIn] = useState(false);
 
   useEffect(() => {
     const fetchCheckIns = async () => {
@@ -77,7 +78,7 @@ function DashboardPage() {
               It only takes a moment.
             </p>
             <button
-              onClick={() => navigate("/checkin")}
+              onClick={() => setShowCheckIn(true)}
               className="mt-4 px-8 py-3 rounded-full text-white font-medium hover:scale-105 transition-all duration-200 shockwave-btn"
               style={{
                 background: "linear-gradient(135deg, #7C6BAE, #9B8EC4)",
