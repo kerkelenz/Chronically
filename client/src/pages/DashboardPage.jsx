@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
+import CheckInModal from "../components/CheckInModal";
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -31,7 +32,7 @@ function DashboardPage() {
   }, [token]);
 
   return (
-    <div className="min-h-screen" style={{ background: "#FAF7FF" }}>
+    <div className="min-h-screen" style={{ background: "#cabce2" }}>
       <div
         className="w-full px-6 py-4 flex justify-between items-center"
         style={{ background: "linear-gradient(135deg, #5C4E8A, #7C6BAE)" }}
@@ -93,6 +94,16 @@ function DashboardPage() {
           </p>
         )}
       </div>
+      {showCheckIn && (
+        <CheckInModal
+          onClose={() => setShowCheckIn(false)}
+          onComplete={() => {
+            setShowCheckIn(false);
+            // refetch check-ins so dashboard updates
+            setTodaysDone(true);
+          }}
+        />
+      )}
     </div>
   );
 }
