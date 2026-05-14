@@ -30,9 +30,18 @@ const startServer = async () => {
 
   // helmet automatically sets a bunch of security headers on every response
   app.use(helmet());
-  // cors allows our React frontend on localhost:5173 to talk to this backend on localhost:3001
-  // without this the browser would block the requests
-  app.use(cors());
+  // cors allows our React frontend on render to talk to this backend
+  app.use(
+    cors({
+      origin: [
+        "http://localhost:5173",
+        "https://mychronically.app",
+        "https://www.mychronically.app",
+        "https://chronically-frontend.onrender.com",
+      ],
+      credentials: true,
+    }),
+  );
   // this lets us read JSON from the request body - without it req.body would be undefined
   app.use(express.json());
 
