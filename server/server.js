@@ -7,6 +7,8 @@ const { connectDB, sequelize } = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const checkInRoutes = require("./routes/checkInRoutes");
 const authenticateToken = require("./middleware/auth");
+const userRoutes = require("./routes/userRoutes");
+
 // importing the models here so Sequelize knows about them before we call sync
 // if we don't import them they won't get created in the database
 require("./models/User");
@@ -58,6 +60,8 @@ const startServer = async () => {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
+
+  app.use("/api/users", userRoutes);
 };
 
 startServer();
