@@ -3,6 +3,15 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import CheckInModal from "../components/CheckInModal";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -11,6 +20,17 @@ function DashboardPage() {
   const [checkIns, setCheckIns] = useState([]);
   const [todaysDone, setTodaysDone] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
+
+  const getChartData = () => {
+    return [...checkIns]
+      .reverse()
+      .slice(-7)
+      .map((c) => ({
+        date: c.date,
+        pain: c.painLevel,
+        mood: c.moodLevel,
+      }));
+  };
 
   useEffect(() => {
     const fetchCheckIns = async () => {
@@ -32,7 +52,7 @@ function DashboardPage() {
   }, [token]);
 
   return (
-    <div className="min-h-screen" style={{ background: "#cabce2" }}>
+    <div className="min-h-screen" style={{ background: "#cec5df" }}>
       <div
         className="w-full px-6 py-4 flex justify-between items-center"
         style={{ background: "linear-gradient(135deg, #5C4E8A, #7C6BAE)" }}
@@ -89,9 +109,98 @@ function DashboardPage() {
             </button>
           </div>
         ) : (
-          <p className="text-center" style={{ color: "#6B5F7A" }}>
-            Your stats will appear here.
-          </p>
+          <div className="flex flex-col gap-4">
+            {/* stat cards */}
+            <div className="grid grid-cols-2 gap-3">
+              <div
+                className="p-4 rounded-2xl"
+                style={{ background: "white", border: "1px solid #DDD5EE" }}
+              >
+                <p className="text-xs" style={{ color: "#6B5F7A" }}>
+                  Avg pain
+                </p>
+                <p
+                  className="text-2xl font-medium mt-1"
+                  style={{ color: "#2D2540" }}
+                >
+                  {checkIns.length > 0
+                    ? (
+                        checkIns.reduce((sum, c) => sum + c.painLevel, 0) /
+                        checkIns.length
+                      ).toFixed(1)
+                    : "-"}
+                </p>
+                <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>
+                  last {checkIns.length}{" "}
+                  {checkIns.length === 1 ? "day" : "days"}
+                </p>
+              </div>
+              <div
+                className="p-4 rounded-2xl"
+                style={{ background: "white", border: "1px solid #DDD5EE" }}
+              >
+                <p className="text-xs" style={{ color: "#6B5F7A" }}>
+                  Avg mood
+                </p>
+                <p
+                  className="text-2xl font-medium mt-1"
+                  style={{ color: "#2D2540" }}
+                >
+                  {checkIns.length > 0
+                    ? (
+                        checkIns.reduce((sum, c) => sum + c.moodLevel, 0) /
+                        checkIns.length
+                      ).toFixed(1)
+                    : "-"}
+                </p>
+                <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>
+                  last {checkIns.length}{" "}
+                  {checkIns.length === 1 ? "day" : "days"}
+                </p>
+              </div>
+            </div>
+
+            {/* correlation graph */}
+            <div
+              className="p-4 rounded-2xl"
+              style={{ background: "white", border: "1px solid #DDD5EE" }}
+            >
+              <p
+                className="text-sm font-medium mb-4"
+                style={{ color: "#2D2540" }}
+              >
+                Pain vs mood
+              </p>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={getChartData()}>
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 10, fill: "#6B5F7A" }}
+                  />
+                  <YAxis
+                    domain={[1, 5]}
+                    tick={{ fontSize: 10, fill: "#6B5F7A" }}
+                  />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="pain"
+                    stroke="#7C6BAE"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="mood"
+                    stroke="#C4A8C0"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         )}
       </div>
       {showCheckIn && (
