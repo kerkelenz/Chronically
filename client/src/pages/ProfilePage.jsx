@@ -16,7 +16,7 @@ function ProfilePage() {
     e.preventDefault();
     try {
       await axios.put(
-        "http://localhost:3001/api/users/profile",
+        `${import.meta.env.VITE_API_URL}/api/users/profile`,
         { username, email },
         { headers: { Authorization: `Bearer ${token}` } },
       );

@@ -35,9 +35,12 @@ function DashboardPage() {
   useEffect(() => {
     const fetchCheckIns = async () => {
       try {
-        const response = await axios.get("http://localhost:3001/api/checkins", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_URL}/api/checkins`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
         setCheckIns(response.data.checkIns);
 
         const today = new Date().toISOString().split("T")[0];
