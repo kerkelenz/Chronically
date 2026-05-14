@@ -76,6 +76,12 @@ function DashboardPage() {
             {checkIns.length} days
           </span>
           <button
+            onClick={() => navigate("/profile")}
+            className="text-white/70 text-xs hover:text-white transition-colors"
+          >
+            Profile
+          </button>
+          <button
             onClick={() => {
               logout();
               navigate("/");

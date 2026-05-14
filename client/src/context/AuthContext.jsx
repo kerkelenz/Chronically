@@ -11,6 +11,7 @@ export function AuthProvider({ children }) {
   // both start as null because nobody is logged in yet
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   // we save to both state and localStorage so they stay logged in on refresh
   const login = (userData, tokenData) => {
@@ -28,6 +29,11 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("user");
   };
 
+  const updateUser = (newUserData) => {
+    setUser(newUserData);
+    localStorage.setItem("user", JSON.stringify(newUserData));
+  };
+
   // this runs once when the app first loads
   // if there's a saved token in localStorage the session gets restored
   useEffect(() => {
@@ -36,11 +42,14 @@ export function AuthProvider({ children }) {
       setToken(savedToken);
       setUser(JSON.parse(localStorage.getItem("user")));
     }
+    setLoading(false);
   }, []);
 
   // passing user, token, login and logout into the context
   return (
-    <AuthContext.Provider value={{ user, token, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, token, login, logout, updateUser, loading }}
+    >
       {children}
     </AuthContext.Provider>
   );
