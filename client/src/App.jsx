@@ -3,6 +3,7 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import DashboardPage from "./pages/DashboardPage";
 
 function App() {
   return (
@@ -15,7 +16,7 @@ function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <h1>Dashboard</h1>
+              <DashboardPage />
             </ProtectedRoute>
           }
         />
