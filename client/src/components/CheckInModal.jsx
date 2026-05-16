@@ -14,7 +14,7 @@ function CheckInModal({ onClose, onComplete }) {
   const handleSubmit = async () => {
     try {
       await axios.post(
-        "http://localhost:3001/api/checkins",
+        `${import.meta.env.VITE_API_URL}/api/checkins`,
         { painLevel, moodLevel },
         { headers: { Authorization: `Bearer ${token}` } },
       );
