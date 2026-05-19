@@ -2,11 +2,50 @@
 
 A daily health tracking app built for people living with chronic illness.
 
-Chronically helps users log their pain and mood through a simple button-based
-check-in, receive personalized encouragement based on their history, and view
-their trends over time.
+Chronically helps users log their pain and mood through a simple button-based check-in, receive personalized encouragement based on their history, and view their trends over time.
 
-Built for my girlfriend, who has multiple sclerosis. ❤️
+Built for my girlfriend, who has multiple sclerosis. 💙
+
+**Live app:** [mychronically.app](https://mychronically.app)
+
+---
+
+## Screenshots
+
+<!-- Add your screenshots here -->
+<!-- Drag and drop images into this section or use the format below -->
+
+![Landing Page](screenshots/landing.png)
+![Dashboard](screenshots/dashboard.png)
+![Check-in Flow](screenshots/checkin.png)
+![Stats and Graph](screenshots/graph.png)
+![Profile Page](screenshots/profile.png)
+
+---
+
+## What It Does
+
+Chronically is designed for people who deal with chronic illness every day. On a bad pain day, the last thing you want is a complicated app. Chronically keeps it simple:
+
+- **Daily check-in** — rate your pain and mood with a single tap, no typing required
+- **Trend tracking** — see how your pain and mood correlate over time on a single graph
+- **Personalized insights** — the app learns your patterns and surfaces meaningful comparisons
+- **Secure accounts** — your health data stays private and belongs only to you
+
+---
+
+## Features
+
+- User registration and login with secure password hashing
+- JWT authentication with session persistence across refreshes
+- Daily check-in flow — pain level and mood level on a 1-5 scale
+- Full screen check-in modal with step-by-step flow
+- Edit and delete past check-ins
+- Pain vs mood correlation graph with weekly/monthly/3-month views
+- Average pain and mood stat cards
+- User profile with editable username and email
+- Responsive design — works on mobile and desktop
+- Protected routes — dashboard and profile require login
 
 ---
 
@@ -19,12 +58,13 @@ Built for my girlfriend, who has multiple sclerosis. ❤️
 - Axios
 - DaisyUI (Tailwind CSS)
 - React Icons
+- Recharts
 
 **Backend**
 
 - Node.js
 - Express
-- JWT Authentication
+- JWT (jsonwebtoken)
 - BCrypt
 
 **Database**
@@ -38,85 +78,150 @@ Built for my girlfriend, who has multiple sclerosis. ❤️
 - Helmet
 - CORS
 - express-rate-limit
-- Environment variables via dotenv
+- DotEnv
+
+**Deployment**
+
+- Render (frontend + backend)
+- Supabase (PostgreSQL)
+- Custom domain via Dreamhost
 
 ---
 
-## Features (MVP)
+## Project Structure
 
-- Daily check-in flow — log pain and mood through simple button presses
-- Follow-up questions based on check-in answers
-- Personalized encouragement based on historical data
-- Pain and mood correlation graph
-- User authentication with JWT
-- Protected routes
+```
+chronically/
+├── client/                 (React frontend)
+│   ├── public/
+│   └── src/
+│       ├── components/
+│       │   ├── CheckInModal.jsx
+│       │   └── ProtectedRoute.jsx
+│       ├── context/
+│       │   └── AuthContext.jsx
+│       ├── hooks/
+│       │   └── useAuth.js
+│       ├── pages/
+│       │   ├── LandingPage.jsx
+│       │   ├── LoginPage.jsx
+│       │   ├── RegisterPage.jsx
+│       │   ├── DashboardPage.jsx
+│       │   └── ProfilePage.jsx
+│       └── utils/
+├── server/                 (Express backend)
+│   ├── config/
+│   │   └── db.js
+│   ├── controllers/
+│   │   ├── authController.js
+│   │   ├── checkInController.js
+│   │   └── userController.js
+│   ├── middleware/
+│   │   └── auth.js
+│   ├── models/
+│   │   ├── User.js
+│   │   └── CheckIn.js
+│   ├── routes/
+│   │   ├── authRoutes.js
+│   │   ├── checkInRoutes.js
+│   │   └── userRoutes.js
+│   └── server.js
+├── .gitignore
+└── README.md
+```
 
 ---
 
-## Getting Started
+## Installation
 
 ### Prerequisites
 
 - Node.js v18+
 - PostgreSQL database (we use Supabase)
 
-### Installation
-
-1. Clone the repository
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/kerkelenz/chronically.git
 cd chronically
 ```
 
-2. Install server dependencies
+### 2. Install server dependencies
 
 ```bash
 cd server
 npm install
 ```
 
-3. Install client dependencies
+### 3. Install client dependencies
 
 ```bash
 cd ../client
 npm install
 ```
 
-4. Set up environment variables
+### 4. Set up environment variables
 
 ```bash
 cd ../server
 cp .env.example .env
 ```
 
-Fill in your actual values in `.env`
+Open `server/.env` and fill in your values:
 
-5. Run the development servers
+```
+PORT=3001
+NODE_ENV=development
+DATABASE_URL=your_postgres_connection_string
+JWT_SECRET=your_jwt_secret_here
+```
 
-Backend:
+For the client create `client/.env`:
+
+```
+VITE_API_URL=http://localhost:3001
+```
+
+### 5. Set up the database
+
+Create a PostgreSQL database (Supabase free tier in this case). Add your connection string to `server/.env`. Sequelize will automatically create the tables when the server starts.
+
+### 6. Run the application
+
+In one terminal run the backend:
 
 ```bash
 cd server
 npm run dev
 ```
 
-Frontend:
+In another terminal run the frontend:
 
 ```bash
 cd client
 npm run dev
 ```
 
+The app will be available at `http://localhost:5173`.
+
 ---
 
 ## Environment Variables
 
-See `server/.env.example` for required variables:
-PORT=3001
-NODE_ENV=development
-DATABASE_URL=your_postgres_connection_string
-JWT_SECRET=your_jwt_secret_here
+### Server (`server/.env`)
+
+| Variable       | Description                                               |
+| -------------- | --------------------------------------------------------- |
+| `PORT`         | Port the server runs on (default 3001)                    |
+| `NODE_ENV`     | Environment (development or production)                   |
+| `DATABASE_URL` | PostgreSQL connection string                              |
+| `JWT_SECRET`   | Secret key for signing JWT tokens (32+ random characters) |
+
+### Client (`client/.env`)
+
+| Variable       | Description                                                    |
+| -------------- | -------------------------------------------------------------- |
+| `VITE_API_URL` | Backend API URL (localhost for dev, Render URL for production) |
 
 ---
 
@@ -124,22 +229,73 @@ JWT_SECRET=your_jwt_secret_here
 
 ### Auth
 
-| Method | Endpoint           | Description        | Protected |
-| ------ | ------------------ | ------------------ | --------- |
-| POST   | /api/auth/register | Create new account | No        |
-| POST   | /api/auth/login    | Login to account   | No        |
+| Method | Endpoint           | Description        | Auth Required |
+| ------ | ------------------ | ------------------ | ------------- |
+| POST   | /api/auth/register | Create new account | No            |
+| POST   | /api/auth/login    | Login to account   | No            |
 
-### Check-ins (coming soon)
+### Check-ins
 
-| Method | Endpoint          | Description            | Protected |
-| ------ | ----------------- | ---------------------- | --------- |
-| POST   | /api/checkins     | Create a check-in      | Yes       |
-| GET    | /api/checkins     | Get all user check-ins | Yes       |
-| PUT    | /api/checkins/:id | Update a check-in      | Yes       |
-| DELETE | /api/checkins/:id | Delete a check-in      | Yes       |
+| Method | Endpoint          | Description            | Auth Required |
+| ------ | ----------------- | ---------------------- | ------------- |
+| POST   | /api/checkins     | Create a check-in      | Yes           |
+| GET    | /api/checkins     | Get all user check-ins | Yes           |
+| PUT    | /api/checkins/:id | Update a check-in      | Yes           |
+| DELETE | /api/checkins/:id | Delete a check-in      | Yes           |
+
+### Users
+
+| Method | Endpoint           | Description    | Auth Required |
+| ------ | ------------------ | -------------- | ------------- |
+| PUT    | /api/users/profile | Update profile | Yes           |
 
 ---
 
-## Status
+## Database Schema
 
-🚧 Currently in development — Sprint 1 (backend) in progress.
+### Users
+
+| Field     | Type    | Notes                                    |
+| --------- | ------- | ---------------------------------------- |
+| id        | INTEGER | Primary key, auto increment              |
+| username  | STRING  | Required, unique, 3-30 chars             |
+| email     | STRING  | Required, unique, valid email            |
+| password  | STRING  | Required, hashed with BCrypt (10 rounds) |
+| createdAt | DATE    | Auto-generated                           |
+| updatedAt | DATE    | Auto-generated                           |
+
+### CheckIns
+
+| Field        | Type     | Notes                       |
+| ------------ | -------- | --------------------------- |
+| id           | INTEGER  | Primary key, auto increment |
+| userId       | INTEGER  | Foreign key → Users.id      |
+| painLevel    | INTEGER  | Required, 1-5 scale         |
+| moodLevel    | INTEGER  | Required, 1-5 scale         |
+| followUpData | JSON     | Optional                    |
+| date         | DATEONLY | Required, defaults to today |
+| createdAt    | DATE     | Auto-generated              |
+| updatedAt    | DATE     | Auto-generated              |
+
+---
+
+## Known Issues
+
+- The free tier of Render spins down after inactivity — the first request after a period of inactivity may take up to 60 seconds while the server wakes up
+- Graph requires at least 2 check-ins to show a meaningful line
+
+---
+
+## What's Next
+
+- Medication tracker
+- Symptom tags (fatigue, brain fog, numbness, etc.)
+- Doctor report export — generate a 30-day summary for appointments
+- Push notifications for daily check-in reminders
+- iOS app via React Native
+
+---
+
+## License
+
+MIT

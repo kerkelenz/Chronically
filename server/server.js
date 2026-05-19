@@ -8,6 +8,7 @@ const authRoutes = require("./routes/authRoutes");
 const checkInRoutes = require("./routes/checkInRoutes");
 const authenticateToken = require("./middleware/auth");
 const userRoutes = require("./routes/userRoutes");
+const rateLimit = require("express-rate-limit");
 
 // importing the models here so Sequelize knows about them before we call sync
 // if we don't import them they won't get created in the database
@@ -45,6 +46,14 @@ const startServer = async () => {
   // this lets us read JSON from the request body - without it req.body would be undefined
   app.use(express.json());
 
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20, // max 20 requests per 15 minutes
+    message: { error: "Too many attempts, please try again later" },
+  });
+
+  app.use("/api/auth", authLimiter);
+
   // all auth routes live under /api/auth
   // so /register becomes /api/auth/register and /login becomes /api/auth/login
   app.use("/api/auth", authRoutes);
@@ -64,13 +73,13 @@ const startServer = async () => {
     res.json({ message: `Hello ${req.user.username}, you are authenticated!` });
   });
 
+  app.use("/api/users", userRoutes);
+
   // use the PORT from .env if it exists, otherwise default to 3001
   const PORT = process.env.PORT || 3001;
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
-
-  app.use("/api/users", userRoutes);
 };
 
 startServer();
