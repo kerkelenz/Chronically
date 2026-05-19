@@ -21,10 +21,14 @@ function DashboardPage() {
   const [todaysDone, setTodaysDone] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
 
+  const [timeframe, setTimeframe] = useState(7);
+
+  const [loading, setLoading] = useState(true);
+
   const getChartData = () => {
     return [...checkIns]
       .reverse()
-      .slice(-7)
+      .slice(-timeframe)
       .map((c) => ({
         date: c.date,
         pain: c.painLevel,
@@ -42,17 +46,37 @@ function DashboardPage() {
           },
         );
         setCheckIns(response.data.checkIns);
-
         const today = new Date().toISOString().split("T")[0];
         const doneToday = response.data.checkIns.some((c) => c.date === today);
         setTodaysDone(doneToday);
       } catch (error) {
         console.error("Error fetching check-ins:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
     if (token) fetchCheckIns();
   }, [token]);
+
+  if (loading) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "#FAF7FF" }}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div
+            className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
+            style={{ borderColor: "#7C6BAE", borderTopColor: "transparent" }}
+          />
+          <p className="text-sm" style={{ color: "#6B5F7A" }}>
+            Loading...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen" style={{ background: "#cec5df" }}>
@@ -174,12 +198,31 @@ function DashboardPage() {
               className="p-4 rounded-2xl"
               style={{ background: "white", border: "1px solid #DDD5EE" }}
             >
-              <p
-                className="text-sm font-medium mb-4"
-                style={{ color: "#2D2540" }}
-              >
-                Pain vs mood
-              </p>
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-sm font-medium" style={{ color: "#2D2540" }}>
+                  Pain vs mood
+                </p>
+                <div className="flex gap-2">
+                  {[
+                    { label: "Week", value: 7 },
+                    { label: "Month", value: 30 },
+                    { label: "3 months", value: 90 },
+                  ].map((t) => (
+                    <button
+                      key={t.value}
+                      onClick={() => setTimeframe(t.value)}
+                      className="text-xs px-3 py-1 rounded-full transition-all duration-200"
+                      style={{
+                        background:
+                          timeframe === t.value ? "#7C6BAE" : "#F0EBF8",
+                        color: timeframe === t.value ? "white" : "#6B5F7A",
+                      }}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={getChartData()}>
                   <XAxis
