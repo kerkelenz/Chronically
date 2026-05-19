@@ -264,7 +264,6 @@ function CheckInModal({ onClose, onComplete }) {
             <button
               onClick={() => {
                 onComplete();
-                onClose();
               }}
               className="px-8 py-3 rounded-full bg-white font-medium hover:scale-105 transition-all duration-200"
               style={{ color: "#7C6BAE" }}

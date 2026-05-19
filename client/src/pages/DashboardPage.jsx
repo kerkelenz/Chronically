@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { FiEdit2, FiTrash2 } from "react-icons/fi";
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -20,10 +21,9 @@ function DashboardPage() {
   const [checkIns, setCheckIns] = useState([]);
   const [todaysDone, setTodaysDone] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
-
   const [timeframe, setTimeframe] = useState(7);
-
   const [loading, setLoading] = useState(true);
+  const [editingCheckIn, setEditingCheckIn] = useState(null);
 
   const getChartData = () => {
     return [...checkIns]
@@ -36,6 +36,36 @@ function DashboardPage() {
       }));
   };
 
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this check-in?"))
+      return;
+
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/api/checkins/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setCheckIns(checkIns.filter((c) => c.id !== id));
+    } catch (error) {
+      console.error("Error deleting check-in:", error);
+    }
+  };
+
+  const handleUpdate = async (id, painLevel, moodLevel) => {
+    try {
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/checkins/${id}`,
+        { painLevel, moodLevel },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setCheckIns(
+        checkIns.map((c) => (c.id === id ? response.data.checkIn : c)),
+      );
+      setEditingCheckIn(null);
+    } catch (error) {
+      console.error("Error updating check-in:", error);
+    }
+  };
+
   useEffect(() => {
     const fetchCheckIns = async () => {
       try {
@@ -46,7 +76,7 @@ function DashboardPage() {
           },
         );
         setCheckIns(response.data.checkIns);
-        const today = new Date().toISOString().split("T")[0];
+        const today = new Date().toLocaleDateString("en-CA");
         const doneToday = response.data.checkIns.some((c) => c.date === today);
         setTodaysDone(doneToday);
       } catch (error) {
@@ -63,16 +93,20 @@ function DashboardPage() {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ background: "#FAF7FF" }}
+        style={{
+          background:
+            "linear-gradient(160deg, #7C6BAE 0%, #9B8EC4 55%, #C4A8C0 100%)",
+        }}
       >
         <div className="flex flex-col items-center gap-3">
           <div
-            className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
-            style={{ borderColor: "#7C6BAE", borderTopColor: "transparent" }}
+            className="w-8 h-8 rounded-full border-2 animate-spin"
+            style={{
+              borderColor: "rgba(255,255,255,0.3)",
+              borderTopColor: "white",
+            }}
           />
-          <p className="text-sm" style={{ color: "#6B5F7A" }}>
-            Loading...
-          </p>
+          <p className="text-sm text-white opacity-70">Loading...</p>
         </div>
       </div>
     );
@@ -252,16 +286,169 @@ function DashboardPage() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            {/* check-in history */}
+            <div
+              className="p-4 rounded-2xl"
+              style={{ background: "white", border: "1px solid #DDD5EE" }}
+            >
+              <p
+                className="text-sm font-medium mb-3"
+                style={{ color: "#2D2540" }}
+              >
+                Recent check-ins
+              </p>
+              <div className="flex flex-col gap-2">
+                {checkIns.slice(0, 3).map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex justify-between items-center p-3 rounded-xl"
+                    style={{ background: "#F0EBF8" }}
+                  >
+                    <div>
+                      <p className="text-xs" style={{ color: "#6B5F7A" }}>
+                        {c.date}
+                      </p>
+                      <p
+                        className="text-sm font-medium"
+                        style={{ color: "#2D2540" }}
+                      >
+                        Pain: {c.painLevel} · Mood: {c.moodLevel}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setEditingCheckIn(c)}
+                        className="p-1 hover:opacity-70 transition-opacity"
+                        style={{ color: "#7C6BAE" }}
+                      >
+                        <FiEdit2 size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(c.id)}
+                        className="p-1 hover:opacity-70 transition-opacity"
+                        style={{ color: "#B07088" }}
+                      >
+                        <FiTrash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
+      {editingCheckIn && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.4)" }}
+        >
+          <div
+            className="w-full max-w-sm mx-4 p-6 rounded-2xl flex flex-col gap-4"
+            style={{ background: "white" }}
+          >
+            <p
+              className="font-medium"
+              style={{ color: "#2D2540", fontFamily: "Georgia, serif" }}
+            >
+              Edit Check-in
+            </p>
+            <div>
+              <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>
+                Pain level (1-5)
+              </p>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((level) => (
+                  <button
+                    key={level}
+                    onClick={() =>
+                      setEditingCheckIn({ ...editingCheckIn, painLevel: level })
+                    }
+                    className="flex-1 py-2 rounded-xl text-sm font-medium transition-all duration-200"
+                    style={{
+                      background:
+                        editingCheckIn.painLevel === level
+                          ? "#7C6BAE"
+                          : "#F0EBF8",
+                      color:
+                        editingCheckIn.painLevel === level
+                          ? "white"
+                          : "#6B5F7A",
+                    }}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>
+                Mood level (1-5)
+              </p>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((level) => (
+                  <button
+                    key={level}
+                    onClick={() =>
+                      setEditingCheckIn({ ...editingCheckIn, moodLevel: level })
+                    }
+                    className="flex-1 py-2 rounded-xl text-sm font-medium transition-all duration-200"
+                    style={{
+                      background:
+                        editingCheckIn.moodLevel === level
+                          ? "#7C6BAE"
+                          : "#F0EBF8",
+                      color:
+                        editingCheckIn.moodLevel === level
+                          ? "white"
+                          : "#6B5F7A",
+                    }}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setEditingCheckIn(null)}
+                className="flex-1 py-2 rounded-full text-sm"
+                style={{ background: "#F0EBF8", color: "#6B5F7A" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() =>
+                  handleUpdate(
+                    editingCheckIn.id,
+                    editingCheckIn.painLevel,
+                    editingCheckIn.moodLevel,
+                  )
+                }
+                className="flex-1 py-2 rounded-full text-sm text-white"
+                style={{ background: "#7C6BAE" }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showCheckIn && (
         <CheckInModal
           onClose={() => setShowCheckIn(false)}
-          onComplete={() => {
+          onComplete={async () => {
             setShowCheckIn(false);
-            // refetch check-ins so dashboard updates
-            setTodaysDone(true);
+            const response = await axios.get(
+              `${import.meta.env.VITE_API_URL}/api/checkins`,
+              { headers: { Authorization: `Bearer ${token}` } },
+            );
+            setCheckIns(response.data.checkIns);
+            const today = new Date().toLocaleDateString("en-CA");
+            const doneToday = response.data.checkIns.some(
+              (c) => c.date === today,
+            );
+            setTodaysDone(doneToday);
           }}
         />
       )}
