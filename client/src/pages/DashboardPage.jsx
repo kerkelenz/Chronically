@@ -31,8 +31,8 @@ function DashboardPage() {
       .slice(-timeframe)
       .map((c) => ({
         date: c.date,
-        pain: c.painLevel,
-        mood: c.moodLevel,
+        pain: 6 - c.painLevel, // inverts pain so low pain = high on chart
+        mood: 6 - c.moodLevel, // inverts mood so good mood (1) = high on chart
       }));
   };
 
