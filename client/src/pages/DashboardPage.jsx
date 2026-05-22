@@ -121,7 +121,7 @@ function DashboardPage() {
         <div>
           <h1
             className="text-white font-medium text-lg"
-            style={{ fontFamily: "Georgia, serif" }}
+            style={{ fontFamily: "Playfair Display, Georgia, serif" }}
           >
             Good evening, {user?.username}
           </h1>
