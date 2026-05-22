@@ -14,9 +14,10 @@ function CheckInModal({ onClose, onComplete }) {
 
   const handleSubmit = async () => {
     try {
+      const today = new Date().toLocaleDateString("en-CA");
       await axios.post(
         `${import.meta.env.VITE_API_URL}/api/checkins`,
-        { painLevel, moodLevel, energyLevel },
+        { painLevel, moodLevel, energyLevel, date: today },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       setStep(4);
