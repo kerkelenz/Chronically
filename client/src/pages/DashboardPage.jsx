@@ -396,16 +396,22 @@ function DashboardPage() {
             </p>
             <div>
               <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>
-                Pain level (1=light, 5=severe)
+                Pain level
               </p>
               <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((level) => (
+                {[
+                  [1, "Very Light"],
+                  [2, "Light"],
+                  [3, "Moderate"],
+                  [4, "Severe"],
+                  [5, "Very Severe"],
+                ].map(([level, label]) => (
                   <button
                     key={level}
                     onClick={() =>
                       setEditingCheckIn({ ...editingCheckIn, painLevel: level })
                     }
-                    className="flex-1 py-2 rounded-xl text-sm font-medium transition-all duration-200"
+                    className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200"
                     style={{
                       background:
                         editingCheckIn.painLevel === level
@@ -417,23 +423,29 @@ function DashboardPage() {
                           : "#6B5F7A",
                     }}
                   >
-                    {level}
+                    {label}
                   </button>
                 ))}
               </div>
             </div>
             <div>
               <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>
-                Mood level (1=great, 5=very low)
+                Mood level
               </p>
               <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((level) => (
+                {[
+                  [1, "Great"],
+                  [2, "Good"],
+                  [3, "Okay"],
+                  [4, "Low"],
+                  [5, "Very Low"],
+                ].map(([level, label]) => (
                   <button
                     key={level}
                     onClick={() =>
                       setEditingCheckIn({ ...editingCheckIn, moodLevel: level })
                     }
-                    className="flex-1 py-2 rounded-xl text-sm font-medium transition-all duration-200"
+                    className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200"
                     style={{
                       background:
                         editingCheckIn.moodLevel === level
@@ -445,17 +457,23 @@ function DashboardPage() {
                           : "#6B5F7A",
                     }}
                   >
-                    {level}
+                    {label}
                   </button>
                 ))}
               </div>
             </div>
             <div>
               <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>
-                Energy level (1=full, 5=exhausted)
+                Energy level
               </p>
               <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((level) => (
+                {[
+                  [1, "Full"],
+                  [2, "Good"],
+                  [3, "Low"],
+                  [4, "Drained"],
+                  [5, "Exhausted"],
+                ].map(([level, label]) => (
                   <button
                     key={level}
                     onClick={() =>
@@ -464,7 +482,7 @@ function DashboardPage() {
                         energyLevel: level,
                       })
                     }
-                    className="flex-1 py-2 rounded-xl text-sm font-medium transition-all duration-200"
+                    className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200"
                     style={{
                       background:
                         editingCheckIn.energyLevel === level
@@ -476,7 +494,7 @@ function DashboardPage() {
                           : "#6B5F7A",
                     }}
                   >
-                    {level}
+                    {label}
                   </button>
                 ))}
               </div>
