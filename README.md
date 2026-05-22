@@ -25,12 +25,20 @@ Built for my girlfriend, who has multiple sclerosis. 💙
 
 ## What It Does
 
-Chronically is designed for people who deal with chronic illness every day. On a bad pain day, the last thing you want is a complicated app. Chronically keeps it simple:
+Chronically is designed for people who deal with chronic illness every day.
+On a bad pain day, the last thing you want is a complicated app.
+Chronically keeps it simple:
 
-- **Daily check-in** — rate your pain and mood with a single tap, no typing required
-- **Trend tracking** — see how your pain and mood correlate over time on a single graph
-- **Personalized insights** — the app learns your patterns and surfaces meaningful comparisons
-- **Secure accounts** — your health data stays private and belongs only to you
+- **Daily check-in** — rate your pain, mood, and energy through a
+  simple step-by-step flow, no typing required
+- **Trend tracking** — see how your pain, mood, and energy correlate
+  over time on a single graph, switchable between week, month, and 3 months
+- **Pattern awareness** — stat cards show your averages over time so
+  you can spot what's improving and what isn't
+- **Full data control** — edit or delete any past check-in if you
+  made a mistake
+- **Secure accounts** — your health data stays private and belongs
+  only to you
 
 ---
 
@@ -293,6 +301,7 @@ The app will be available at `http://localhost:5173`.
 
 ## What's Next
 
+- Personalized insights
 - Medication tracker
 - Symptom tags (pain location, brain fog, numbness, etc.)
 - Doctor report export — generate a 30-day summary for appointments
