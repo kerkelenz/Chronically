@@ -197,6 +197,15 @@ function LoginPage() {
             )}
           </button>
         </form>
+        <p className="text-white/70 text-xs">
+          Don't have an account?{" "}
+          <span
+            className="text-white cursor-pointer underline"
+            onClick={() => navigate("/register")}
+          >
+            Sign up
+          </span>
+        </p>
       </div>
     </div>
   );

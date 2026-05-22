@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem \"c:\\\\Projects\\\\Chronically\\\\client\\\\src\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"c:\\\\Projects\\\\Chronically\\\\\", \"\"\\) })"
+    ]
+  }
+}
