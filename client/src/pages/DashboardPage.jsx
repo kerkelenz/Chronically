@@ -31,15 +31,15 @@ function DashboardPage() {
       .slice(-timeframe)
       .map((c) => ({
         date: c.date,
-        pain: 6 - c.painLevel, // inverts pain so low pain = high on chart
-        mood: 6 - c.moodLevel, // inverts mood so good mood (1) = high on chart
+        pain: 6 - c.painLevel,
+        mood: 6 - c.moodLevel,
+        energy: c.energyLevel ? 6 - c.energyLevel : null,
       }));
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this check-in?"))
       return;
-
     try {
       await axios.delete(`${import.meta.env.VITE_API_URL}/api/checkins/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -50,11 +50,11 @@ function DashboardPage() {
     }
   };
 
-  const handleUpdate = async (id, painLevel, moodLevel) => {
+  const handleUpdate = async (id, painLevel, moodLevel, energyLevel) => {
     try {
       const response = await axios.put(
         `${import.meta.env.VITE_API_URL}/api/checkins/${id}`,
-        { painLevel, moodLevel },
+        { painLevel, moodLevel, energyLevel },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       setCheckIns(
@@ -71,9 +71,7 @@ function DashboardPage() {
       try {
         const response = await axios.get(
           `${import.meta.env.VITE_API_URL}/api/checkins`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
+          { headers: { Authorization: `Bearer ${token}` } },
         );
         setCheckIns(response.data.checkIns);
         const today = new Date().toLocaleDateString("en-CA");
@@ -85,7 +83,6 @@ function DashboardPage() {
         setLoading(false);
       }
     };
-
     if (token) fetchCheckIns();
   }, [token]);
 
@@ -113,7 +110,7 @@ function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#cec5df" }}>
+    <div className="min-h-screen" style={{ background: "#FAF7FF" }}>
       <div
         className="w-full px-6 py-4 flex justify-between items-center"
         style={{ background: "linear-gradient(135deg, #5C4E8A, #7C6BAE)" }}
@@ -153,12 +150,16 @@ function DashboardPage() {
           </button>
         </div>
       </div>
+
       <div className="p-6">
         {!todaysDone ? (
           <div className="flex flex-col items-center justify-center py-16 gap-4">
             <p
               className="text-2xl font-medium"
-              style={{ color: "#2D2540", fontFamily: "Georgia, serif" }}
+              style={{
+                color: "#2D2540",
+                fontFamily: "Playfair Display, Georgia, serif",
+              }}
             >
               How are you feeling today?
             </p>
@@ -178,7 +179,7 @@ function DashboardPage() {
         ) : (
           <div className="flex flex-col gap-4">
             {/* stat cards */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div
                 className="p-4 rounded-2xl"
                 style={{ background: "white", border: "1px solid #DDD5EE" }}
@@ -215,14 +216,40 @@ function DashboardPage() {
                 >
                   {checkIns.length > 0
                     ? (
+                        6 -
                         checkIns.reduce((sum, c) => sum + c.moodLevel, 0) /
-                        checkIns.length
+                          checkIns.length
                       ).toFixed(1)
                     : "-"}
                 </p>
                 <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>
                   last {checkIns.length}{" "}
                   {checkIns.length === 1 ? "day" : "days"}
+                </p>
+              </div>
+              <div
+                className="p-4 rounded-2xl"
+                style={{ background: "white", border: "1px solid #DDD5EE" }}
+              >
+                <p className="text-xs" style={{ color: "#6B5F7A" }}>
+                  Avg energy
+                </p>
+                <p
+                  className="text-2xl font-medium mt-1"
+                  style={{ color: "#2D2540" }}
+                >
+                  {checkIns.filter((c) => c.energyLevel).length > 0
+                    ? (
+                        6 -
+                        checkIns
+                          .filter((c) => c.energyLevel)
+                          .reduce((sum, c) => sum + c.energyLevel, 0) /
+                          checkIns.filter((c) => c.energyLevel).length
+                      ).toFixed(1)
+                    : "-"}
+                </p>
+                <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>
+                  last {checkIns.filter((c) => c.energyLevel).length} days
                 </p>
               </div>
             </div>
@@ -234,7 +261,7 @@ function DashboardPage() {
             >
               <div className="flex justify-between items-center mb-4">
                 <p className="text-sm font-medium" style={{ color: "#2D2540" }}>
-                  Pain vs mood
+                  Pain · Mood · Energy
                 </p>
                 <div className="flex gap-2">
                   {[
@@ -283,9 +310,17 @@ function DashboardPage() {
                     strokeWidth={2}
                     dot={false}
                   />
+                  <Line
+                    type="monotone"
+                    dataKey="energy"
+                    stroke="#8FAF9B"
+                    strokeWidth={2}
+                    dot={false}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
+
             {/* check-in history */}
             <div
               className="p-4 rounded-2xl"
@@ -312,7 +347,8 @@ function DashboardPage() {
                         className="text-sm font-medium"
                         style={{ color: "#2D2540" }}
                       >
-                        Pain: {c.painLevel} · Mood: {c.moodLevel}
+                        Pain: {c.painLevel} · Mood: {6 - c.moodLevel} · Energy:{" "}
+                        {c.energyLevel ? 6 - c.energyLevel : "-"}
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -338,6 +374,8 @@ function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* edit modal */}
       {editingCheckIn && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
@@ -349,13 +387,16 @@ function DashboardPage() {
           >
             <p
               className="font-medium"
-              style={{ color: "#2D2540", fontFamily: "Georgia, serif" }}
+              style={{
+                color: "#2D2540",
+                fontFamily: "Playfair Display, Georgia, serif",
+              }}
             >
               Edit Check-in
             </p>
             <div>
               <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>
-                Pain level (1-5)
+                Pain level (1=light, 5=severe)
               </p>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((level) => (
@@ -383,7 +424,7 @@ function DashboardPage() {
             </div>
             <div>
               <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>
-                Mood level (1-5)
+                Mood level (1=great, 5=very low)
               </p>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((level) => (
@@ -409,6 +450,37 @@ function DashboardPage() {
                 ))}
               </div>
             </div>
+            <div>
+              <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>
+                Energy level (1=full, 5=exhausted)
+              </p>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((level) => (
+                  <button
+                    key={level}
+                    onClick={() =>
+                      setEditingCheckIn({
+                        ...editingCheckIn,
+                        energyLevel: level,
+                      })
+                    }
+                    className="flex-1 py-2 rounded-xl text-sm font-medium transition-all duration-200"
+                    style={{
+                      background:
+                        editingCheckIn.energyLevel === level
+                          ? "#7C6BAE"
+                          : "#F0EBF8",
+                      color:
+                        editingCheckIn.energyLevel === level
+                          ? "white"
+                          : "#6B5F7A",
+                    }}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setEditingCheckIn(null)}
@@ -423,6 +495,7 @@ function DashboardPage() {
                     editingCheckIn.id,
                     editingCheckIn.painLevel,
                     editingCheckIn.moodLevel,
+                    editingCheckIn.energyLevel,
                   )
                 }
                 className="flex-1 py-2 rounded-full text-sm text-white"
@@ -434,6 +507,8 @@ function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* check-in modal */}
       {showCheckIn && (
         <CheckInModal
           onClose={() => setShowCheckIn(false)}

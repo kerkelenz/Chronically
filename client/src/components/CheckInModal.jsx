@@ -7,6 +7,7 @@ function CheckInModal({ onClose, onComplete }) {
   const [step, setStep] = useState(1);
   const [painLevel, setPainLevel] = useState(null);
   const [moodLevel, setMoodLevel] = useState(null);
+  const [energyLevel, setEnergyLevel] = useState(null);
   const [error, setError] = useState("");
 
   const { token } = useAuth();
@@ -15,10 +16,10 @@ function CheckInModal({ onClose, onComplete }) {
     try {
       await axios.post(
         `${import.meta.env.VITE_API_URL}/api/checkins`,
-        { painLevel, moodLevel },
+        { painLevel, moodLevel, energyLevel },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      setStep(3);
+      setStep(4);
     } catch (error) {
       setError(
         error.response?.data?.error ||
@@ -81,11 +82,12 @@ function CheckInModal({ onClose, onComplete }) {
       />
 
       <div className="relative z-10 flex flex-col items-center gap-6 w-full max-w-sm px-6">
+        {/* Step 1 - Pain */}
         {step === 1 && (
           <div className="flex flex-col items-center gap-6 w-full">
             <p
               className="text-white text-2xl font-medium text-center"
-              style={{ fontFamily: "Georgia, serif" }}
+              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
             >
               How is your pain today?
             </p>
@@ -95,6 +97,8 @@ function CheckInModal({ onClose, onComplete }) {
                   key={level}
                   onClick={() => {
                     setPainLevel(level);
+                    setMoodLevel(null);
+                    setEnergyLevel(null);
                     setStep(2);
                   }}
                   className="py-4 rounded-2xl text-white font-medium transition-all duration-200 hover:scale-105"
@@ -117,6 +121,8 @@ function CheckInModal({ onClose, onComplete }) {
               <button
                 onClick={() => {
                   setPainLevel(5);
+                  setMoodLevel(null);
+                  setEnergyLevel(null);
                   setStep(2);
                 }}
                 className="col-span-2 py-4 rounded-2xl text-white font-medium transition-all duration-200 hover:scale-105"
@@ -133,21 +139,70 @@ function CheckInModal({ onClose, onComplete }) {
           </div>
         )}
 
+        {/* Step 2 - Mood */}
         {step === 2 && (
           <div className="flex flex-col items-center gap-6 w-full">
             <p
               className="text-white text-2xl font-medium text-center"
-              style={{ fontFamily: "Georgia, serif" }}
+              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
             >
               How is your mood today?
             </p>
+            <div className="grid grid-cols-2 gap-3 w-full">
+              {[1, 2, 3, 4].map((level) => (
+                <button
+                  key={level}
+                  onClick={() => {
+                    setMoodLevel(level);
+                    setStep(3);
+                  }}
+                  className="py-4 rounded-2xl text-white font-medium transition-all duration-200 hover:scale-105"
+                  style={{
+                    background: "rgba(255,255,255,0.18)",
+                    border: "1px solid rgba(255,255,255,0.35)",
+                  }}
+                >
+                  {level === 1
+                    ? "Great"
+                    : level === 2
+                      ? "Good"
+                      : level === 3
+                        ? "Okay"
+                        : "Low"}
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  setMoodLevel(5);
+                  setStep(3);
+                }}
+                className="col-span-2 py-4 rounded-2xl text-white font-medium transition-all duration-200 hover:scale-105"
+                style={{
+                  background: "rgba(255,255,255,0.18)",
+                  border: "1px solid rgba(255,255,255,0.35)",
+                }}
+              >
+                Very Low
+              </button>
+            </div>
+          </div>
+        )}
 
-            {!moodLevel ? (
+        {/* Step 3 - Energy */}
+        {step === 3 && (
+          <div className="flex flex-col items-center gap-6 w-full">
+            <p
+              className="text-white text-2xl font-medium text-center"
+              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
+            >
+              How is your energy today?
+            </p>
+            {!energyLevel ? (
               <div className="grid grid-cols-2 gap-3 w-full">
                 {[1, 2, 3, 4].map((level) => (
                   <button
                     key={level}
-                    onClick={() => setMoodLevel(level)}
+                    onClick={() => setEnergyLevel(level)}
                     className="py-4 rounded-2xl text-white font-medium transition-all duration-200 hover:scale-105"
                     style={{
                       background: "rgba(255,255,255,0.18)",
@@ -155,27 +210,27 @@ function CheckInModal({ onClose, onComplete }) {
                     }}
                   >
                     {level === 1
-                      ? "Great"
+                      ? "Full"
                       : level === 2
                         ? "Good"
                         : level === 3
-                          ? "Okay"
-                          : "Low"}
+                          ? "Low"
+                          : "Drained"}
                   </button>
                 ))}
                 <button
-                  onClick={() => setMoodLevel(5)}
+                  onClick={() => setEnergyLevel(5)}
                   className="col-span-2 py-4 rounded-2xl text-white font-medium transition-all duration-200 hover:scale-105"
                   style={{
                     background: "rgba(255,255,255,0.18)",
                     border: "1px solid rgba(255,255,255,0.35)",
                   }}
                 >
-                  Very Low
+                  Exhausted
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col gap-4 w-full">
+              <div className="flex flex-col gap-3 w-full">
                 <div
                   className="w-full p-3 rounded-2xl text-center relative"
                   style={{
@@ -199,6 +254,7 @@ function CheckInModal({ onClose, onComplete }) {
                     onClick={() => {
                       setPainLevel(null);
                       setMoodLevel(null);
+                      setEnergyLevel(null);
                       setStep(1);
                     }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
@@ -206,7 +262,6 @@ function CheckInModal({ onClose, onComplete }) {
                     <FiEdit2 size={14} />
                   </button>
                 </div>
-
                 <div
                   className="w-full p-3 rounded-2xl text-center relative"
                   style={{
@@ -227,13 +282,42 @@ function CheckInModal({ onClose, onComplete }) {
                             : "Very Low"}
                   </p>
                   <button
-                    onClick={() => setMoodLevel(null)}
+                    onClick={() => {
+                      setMoodLevel(null);
+                      setEnergyLevel(null);
+                      setStep(2);
+                    }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
                   >
                     <FiEdit2 size={14} />
                   </button>
                 </div>
-
+                <div
+                  className="w-full p-3 rounded-2xl text-center relative"
+                  style={{
+                    background: "rgba(255,255,255,0.15)",
+                    border: "1px solid rgba(255,255,255,0.3)",
+                  }}
+                >
+                  <p className="text-white/60 text-xs mb-1">Energy level</p>
+                  <p className="text-white font-medium">
+                    {energyLevel === 1
+                      ? "Full"
+                      : energyLevel === 2
+                        ? "Good"
+                        : energyLevel === 3
+                          ? "Low"
+                          : energyLevel === 4
+                            ? "Drained"
+                            : "Exhausted"}
+                  </p>
+                  <button
+                    onClick={() => setEnergyLevel(null)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
+                  >
+                    <FiEdit2 size={14} />
+                  </button>
+                </div>
                 <button
                   onClick={handleSubmit}
                   className="w-full py-3 rounded-full bg-white font-medium hover:scale-105 transition-all duration-200 shockwave-btn"
@@ -241,7 +325,6 @@ function CheckInModal({ onClose, onComplete }) {
                 >
                   Submit Check-in
                 </button>
-
                 {error && (
                   <p className="text-red-200 text-xs text-center">{error}</p>
                 )}
@@ -250,11 +333,12 @@ function CheckInModal({ onClose, onComplete }) {
           </div>
         )}
 
-        {step === 3 && (
+        {/* Step 4 - Celebration */}
+        {step === 4 && (
           <div className="flex flex-col items-center gap-6 text-center">
             <p
               className="text-white text-3xl font-medium"
-              style={{ fontFamily: "Georgia, serif" }}
+              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
             >
               Well done 💙
             </p>
@@ -262,9 +346,7 @@ function CheckInModal({ onClose, onComplete }) {
               You showed up today. That matters.
             </p>
             <button
-              onClick={() => {
-                onComplete();
-              }}
+              onClick={() => onComplete()}
               className="px-8 py-3 rounded-full bg-white font-medium hover:scale-105 transition-all duration-200"
               style={{ color: "#7C6BAE" }}
             >
@@ -273,7 +355,7 @@ function CheckInModal({ onClose, onComplete }) {
           </div>
         )}
 
-        {step !== 3 && (
+        {step !== 4 && (
           <button
             onClick={onClose}
             className="text-white/50 text-xs hover:text-white/80 transition-colors mt-4"

@@ -22,6 +22,15 @@ const CheckIn = sequelize.define("CheckIn", {
       max: 5,
     },
   },
+
+  energyLevel: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    validate: {
+      min: 1,
+      max: 5,
+    },
+  },
   // follow-up answers vary depending on what the user selected for pain and mood
   // JSON lets us store whatever shape of data comes back without needing extra columns
   followUpData: {
