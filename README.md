@@ -38,11 +38,11 @@ Chronically is designed for people who deal with chronic illness every day. On a
 
 - User registration and login with secure password hashing
 - JWT authentication with session persistence across refreshes
-- Daily check-in flow — pain level and mood level on a 1-5 scale
+- Daily check-in flow — pain level, mood level, and energy level on a 1-5 scale
 - Full screen check-in modal with step-by-step flow
 - Edit and delete past check-ins
-- Pain vs mood correlation graph with weekly/monthly/3-month views
-- Average pain and mood stat cards
+- Pain, mood and energy correlation graph with weekly/monthly/3-month views
+- Average pain, mood and energy stat cards
 - User profile with editable username and email
 - Responsive design — works on mobile and desktop
 - Protected routes — dashboard and profile require login
@@ -276,22 +276,28 @@ The app will be available at `http://localhost:5173`.
 | date         | DATEONLY | Required, defaults to today |
 | createdAt    | DATE     | Auto-generated              |
 | updatedAt    | DATE     | Auto-generated              |
+| energyLevel  | INTEGER  | Optional, 1-5 scale         |
 
 ---
 
 ## Known Issues
 
-- The free tier of Render spins down after inactivity — the first request after a period of inactivity may take up to 60 seconds while the server wakes up
+- The free tier of Render spins down after inactivity —
+  the first request may take up to 60 seconds while the server wakes up
 - Graph requires at least 2 check-ins to show a meaningful line
+- Pain stat card shows raw database value (1 = very light, 5 = very severe)
+  while mood and energy are displayed as inverted wellness scores
+  (higher = better)
 
 ---
 
 ## What's Next
 
 - Medication tracker
-- Symptom tags (fatigue, brain fog, numbness, etc.)
+- Symptom tags (pain location, brain fog, numbness, etc.)
 - Doctor report export — generate a 30-day summary for appointments
 - Push notifications for daily check-in reminders
+- More visual polish and animations
 - iOS app via React Native
 
 ---
