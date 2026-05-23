@@ -11,9 +11,11 @@ function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/auth/register`,
@@ -26,6 +28,8 @@ function RegisterPage() {
         error.response?.data?.error ||
           "Something went wrong. Please try again.",
       );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -131,7 +135,7 @@ function RegisterPage() {
       <div className="relative z-10 flex flex-col items-center gap-4 w-full max-w-xs px-4">
         <h1
           className="text-3xl font-medium text-white"
-          style={{ fontFamily: "Georgia, serif" }}
+          style={{ fontFamily: "Playfair Display, Georgia, serif" }}
         >
           Chronically
         </h1>
@@ -187,10 +191,24 @@ function RegisterPage() {
 
           <button
             type="submit"
+            disabled={loading}
             className="w-full py-2 rounded-full bg-white font-medium text-sm mt-1 hover:scale-105 transition-all duration-200 shockwave-btn"
-            style={{ color: "#7C6BAE" }}
+            style={{ color: "#7C6BAE", opacity: loading ? 0.7 : 1 }}
           >
-            Create Account
+            {loading ? (
+              <div className="flex items-center justify-center gap-2">
+                <div
+                  className="w-4 h-4 rounded-full border-2 animate-spin"
+                  style={{
+                    borderColor: "rgba(124,107,174,0.3)",
+                    borderTopColor: "#7C6BAE",
+                  }}
+                />
+                Creating account...
+              </div>
+            ) : (
+              "Create Account"
+            )}
           </button>
         </form>
 

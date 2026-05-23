@@ -47,7 +47,7 @@ function ProfilePage() {
         </div>
         <p
           className="text-white font-medium"
-          style={{ fontFamily: "Georgia, serif" }}
+          style={{ fontFamily: "Playfair Display, Georgia, serif" }}
         >
           {user?.username}
         </p>
@@ -115,7 +115,7 @@ function ProfilePage() {
 
           <button
             type="submit"
-            className="w-full py-3 rounded-full text-white font-medium hover:scale-105 transition-all duration-200"
+            className="w-full py-3 rounded-full text-white font-medium hover:opacity-90 transition-all duration-200"
             style={{ background: "linear-gradient(135deg, #7C6BAE, #9B8EC4)" }}
           >
             Save changes

@@ -133,7 +133,7 @@ function LoginPage() {
       <div className="relative z-10 flex flex-col items-center gap-4 w-full max-w-xs px-4">
         <h1
           className="text-3xl font-medium text-white"
-          style={{ fontFamily: "Georgia, serif" }}
+          style={{ fontFamily: "Playfair Display, Georgia, serif" }}
         >
           Chronically
         </h1>

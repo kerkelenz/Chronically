@@ -120,7 +120,13 @@ function DashboardPage() {
             className="text-white font-medium text-lg"
             style={{ fontFamily: "Playfair Display, Georgia, serif" }}
           >
-            Good evening, {user?.username}
+            {(() => {
+              const hour = new Date().getHours();
+              if (hour < 12) return "Good morning";
+              if (hour < 17) return "Good afternoon";
+              return "Good evening,";
+            })()}{" "}
+            {user?.username}
           </h1>
           <p className="text-white/70 text-xs mt-1">
             {todaysDone ? "Check-in complete" : "Ready to check in?"}
