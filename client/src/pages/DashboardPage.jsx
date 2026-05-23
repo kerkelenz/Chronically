@@ -141,7 +141,8 @@ function DashboardPage() {
           </span>
           <button
             onClick={() => navigate("/profile")}
-            className="text-white/70 text-xs hover:text-white transition-colors"
+            className="text-xs px-3 py-1 rounded-full transition-all duration-200 hover:scale-105"
+            style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
           >
             Profile
           </button>
@@ -150,7 +151,8 @@ function DashboardPage() {
               logout();
               navigate("/");
             }}
-            className="text-white/70 text-xs hover:text-white transition-colors"
+            className="text-xs px-3 py-1 rounded-full transition-all duration-200 hover:scale-105"
+            style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
           >
             Log out
           </button>
