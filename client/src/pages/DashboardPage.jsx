@@ -201,8 +201,9 @@ function DashboardPage() {
                 >
                   {checkIns.length > 0
                     ? (
+                        6 -
                         checkIns.reduce((sum, c) => sum + c.painLevel, 0) /
-                        checkIns.length
+                          checkIns.length
                       ).toFixed(1)
                     : "-"}
                 </p>
@@ -355,7 +356,7 @@ function DashboardPage() {
                         className="text-sm font-medium"
                         style={{ color: "#2D2540" }}
                       >
-                        Pain: {c.painLevel} · Mood: {6 - c.moodLevel} · Energy:{" "}
+                        Pain: {6 - c.painLevel} · Mood: {6 - c.moodLevel} · Energy:{" "}
                         {c.energyLevel ? 6 - c.energyLevel : "-"}
                       </p>
                     </div>
