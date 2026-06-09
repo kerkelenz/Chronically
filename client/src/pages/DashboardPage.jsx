@@ -275,12 +275,11 @@ function DashboardPage() {
               const days        = [...new Set(recent.map((c) => c.date))].length;
               const energyDays  = [...new Set(recentEnergy.map((c) => c.date))].length;
               const anxietyDays = [...new Set(recentAnxiety.map((c) => c.date))].length;
+              const withSymptoms = recent.filter((c) => c.symptoms && c.symptoms.length > 0);
               const symptomCounts = {};
-              recent
-                .filter((c) => c.symptoms && c.symptoms.length > 0)
-                .forEach((c) => c.symptoms.forEach((s) => { symptomCounts[s] = (symptomCounts[s] || 0) + 1; }));
+              withSymptoms.forEach((c) => c.symptoms.forEach((s) => { symptomCounts[s] = (symptomCounts[s] || 0) + 1; }));
               const topSymptoms = Object.entries(symptomCounts)
-                .filter(([, n]) => n >= 3)
+                .filter(([, n]) => n >= withSymptoms.length * 0.3)
                 .sort(([, a], [, b]) => b - a)
                 .slice(0, 3)
                 .map(([s]) => s);
