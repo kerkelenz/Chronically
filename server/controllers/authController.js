@@ -167,7 +167,7 @@ const forgotPassword = async (req, res) => {
 
     const token = crypto.randomBytes(32).toString("hex");
     const expiry = new Date(Date.now() + 60 * 60 * 1000);
-    await user.update({ resetToken: token, resetTokenExpiry: expiry });
+    await User.update({ resetToken: token, resetTokenExpiry: expiry }, { where: { id: user.id } });
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
@@ -214,7 +214,11 @@ const resetPassword = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     await User.update(
-      { password: hashedPassword, resetToken: null, resetTokenExpiry: null },
+      {
+        password: hashedPassword,
+        resetToken: crypto.randomBytes(32).toString("hex"),
+        resetTokenExpiry: new Date(0),
+      },
       { where: { id: user.id } },
     );
 
