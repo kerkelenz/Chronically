@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 
@@ -13,6 +13,17 @@ function ResetPasswordPage() {
   const [tokenError, setTokenError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [validating, setValidating] = useState(!!token);
+
+  useEffect(() => {
+    if (!token) return;
+    axios
+      .post(`${import.meta.env.VITE_API_URL}/api/auth/validate-reset-token`, { token })
+      .catch((err) => {
+        setTokenError(err.response?.data?.error || "This reset link is invalid or has expired.");
+      })
+      .finally(() => setValidating(false));
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -62,7 +73,12 @@ function ResetPasswordPage() {
           className="w-full flex flex-col gap-3 p-5 rounded-2xl"
           style={{ background: "rgba(255,255,255,0.22)", border: "1px solid rgba(255,255,255,0.4)" }}
         >
-          {!token || tokenError ? (
+          {validating ? (
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-4 rounded-full border-2 animate-spin flex-shrink-0" style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "white" }} />
+              <p className="text-white text-sm">Checking link...</p>
+            </div>
+          ) : !token || tokenError ? (
             <>
               <p className="text-white font-medium text-sm">Link expired</p>
               <p className="text-white/70 text-xs">

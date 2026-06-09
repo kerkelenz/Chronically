@@ -225,11 +225,32 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// exporting both functions so the routes file can use them
+const validateResetToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: "Token is required" });
+
+    const user = await User.findOne({
+      where: {
+        resetToken: token,
+        resetTokenExpiry: { [Op.gt]: new Date() },
+      },
+    });
+
+    if (!user) return res.status(400).json({ error: "Invalid or expired reset link" });
+
+    res.status(200).json({ valid: true });
+  } catch (error) {
+    console.error("Validate reset token error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
 module.exports = {
   register,
   login,
   verifyEmail,
   forgotPassword,
   resetPassword,
+  validateResetToken,
 };
