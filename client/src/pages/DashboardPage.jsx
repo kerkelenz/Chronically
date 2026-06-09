@@ -14,20 +14,24 @@ import {
 } from "recharts";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 
-const BAR_COLORS = ["#E55A5A", "#E8934A", "#E8C84A", "#8DC65C", "#5AB87A"];
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
+// mood/energy: more bars = better (red → green)
+const COLORS_BETTER = ["#E55A5A", "#E8934A", "#E8C84A", "#8DC65C", "#5AB87A"];
+// pain/anxiety: more bars = worse symptom (green → red)
+const COLORS_WORSE  = ["#5AB87A", "#5AB87A", "#E8C84A", "#E8934A", "#E55A5A"];
 
-function BarRating({ value }) {
+function BarRating({ value, colors = COLORS_BETTER }) {
+  const activeColor = value > 0 ? colors[value - 1] : "rgba(0,0,0,0.1)";
   return (
     <div className="flex items-end gap-0.5">
-      {BAR_COLORS.map((color, i) => (
+      {colors.map((_, i) => (
         <div
           key={i}
           style={{
             width: "4px",
             height: `${BAR_HEIGHTS[i]}px`,
             borderRadius: "1px",
-            background: i < value ? color : "rgba(0,0,0,0.1)",
+            background: i < value ? activeColor : "rgba(0,0,0,0.1)",
           }}
         />
       ))}
@@ -251,44 +255,47 @@ function DashboardPage() {
         {checkIns.length > 0 && (
           <div className="flex flex-col gap-4">
             {/* stat cards */}
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                {
-                  label: "Avg pain",
-                  value: checkIns.length > 0
-                    ? (6 - checkIns.reduce((s, c) => s + c.painLevel, 0) / checkIns.length).toFixed(1)
-                    : "-",
-                  count: checkIns.length,
-                },
-                {
-                  label: "Avg mood",
-                  value: checkIns.length > 0
-                    ? (6 - checkIns.reduce((s, c) => s + c.moodLevel, 0) / checkIns.length).toFixed(1)
-                    : "-",
-                  count: checkIns.length,
-                },
-                {
-                  label: "Avg energy",
-                  value: checkIns.filter((c) => c.energyLevel).length > 0
-                    ? (6 - checkIns.filter((c) => c.energyLevel).reduce((s, c) => s + c.energyLevel, 0) / checkIns.filter((c) => c.energyLevel).length).toFixed(1)
-                    : "-",
-                  count: checkIns.filter((c) => c.energyLevel).length,
-                },
-                {
-                  label: "Avg anxiety",
-                  value: checkIns.filter((c) => c.anxietyLevel).length > 0
-                    ? (6 - checkIns.filter((c) => c.anxietyLevel).reduce((s, c) => s + c.anxietyLevel, 0) / checkIns.filter((c) => c.anxietyLevel).length).toFixed(1)
-                    : "-",
-                  count: checkIns.filter((c) => c.anxietyLevel).length,
-                },
-              ].map(({ label, value, count }) => (
-                <div key={label} className="p-4 rounded-2xl" style={{ background: "white", border: "1px solid #DDD5EE" }}>
-                  <p className="text-xs" style={{ color: "#6B5F7A" }}>{label}</p>
-                  <p className="text-2xl font-medium mt-1" style={{ color: "#2D2540" }}>{value}</p>
-                  <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>last {count} {count === 1 ? "entry" : "entries"}</p>
+            {(() => {
+              const uniqueDays        = [...new Set(checkIns.map((c) => c.date))].length;
+              const uniqueEnergyDays  = [...new Set(checkIns.filter((c) => c.energyLevel).map((c) => c.date))].length;
+              const uniqueAnxietyDays = [...new Set(checkIns.filter((c) => c.anxietyLevel).map((c) => c.date))].length;
+              return (
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    {
+                      label: "Avg energy",
+                      value: checkIns.filter((c) => c.energyLevel).length > 0
+                        ? (6 - checkIns.filter((c) => c.energyLevel).reduce((s, c) => s + c.energyLevel, 0) / checkIns.filter((c) => c.energyLevel).length).toFixed(1)
+                        : "-",
+                      count: uniqueEnergyDays,
+                    },
+                    {
+                      label: "Avg mood",
+                      value: (6 - checkIns.reduce((s, c) => s + c.moodLevel, 0) / checkIns.length).toFixed(1),
+                      count: uniqueDays,
+                    },
+                    {
+                      label: "Avg pain",
+                      value: (checkIns.reduce((s, c) => s + c.painLevel, 0) / checkIns.length).toFixed(1),
+                      count: uniqueDays,
+                    },
+                    {
+                      label: "Avg anxiety",
+                      value: checkIns.filter((c) => c.anxietyLevel).length > 0
+                        ? (checkIns.filter((c) => c.anxietyLevel).reduce((s, c) => s + c.anxietyLevel, 0) / checkIns.filter((c) => c.anxietyLevel).length).toFixed(1)
+                        : "-",
+                      count: uniqueAnxietyDays,
+                    },
+                  ].map(({ label, value, count }) => (
+                    <div key={label} className="p-4 rounded-2xl" style={{ background: "white", border: "1px solid #DDD5EE" }}>
+                      <p className="text-xs" style={{ color: "#6B5F7A" }}>{label}</p>
+                      <p className="text-2xl font-medium mt-1" style={{ color: "#2D2540" }}>{value}</p>
+                      <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>last {count} {count === 1 ? "day" : "days"}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
 
             {/* correlation graph */}
             <div
@@ -297,7 +304,7 @@ function DashboardPage() {
             >
               <div className="flex justify-between items-center mb-4">
                 <p className="text-sm font-medium" style={{ color: "#2D2540" }}>
-                  Pain · Mood · Energy · Anxiety
+                  Energy · Mood · Pain · Anxiety
                 </p>
                 <div className="flex gap-2">
                   {[
@@ -331,15 +338,22 @@ function DashboardPage() {
                   />
                   <YAxis
                     domain={[1, 5]}
-                    width={0}
-                    tick={false}
+                    ticks={[1, 3, 5]}
+                    width={32}
+                    tick={{ fontSize: 9, fill: "#6B5F7A" }}
+                    tickFormatter={(v) => ({ 1: "Bad", 3: "Mid", 5: "Good" }[v] ?? "")}
                   />
-                  <Tooltip />
+                  <Tooltip
+                    formatter={(value, name) => [
+                      ({ 1: "Low", 2: "Low-Mid", 3: "Mid", 4: "Mid-High", 5: "High" }[Math.round(value)] ?? value),
+                      name.charAt(0).toUpperCase() + name.slice(1),
+                    ]}
+                  />
                   <Legend />
                   <Line
                     type="monotone"
-                    dataKey="pain"
-                    stroke="#7C6BAE"
+                    dataKey="energy"
+                    stroke="#8FAF9B"
                     strokeWidth={2}
                     dot={false}
                   />
@@ -352,8 +366,8 @@ function DashboardPage() {
                   />
                   <Line
                     type="monotone"
-                    dataKey="energy"
-                    stroke="#8FAF9B"
+                    dataKey="pain"
+                    stroke="#7C6BAE"
                     strokeWidth={2}
                     dot={false}
                   />
@@ -392,14 +406,14 @@ function DashboardPage() {
                       </p>
                       <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
                         {[
-                          { label: "Pain",    value: 6 - c.painLevel },
-                          { label: "Mood",    value: 6 - c.moodLevel },
-                          { label: "Energy",  value: c.energyLevel  ? 6 - c.energyLevel  : null },
-                          { label: "Anxiety", value: c.anxietyLevel ? 6 - c.anxietyLevel : null },
-                        ].filter(({ value }) => value !== null).map(({ label, value }) => (
+                          { label: "Energy",  value: c.energyLevel  ? 6 - c.energyLevel  : null, colors: COLORS_BETTER },
+                          { label: "Mood",    value: 6 - c.moodLevel,                             colors: COLORS_BETTER },
+                          { label: "Pain",    value: c.painLevel,                                 colors: COLORS_WORSE },
+                          { label: "Anxiety", value: c.anxietyLevel ? c.anxietyLevel      : null, colors: COLORS_WORSE },
+                        ].filter(({ value }) => value !== null).map(({ label, value, colors }) => (
                           <div key={label} className="flex items-center gap-1">
                             <span className="text-[10px]" style={{ color: "#6B5F7A" }}>{label}</span>
-                            <BarRating value={value} />
+                            <BarRating value={value} colors={colors} />
                           </div>
                         ))}
                       </div>
