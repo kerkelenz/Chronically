@@ -206,6 +206,14 @@ function LoginPage() {
             Sign up
           </span>
         </p>
+        <p className="text-white/70 text-xs">
+          <span
+            className="text-white cursor-pointer underline"
+            onClick={() => navigate("/forgot-password")}
+          >
+            Forgot your password?
+          </span>
+        </p>
       </div>
     </div>
   );

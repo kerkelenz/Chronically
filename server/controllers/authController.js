@@ -1,6 +1,11 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const { Op } = require("sequelize");
+const { Resend } = require("resend");
 const User = require("../models/User");
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // bcrypt recommends 10 salt rounds as a good balance between security and performance
 // the higher the number the slower the hash - which is actually intentional to slow down hackers
@@ -106,5 +111,74 @@ const login = async (req, res) => {
   }
 };
 
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required" });
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      // return success regardless to prevent email enumeration
+      return res.status(200).json({ message: "If that email is registered, a reset link has been sent." });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiry = new Date(Date.now() + 60 * 60 * 1000);
+    await user.update({ resetToken: token, resetTokenExpiry: expiry });
+
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
+    await resend.emails.send({
+      from: "Chronically <onboarding@resend.dev>",
+      to: email,
+      subject: "Reset your Chronically password",
+      html: `
+        <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 32px;">
+          <h2 style="color: #2D2540; font-family: Georgia, serif;">Password Reset</h2>
+          <p style="color: #6B5F7A;">We received a request to reset your Chronically password. Click the button below — the link expires in 1 hour.</p>
+          <a href="${resetUrl}" style="display: inline-block; margin-top: 16px; padding: 12px 24px; background: #7C6BAE; color: white; border-radius: 999px; text-decoration: none; font-size: 14px;">Reset Password</a>
+          <p style="color: #6B5F7A; font-size: 12px; margin-top: 24px;">If you didn't request this, you can safely ignore this email.</p>
+        </div>
+      `,
+    });
+
+    res.status(200).json({ message: "If that email is registered, a reset link has been sent." });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) {
+      return res.status(400).json({ error: "Token and password are required" });
+    }
+
+    const user = await User.findOne({
+      where: {
+        resetToken: token,
+        resetTokenExpiry: { [Op.gt]: new Date() },
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid or expired reset link" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    await User.update(
+      { password: hashedPassword, resetToken: null, resetTokenExpiry: null },
+      { where: { id: user.id } }
+    );
+
+    res.status(200).json({ message: "Password reset successfully" });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
 // exporting both functions so the routes file can use them
-module.exports = { register, login };
+module.exports = { register, login, forgotPassword, resetPassword };
