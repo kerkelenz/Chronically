@@ -509,8 +509,8 @@ function DashboardPage() {
                           {c.symptoms && c.symptoms.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1">
                               {c.symptoms.map((s) => (
-                                <span key={s} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#EDE8F5", color: "#7C6BAE" }}>
-                                  {s}
+                                <span key={s} title={s} className="text-base leading-none">
+                                  {SYMPTOM_ICONS[s]}
                                 </span>
                               ))}
                             </div>
