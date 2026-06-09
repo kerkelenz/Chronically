@@ -18,350 +18,277 @@ const AFFIRMATIONS = [
   { title: "You're not alone 💜", message: "Millions of people live with chronic illness. You're tracking, and that's taking charge." },
 ];
 
+const SYMPTOM_LIST = [
+  "Fatigue", "Brain fog", "Pain flare", "Numbness",
+  "Spasticity", "Vision issues", "Heat sensitivity", "Balance issues",
+];
+
+const PAIN_LABELS    = { 1: "Very Light", 2: "Light",   3: "Moderate", 4: "Severe",   5: "Very Severe" };
+const MOOD_LABELS    = { 1: "Great",      2: "Good",    3: "Okay",     4: "Low",      5: "Very Low" };
+const ENERGY_LABELS  = { 1: "Full",       2: "Good",    3: "Low",      4: "Drained",  5: "Exhausted" };
+const ANXIETY_LABELS = { 1: "Calm",       2: "Mild",    3: "Moderate", 4: "High",     5: "Severe" };
+
+function LevelButtons({ labels, selected, onSelect }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 w-full">
+      {[1, 2, 3, 4].map((level) => (
+        <button
+          key={level}
+          onClick={() => onSelect(level)}
+          className="py-4 rounded-2xl text-white font-medium transition-all duration-200 hover:scale-105"
+          style={{
+            background: selected === level ? "white" : "rgba(255,255,255,0.18)",
+            color: selected === level ? "#7C6BAE" : "white",
+            border: "1px solid rgba(255,255,255,0.35)",
+          }}
+        >
+          {labels[level]}
+        </button>
+      ))}
+      <button
+        onClick={() => onSelect(5)}
+        className="col-span-2 py-4 rounded-2xl text-white font-medium transition-all duration-200 hover:scale-105"
+        style={{
+          background: selected === 5 ? "white" : "rgba(255,255,255,0.18)",
+          color: selected === 5 ? "#7C6BAE" : "white",
+          border: "1px solid rgba(255,255,255,0.35)",
+        }}
+      >
+        {labels[5]}
+      </button>
+    </div>
+  );
+}
+
+function ReviewRow({ label, value, labels, onEdit }) {
+  return (
+    <div
+      className="w-full p-3 rounded-2xl text-center relative"
+      style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
+    >
+      <p className="text-white/60 text-xs mb-1">{label}</p>
+      <p className="text-white font-medium">{labels[value]}</p>
+      <button
+        onClick={onEdit}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
+      >
+        <FiEdit2 size={14} />
+      </button>
+    </div>
+  );
+}
+
 function CheckInModal({ onClose, onComplete }) {
   const [step, setStep] = useState(1);
   const [painLevel, setPainLevel] = useState(null);
   const [moodLevel, setMoodLevel] = useState(null);
   const [energyLevel, setEnergyLevel] = useState(null);
+  const [anxietyLevel, setAnxietyLevel] = useState(null);
+  const [symptoms, setSymptoms] = useState([]);
   const [error, setError] = useState("");
   const [affirmation] = useState(() => AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)]);
 
   const { token } = useAuth();
+
+  const toggleSymptom = (s) =>
+    setSymptoms((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
 
   const handleSubmit = async () => {
     try {
       const today = new Date().toLocaleDateString("en-CA");
       await axios.post(
         `${import.meta.env.VITE_API_URL}/api/checkins`,
-        { painLevel, moodLevel, energyLevel, date: today },
+        {
+          painLevel,
+          moodLevel,
+          energyLevel,
+          anxietyLevel,
+          symptoms: symptoms.length > 0 ? symptoms : null,
+          date: today,
+        },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      setStep(4);
-    } catch (error) {
-      setError(
-        error.response?.data?.error ||
-          "Something went wrong. Please try again.",
-      );
+      setStep(7);
+    } catch (err) {
+      setError(err.response?.data?.error || "Something went wrong. Please try again.");
     }
   };
 
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden"
-      style={{
-        background:
-          "linear-gradient(160deg, #7C6BAE 0%, #9B8EC4 55%, #C4A8C0 100%)",
-      }}
+      style={{ background: "linear-gradient(160deg, #7C6BAE 0%, #9B8EC4 55%, #C4A8C0 100%)" }}
     >
-      <div
-        className="absolute rounded-full opacity-30"
-        style={{
-          width: "200px",
-          height: "200px",
-          background: "#5C4E8A",
-          filter: "blur(60px)",
-          top: "-50px",
-          left: "-50px",
-        }}
-      />
-      <div
-        className="absolute rounded-full opacity-30"
-        style={{
-          width: "150px",
-          height: "150px",
-          background: "#DEC8DA",
-          filter: "blur(50px)",
-          top: "50px",
-          right: "-30px",
-        }}
-      />
-      <div
-        className="absolute rounded-full opacity-30"
-        style={{
-          width: "180px",
-          height: "180px",
-          background: "#9B8EC4",
-          filter: "blur(55px)",
-          bottom: "80px",
-          left: "20px",
-        }}
-      />
-      <div
-        className="absolute rounded-full opacity-30"
-        style={{
-          width: "130px",
-          height: "130px",
-          background: "#C4A8C0",
-          filter: "blur(45px)",
-          bottom: "-20px",
-          right: "40px",
-        }}
-      />
+      <div className="absolute rounded-full opacity-30" style={{ width: "200px", height: "200px", background: "#5C4E8A", filter: "blur(60px)", top: "-50px", left: "-50px" }} />
+      <div className="absolute rounded-full opacity-30" style={{ width: "150px", height: "150px", background: "#DEC8DA", filter: "blur(50px)", top: "50px", right: "-30px" }} />
+      <div className="absolute rounded-full opacity-30" style={{ width: "180px", height: "180px", background: "#9B8EC4", filter: "blur(55px)", bottom: "80px", left: "20px" }} />
+      <div className="absolute rounded-full opacity-30" style={{ width: "130px", height: "130px", background: "#C4A8C0", filter: "blur(45px)", bottom: "-20px", right: "40px" }} />
 
       <div className="relative z-10 flex flex-col items-center gap-6 w-full max-w-sm px-6">
-        {/* Step 1 - Pain */}
+
+        {/* Step 1 — Pain */}
         {step === 1 && (
           <div className="flex flex-col items-center gap-6 w-full">
-            <p
-              className="text-white text-2xl font-medium text-center"
-              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-            >
+            <p className="text-white text-2xl font-medium text-center" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
               How is your pain today?
             </p>
-            <div className="grid grid-cols-2 gap-3 w-full">
-              {[1, 2, 3, 4].map((level) => (
-                <button
-                  key={level}
-                  onClick={() => {
-                    setPainLevel(level);
-                    setMoodLevel(null);
-                    setEnergyLevel(null);
-                    setStep(2);
-                  }}
-                  className="py-4 rounded-2xl text-white font-medium transition-all duration-200 hover:scale-105"
-                  style={{
-                    background:
-                      painLevel === level ? "white" : "rgba(255,255,255,0.18)",
-                    color: painLevel === level ? "#7C6BAE" : "white",
-                    border: "1px solid rgba(255,255,255,0.35)",
-                  }}
-                >
-                  {level === 1
-                    ? "Very Light"
-                    : level === 2
-                      ? "Light"
-                      : level === 3
-                        ? "Moderate"
-                        : "Severe"}
-                </button>
-              ))}
-              <button
-                onClick={() => {
-                  setPainLevel(5);
-                  setMoodLevel(null);
-                  setEnergyLevel(null);
-                  setStep(2);
-                }}
-                className="col-span-2 py-4 rounded-2xl text-white font-medium transition-all duration-200 hover:scale-105"
-                style={{
-                  background:
-                    painLevel === 5 ? "white" : "rgba(255,255,255,0.18)",
-                  color: painLevel === 5 ? "#7C6BAE" : "white",
-                  border: "1px solid rgba(255,255,255,0.35)",
-                }}
-              >
-                Very Severe
-              </button>
-            </div>
+            <LevelButtons
+              labels={PAIN_LABELS}
+              selected={painLevel}
+              onSelect={(level) => {
+                setPainLevel(level);
+                setMoodLevel(null);
+                setEnergyLevel(null);
+                setAnxietyLevel(null);
+                setSymptoms([]);
+                setStep(2);
+              }}
+            />
           </div>
         )}
 
-        {/* Step 2 - Mood */}
+        {/* Step 2 — Mood */}
         {step === 2 && (
           <div className="flex flex-col items-center gap-6 w-full">
-            <p
-              className="text-white text-2xl font-medium text-center"
-              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-            >
+            <p className="text-white text-2xl font-medium text-center" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
               How is your mood today?
             </p>
-            <div className="grid grid-cols-2 gap-3 w-full">
-              {[1, 2, 3, 4].map((level) => (
-                <button
-                  key={level}
-                  onClick={() => {
-                    setMoodLevel(level);
-                    setStep(3);
-                  }}
-                  className="py-4 rounded-2xl text-white font-medium transition-all duration-200 hover:scale-105"
-                  style={{
-                    background: "rgba(255,255,255,0.18)",
-                    border: "1px solid rgba(255,255,255,0.35)",
-                  }}
-                >
-                  {level === 1
-                    ? "Great"
-                    : level === 2
-                      ? "Good"
-                      : level === 3
-                        ? "Okay"
-                        : "Low"}
-                </button>
-              ))}
-              <button
-                onClick={() => {
-                  setMoodLevel(5);
-                  setStep(3);
-                }}
-                className="col-span-2 py-4 rounded-2xl text-white font-medium transition-all duration-200 hover:scale-105"
-                style={{
-                  background: "rgba(255,255,255,0.18)",
-                  border: "1px solid rgba(255,255,255,0.35)",
-                }}
-              >
-                Very Low
-              </button>
-            </div>
+            <LevelButtons
+              labels={MOOD_LABELS}
+              selected={moodLevel}
+              onSelect={(level) => {
+                setMoodLevel(level);
+                setEnergyLevel(null);
+                setAnxietyLevel(null);
+                setSymptoms([]);
+                setStep(3);
+              }}
+            />
           </div>
         )}
 
-        {/* Step 3 - Energy */}
+        {/* Step 3 — Energy */}
         {step === 3 && (
           <div className="flex flex-col items-center gap-6 w-full">
-            <p
-              className="text-white text-2xl font-medium text-center"
-              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-            >
+            <p className="text-white text-2xl font-medium text-center" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
               How is your energy today?
             </p>
-            {!energyLevel ? (
-              <div className="grid grid-cols-2 gap-3 w-full">
-                {[1, 2, 3, 4].map((level) => (
-                  <button
-                    key={level}
-                    onClick={() => setEnergyLevel(level)}
-                    className="py-4 rounded-2xl text-white font-medium transition-all duration-200 hover:scale-105"
-                    style={{
-                      background: "rgba(255,255,255,0.18)",
-                      border: "1px solid rgba(255,255,255,0.35)",
-                    }}
-                  >
-                    {level === 1
-                      ? "Full"
-                      : level === 2
-                        ? "Good"
-                        : level === 3
-                          ? "Low"
-                          : "Drained"}
-                  </button>
-                ))}
+            <LevelButtons
+              labels={ENERGY_LABELS}
+              selected={energyLevel}
+              onSelect={(level) => {
+                setEnergyLevel(level);
+                setAnxietyLevel(null);
+                setSymptoms([]);
+                setStep(4);
+              }}
+            />
+          </div>
+        )}
+
+        {/* Step 4 — Anxiety */}
+        {step === 4 && (
+          <div className="flex flex-col items-center gap-6 w-full">
+            <p className="text-white text-2xl font-medium text-center" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
+              How is your anxiety today?
+            </p>
+            <LevelButtons
+              labels={ANXIETY_LABELS}
+              selected={anxietyLevel}
+              onSelect={(level) => {
+                setAnxietyLevel(level);
+                setSymptoms([]);
+                setStep(5);
+              }}
+            />
+          </div>
+        )}
+
+        {/* Step 5 — Symptoms */}
+        {step === 5 && (
+          <div className="flex flex-col items-center gap-6 w-full">
+            <p className="text-white text-2xl font-medium text-center" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
+              Any symptoms today?
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {SYMPTOM_LIST.map((s) => (
                 <button
-                  onClick={() => setEnergyLevel(5)}
-                  className="col-span-2 py-4 rounded-2xl text-white font-medium transition-all duration-200 hover:scale-105"
+                  key={s}
+                  onClick={() => toggleSymptom(s)}
+                  className="px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105"
                   style={{
-                    background: "rgba(255,255,255,0.18)",
+                    background: symptoms.includes(s) ? "white" : "rgba(255,255,255,0.18)",
+                    color: symptoms.includes(s) ? "#7C6BAE" : "white",
                     border: "1px solid rgba(255,255,255,0.35)",
                   }}
                 >
-                  Exhausted
+                  {s}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setStep(6)}
+              className="w-full py-3 rounded-full bg-white font-medium hover:scale-105 transition-all duration-200 shockwave-btn"
+              style={{ color: "#7C6BAE" }}
+            >
+              {symptoms.length > 0 ? "Continue" : "Skip"}
+            </button>
+          </div>
+        )}
+
+        {/* Step 6 — Review & Submit */}
+        {step === 6 && (
+          <div className="flex flex-col gap-3 w-full">
+            <ReviewRow label="Pain level"    value={painLevel}    labels={PAIN_LABELS}    onEdit={() => { setPainLevel(null);    setMoodLevel(null); setEnergyLevel(null); setAnxietyLevel(null); setSymptoms([]); setStep(1); }} />
+            <ReviewRow label="Mood level"    value={moodLevel}    labels={MOOD_LABELS}    onEdit={() => { setMoodLevel(null);    setEnergyLevel(null); setAnxietyLevel(null); setSymptoms([]); setStep(2); }} />
+            <ReviewRow label="Energy level"  value={energyLevel}  labels={ENERGY_LABELS}  onEdit={() => { setEnergyLevel(null);  setAnxietyLevel(null); setSymptoms([]); setStep(3); }} />
+            <ReviewRow label="Anxiety level" value={anxietyLevel} labels={ANXIETY_LABELS} onEdit={() => { setAnxietyLevel(null); setSymptoms([]); setStep(4); }} />
+            {symptoms.length > 0 ? (
+              <div
+                className="w-full p-3 rounded-2xl relative"
+                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
+              >
+                <p className="text-white/60 text-xs mb-2">Symptoms</p>
+                <div className="flex flex-wrap gap-1">
+                  {symptoms.map((s) => (
+                    <span key={s} className="text-xs px-2 py-1 rounded-full text-white" style={{ background: "rgba(255,255,255,0.25)" }}>
+                      {s}
+                    </span>
+                  ))}
+                </div>
+                <button
+                  onClick={() => { setSymptoms([]); setStep(5); }}
+                  className="absolute right-3 top-3 text-white/50 hover:text-white transition-colors"
+                >
+                  <FiEdit2 size={14} />
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col gap-3 w-full">
-                <div
-                  className="w-full p-3 rounded-2xl text-center relative"
-                  style={{
-                    background: "rgba(255,255,255,0.15)",
-                    border: "1px solid rgba(255,255,255,0.3)",
-                  }}
-                >
-                  <p className="text-white/60 text-xs mb-1">Pain level</p>
-                  <p className="text-white font-medium">
-                    {painLevel === 1
-                      ? "Very Light"
-                      : painLevel === 2
-                        ? "Light"
-                        : painLevel === 3
-                          ? "Moderate"
-                          : painLevel === 4
-                            ? "Severe"
-                            : "Very Severe"}
-                  </p>
-                  <button
-                    onClick={() => {
-                      setPainLevel(null);
-                      setMoodLevel(null);
-                      setEnergyLevel(null);
-                      setStep(1);
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
-                  >
-                    <FiEdit2 size={14} />
-                  </button>
-                </div>
-                <div
-                  className="w-full p-3 rounded-2xl text-center relative"
-                  style={{
-                    background: "rgba(255,255,255,0.15)",
-                    border: "1px solid rgba(255,255,255,0.3)",
-                  }}
-                >
-                  <p className="text-white/60 text-xs mb-1">Mood level</p>
-                  <p className="text-white font-medium">
-                    {moodLevel === 1
-                      ? "Great"
-                      : moodLevel === 2
-                        ? "Good"
-                        : moodLevel === 3
-                          ? "Okay"
-                          : moodLevel === 4
-                            ? "Low"
-                            : "Very Low"}
-                  </p>
-                  <button
-                    onClick={() => {
-                      setMoodLevel(null);
-                      setEnergyLevel(null);
-                      setStep(2);
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
-                  >
-                    <FiEdit2 size={14} />
-                  </button>
-                </div>
-                <div
-                  className="w-full p-3 rounded-2xl text-center relative"
-                  style={{
-                    background: "rgba(255,255,255,0.15)",
-                    border: "1px solid rgba(255,255,255,0.3)",
-                  }}
-                >
-                  <p className="text-white/60 text-xs mb-1">Energy level</p>
-                  <p className="text-white font-medium">
-                    {energyLevel === 1
-                      ? "Full"
-                      : energyLevel === 2
-                        ? "Good"
-                        : energyLevel === 3
-                          ? "Low"
-                          : energyLevel === 4
-                            ? "Drained"
-                            : "Exhausted"}
-                  </p>
-                  <button
-                    onClick={() => setEnergyLevel(null)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
-                  >
-                    <FiEdit2 size={14} />
-                  </button>
-                </div>
-                <button
-                  onClick={handleSubmit}
-                  className="w-full py-3 rounded-full bg-white font-medium hover:scale-105 transition-all duration-200 shockwave-btn"
-                  style={{ color: "#7C6BAE" }}
-                >
-                  Submit Check-in
-                </button>
-                {error && (
-                  <p className="text-red-200 text-xs text-center">{error}</p>
-                )}
-              </div>
+              <button
+                onClick={() => setStep(5)}
+                className="text-white/50 text-xs hover:text-white/80 transition-colors text-center"
+              >
+                + add symptoms
+              </button>
             )}
+            <button
+              onClick={handleSubmit}
+              className="w-full py-3 rounded-full bg-white font-medium hover:scale-105 transition-all duration-200 shockwave-btn"
+              style={{ color: "#7C6BAE" }}
+            >
+              Submit Check-in
+            </button>
+            {error && <p className="text-red-200 text-xs text-center">{error}</p>}
           </div>
         )}
 
-        {/* Step 4 - Celebration */}
-        {step === 4 && (
+        {/* Step 7 — Celebration */}
+        {step === 7 && (
           <div className="flex flex-col items-center gap-6 text-center">
-            <p
-              className="text-white text-3xl font-medium"
-              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-            >
+            <p className="text-white text-3xl font-medium" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
               {affirmation.title}
             </p>
-            <p className="text-white/80 text-sm">
-              {affirmation.message}
-            </p>
+            <p className="text-white/80 text-sm">{affirmation.message}</p>
             <button
               onClick={() => onComplete()}
               className="px-8 py-3 rounded-full bg-white font-medium hover:scale-105 transition-all duration-200"
@@ -372,7 +299,7 @@ function CheckInModal({ onClose, onComplete }) {
           </div>
         )}
 
-        {step !== 4 && (
+        {step !== 7 && (
           <button
             onClick={onClose}
             className="text-white/50 text-xs hover:text-white/80 transition-colors mt-4"

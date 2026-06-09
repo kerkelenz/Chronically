@@ -5,7 +5,7 @@ const CheckIn = require("../models/CheckIn");
 const createCheckIn = async (req, res) => {
   try {
     // pull the check-in data out of the request body
-    const { painLevel, moodLevel, energyLevel, followUpData, date } = req.body;
+    const { painLevel, moodLevel, energyLevel, anxietyLevel, symptoms, followUpData, date } = req.body;
 
     // pain and mood are required - can't save a check-in without them
     if (!painLevel || !moodLevel) {
@@ -14,15 +14,13 @@ const createCheckIn = async (req, res) => {
         .json({ error: "Pain level and mood level are required" });
     }
 
-    // create the check-in in the database
-    // req.user.id comes from the JWT middleware - it tells us who's logged in
-    // followUpData and date are optional so we fall back to safe defaults if they're missing
-    // added energyLevel
     const checkIn = await CheckIn.create({
       userId: req.user.id,
       painLevel,
       moodLevel,
       energyLevel: energyLevel || null,
+      anxietyLevel: anxietyLevel || null,
+      symptoms: symptoms || null,
       date: date || new Date(),
       followUpData: followUpData || null,
     });
@@ -79,12 +77,14 @@ const updateCheckIn = async (req, res) => {
     }
 
     // grab whatever fields the user wants to update from the request body
-    const { painLevel, moodLevel, energyLevel, followUpData } = req.body;
+    const { painLevel, moodLevel, energyLevel, anxietyLevel, symptoms, followUpData } = req.body;
 
     await checkIn.update({
       painLevel: painLevel || checkIn.painLevel,
       moodLevel: moodLevel || checkIn.moodLevel,
-      energyLevel: energyLevel || checkIn.energyLevel,
+      energyLevel: energyLevel !== undefined ? energyLevel : checkIn.energyLevel,
+      anxietyLevel: anxietyLevel !== undefined ? anxietyLevel : checkIn.anxietyLevel,
+      symptoms: symptoms !== undefined ? symptoms : checkIn.symptoms,
       followUpData: followUpData || checkIn.followUpData,
     });
 

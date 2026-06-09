@@ -39,6 +39,7 @@ function DashboardPage() {
           pain: 6 - c.painLevel,
           mood: 6 - c.moodLevel,
           energy: c.energyLevel ? 6 - c.energyLevel : null,
+          anxiety: c.anxietyLevel ? 6 - c.anxietyLevel : null,
         }));
     }
 
@@ -51,15 +52,16 @@ function DashboardPage() {
       .filter((c) => c.date >= cutoffStr)
       .forEach((c) => {
         if (!byDate[c.date])
-          byDate[c.date] = { pains: [], moods: [], energies: [] };
+          byDate[c.date] = { pains: [], moods: [], energies: [], anxieties: [] };
         byDate[c.date].pains.push(c.painLevel);
         byDate[c.date].moods.push(c.moodLevel);
         if (c.energyLevel) byDate[c.date].energies.push(c.energyLevel);
+        if (c.anxietyLevel) byDate[c.date].anxieties.push(c.anxietyLevel);
       });
 
     return Object.entries(byDate)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, { pains, moods, energies }]) => ({
+      .map(([date, { pains, moods, energies, anxieties }]) => ({
         date,
         pain: parseFloat(
           (6 - pains.reduce((s, v) => s + v, 0) / pains.length).toFixed(1),
@@ -68,12 +70,10 @@ function DashboardPage() {
           (6 - moods.reduce((s, v) => s + v, 0) / moods.length).toFixed(1),
         ),
         energy: energies.length
-          ? parseFloat(
-              (
-                6 -
-                energies.reduce((s, v) => s + v, 0) / energies.length
-              ).toFixed(1),
-            )
+          ? parseFloat((6 - energies.reduce((s, v) => s + v, 0) / energies.length).toFixed(1))
+          : null,
+        anxiety: anxieties.length
+          ? parseFloat((6 - anxieties.reduce((s, v) => s + v, 0) / anxieties.length).toFixed(1))
           : null,
       }));
   };
@@ -91,11 +91,11 @@ function DashboardPage() {
     }
   };
 
-  const handleUpdate = async (id, painLevel, moodLevel, energyLevel) => {
+  const handleUpdate = async (id, painLevel, moodLevel, energyLevel, anxietyLevel) => {
     try {
       const response = await axios.put(
         `${import.meta.env.VITE_API_URL}/api/checkins/${id}`,
-        { painLevel, moodLevel, energyLevel },
+        { painLevel, moodLevel, energyLevel, anxietyLevel },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       setCheckIns(
@@ -230,80 +230,43 @@ function DashboardPage() {
         {checkIns.length > 0 && (
           <div className="flex flex-col gap-4">
             {/* stat cards */}
-            <div className="grid grid-cols-3 gap-3">
-              <div
-                className="p-4 rounded-2xl"
-                style={{ background: "white", border: "1px solid #DDD5EE" }}
-              >
-                <p className="text-xs" style={{ color: "#6B5F7A" }}>
-                  Avg pain
-                </p>
-                <p
-                  className="text-2xl font-medium mt-1"
-                  style={{ color: "#2D2540" }}
-                >
-                  {checkIns.length > 0
-                    ? (
-                        6 -
-                        checkIns.reduce((sum, c) => sum + c.painLevel, 0) /
-                          checkIns.length
-                      ).toFixed(1)
-                    : "-"}
-                </p>
-                <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>
-                  last {checkIns.length}{" "}
-                  {checkIns.length === 1 ? "day" : "days"}
-                </p>
-              </div>
-              <div
-                className="p-4 rounded-2xl"
-                style={{ background: "white", border: "1px solid #DDD5EE" }}
-              >
-                <p className="text-xs" style={{ color: "#6B5F7A" }}>
-                  Avg mood
-                </p>
-                <p
-                  className="text-2xl font-medium mt-1"
-                  style={{ color: "#2D2540" }}
-                >
-                  {checkIns.length > 0
-                    ? (
-                        6 -
-                        checkIns.reduce((sum, c) => sum + c.moodLevel, 0) /
-                          checkIns.length
-                      ).toFixed(1)
-                    : "-"}
-                </p>
-                <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>
-                  last {checkIns.length}{" "}
-                  {checkIns.length === 1 ? "day" : "days"}
-                </p>
-              </div>
-              <div
-                className="p-4 rounded-2xl"
-                style={{ background: "white", border: "1px solid #DDD5EE" }}
-              >
-                <p className="text-xs" style={{ color: "#6B5F7A" }}>
-                  Avg energy
-                </p>
-                <p
-                  className="text-2xl font-medium mt-1"
-                  style={{ color: "#2D2540" }}
-                >
-                  {checkIns.filter((c) => c.energyLevel).length > 0
-                    ? (
-                        6 -
-                        checkIns
-                          .filter((c) => c.energyLevel)
-                          .reduce((sum, c) => sum + c.energyLevel, 0) /
-                          checkIns.filter((c) => c.energyLevel).length
-                      ).toFixed(1)
-                    : "-"}
-                </p>
-                <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>
-                  last {checkIns.filter((c) => c.energyLevel).length} days
-                </p>
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                {
+                  label: "Avg pain",
+                  value: checkIns.length > 0
+                    ? (6 - checkIns.reduce((s, c) => s + c.painLevel, 0) / checkIns.length).toFixed(1)
+                    : "-",
+                  count: checkIns.length,
+                },
+                {
+                  label: "Avg mood",
+                  value: checkIns.length > 0
+                    ? (6 - checkIns.reduce((s, c) => s + c.moodLevel, 0) / checkIns.length).toFixed(1)
+                    : "-",
+                  count: checkIns.length,
+                },
+                {
+                  label: "Avg energy",
+                  value: checkIns.filter((c) => c.energyLevel).length > 0
+                    ? (6 - checkIns.filter((c) => c.energyLevel).reduce((s, c) => s + c.energyLevel, 0) / checkIns.filter((c) => c.energyLevel).length).toFixed(1)
+                    : "-",
+                  count: checkIns.filter((c) => c.energyLevel).length,
+                },
+                {
+                  label: "Avg anxiety",
+                  value: checkIns.filter((c) => c.anxietyLevel).length > 0
+                    ? (6 - checkIns.filter((c) => c.anxietyLevel).reduce((s, c) => s + c.anxietyLevel, 0) / checkIns.filter((c) => c.anxietyLevel).length).toFixed(1)
+                    : "-",
+                  count: checkIns.filter((c) => c.anxietyLevel).length,
+                },
+              ].map(({ label, value, count }) => (
+                <div key={label} className="p-4 rounded-2xl" style={{ background: "white", border: "1px solid #DDD5EE" }}>
+                  <p className="text-xs" style={{ color: "#6B5F7A" }}>{label}</p>
+                  <p className="text-2xl font-medium mt-1" style={{ color: "#2D2540" }}>{value}</p>
+                  <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>last {count} {count === 1 ? "entry" : "entries"}</p>
+                </div>
+              ))}
             </div>
 
             {/* correlation graph */}
@@ -313,7 +276,7 @@ function DashboardPage() {
             >
               <div className="flex justify-between items-center mb-4">
                 <p className="text-sm font-medium" style={{ color: "#2D2540" }}>
-                  Pain · Mood · Energy
+                  Pain · Mood · Energy · Anxiety
                 </p>
                 <div className="flex gap-2">
                   {[
@@ -373,6 +336,13 @@ function DashboardPage() {
                     strokeWidth={2}
                     dot={false}
                   />
+                  <Line
+                    type="monotone"
+                    dataKey="anxiety"
+                    stroke="#C4A882"
+                    strokeWidth={2}
+                    dot={false}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -395,17 +365,22 @@ function DashboardPage() {
                     className="flex justify-between items-center p-3 rounded-xl"
                     style={{ background: "#F0EBF8" }}
                   >
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-xs" style={{ color: "#6B5F7A" }}>
                         {c.date} · {new Date(c.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </p>
-                      <p
-                        className="text-sm font-medium"
-                        style={{ color: "#2D2540" }}
-                      >
-                        Pain: {6 - c.painLevel} · Mood: {6 - c.moodLevel} ·
-                        Energy: {c.energyLevel ? 6 - c.energyLevel : "-"}
+                      <p className="text-sm font-medium" style={{ color: "#2D2540" }}>
+                        Pain: {6 - c.painLevel} · Mood: {6 - c.moodLevel} · Energy: {c.energyLevel ? 6 - c.energyLevel : "-"} · Anxiety: {c.anxietyLevel ? 6 - c.anxietyLevel : "-"}
                       </p>
+                      {c.symptoms && c.symptoms.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {c.symptoms.map((s) => (
+                            <span key={s} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#EDE8F5", color: "#7C6BAE" }}>
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     {c.date === checkIns[0].date && (
                       <div className="flex gap-2">
@@ -534,22 +509,37 @@ function DashboardPage() {
                 ].map(([level, label]) => (
                   <button
                     key={level}
-                    onClick={() =>
-                      setEditingCheckIn({
-                        ...editingCheckIn,
-                        energyLevel: level,
-                      })
-                    }
+                    onClick={() => setEditingCheckIn({ ...editingCheckIn, energyLevel: level })}
                     className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200"
                     style={{
-                      background:
-                        editingCheckIn.energyLevel === level
-                          ? "#7C6BAE"
-                          : "#F0EBF8",
-                      color:
-                        editingCheckIn.energyLevel === level
-                          ? "white"
-                          : "#6B5F7A",
+                      background: editingCheckIn.energyLevel === level ? "#7C6BAE" : "#F0EBF8",
+                      color: editingCheckIn.energyLevel === level ? "white" : "#6B5F7A",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>
+                Anxiety level
+              </p>
+              <div className="flex gap-2">
+                {[
+                  [1, "Calm"],
+                  [2, "Mild"],
+                  [3, "Moderate"],
+                  [4, "High"],
+                  [5, "Severe"],
+                ].map(([level, label]) => (
+                  <button
+                    key={level}
+                    onClick={() => setEditingCheckIn({ ...editingCheckIn, anxietyLevel: level })}
+                    className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200"
+                    style={{
+                      background: editingCheckIn.anxietyLevel === level ? "#7C6BAE" : "#F0EBF8",
+                      color: editingCheckIn.anxietyLevel === level ? "white" : "#6B5F7A",
                     }}
                   >
                     {label}
@@ -572,6 +562,7 @@ function DashboardPage() {
                     editingCheckIn.painLevel,
                     editingCheckIn.moodLevel,
                     editingCheckIn.energyLevel,
+                    editingCheckIn.anxietyLevel,
                   )
                 }
                 className="flex-1 py-2 rounded-full text-sm text-white"

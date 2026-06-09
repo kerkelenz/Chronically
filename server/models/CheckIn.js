@@ -33,9 +33,17 @@ const CheckIn = sequelize.define("CheckIn", {
   },
   // follow-up answers vary depending on what the user selected for pain and mood
   // JSON lets us store whatever shape of data comes back without needing extra columns
+  anxietyLevel: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    validate: { min: 1, max: 5 },
+  },
+  symptoms: {
+    type: DataTypes.JSON,
+    allowNull: true,
+  },
   followUpData: {
     type: DataTypes.JSON,
-    // this one is optional because not every check-in will have follow-up answers
     allowNull: true,
   },
   // storing just the date without time - we only need to know which day the check-in was for
