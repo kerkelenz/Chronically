@@ -76,6 +76,7 @@ function DashboardPage() {
           mood: 6 - c.moodLevel,
           energy: c.energyLevel ? 6 - c.energyLevel : null,
           anxiety: c.anxietyLevel ? 6 - c.anxietyLevel : null,
+          appetite: c.appetiteLevel ? c.appetiteLevel : null,
         }));
     }
 
@@ -88,16 +89,17 @@ function DashboardPage() {
       .filter((c) => c.date >= cutoffStr)
       .forEach((c) => {
         if (!byDate[c.date])
-          byDate[c.date] = { pains: [], moods: [], energies: [], anxieties: [] };
+          byDate[c.date] = { pains: [], moods: [], energies: [], anxieties: [], appetites: [] };
         byDate[c.date].pains.push(c.painLevel);
         byDate[c.date].moods.push(c.moodLevel);
         if (c.energyLevel) byDate[c.date].energies.push(c.energyLevel);
         if (c.anxietyLevel) byDate[c.date].anxieties.push(c.anxietyLevel);
+        if (c.appetiteLevel) byDate[c.date].appetites.push(c.appetiteLevel);
       });
 
     return Object.entries(byDate)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, { pains, moods, energies, anxieties }]) => ({
+      .map(([date, { pains, moods, energies, anxieties, appetites }]) => ({
         date,
         pain: parseFloat(
           (6 - pains.reduce((s, v) => s + v, 0) / pains.length).toFixed(1),
@@ -110,6 +112,9 @@ function DashboardPage() {
           : null,
         anxiety: anxieties.length
           ? parseFloat((6 - anxieties.reduce((s, v) => s + v, 0) / anxieties.length).toFixed(1))
+          : null,
+        appetite: appetites.length
+          ? parseFloat((appetites.reduce((s, v) => s + v, 0) / appetites.length).toFixed(1))
           : null,
       }));
   };
@@ -127,11 +132,11 @@ function DashboardPage() {
     }
   };
 
-  const handleUpdate = async (id, painLevel, moodLevel, energyLevel, anxietyLevel) => {
+  const handleUpdate = async (id, painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel) => {
     try {
       const response = await axios.put(
         `${import.meta.env.VITE_API_URL}/api/checkins/${id}`,
-        { painLevel, moodLevel, energyLevel, anxietyLevel },
+        { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       setCheckIns(
@@ -269,30 +274,38 @@ function DashboardPage() {
             {(() => {
               const fourteenDaysAgo = new Date();
               fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-              const recent        = checkIns.filter((c) => new Date(c.date) >= fourteenDaysAgo);
-              const recentEnergy  = recent.filter((c) => c.energyLevel);
-              const recentAnxiety = recent.filter((c) => c.anxietyLevel);
-              const days        = [...new Set(recent.map((c) => c.date))].length;
-              const energyDays  = [...new Set(recentEnergy.map((c) => c.date))].length;
-              const anxietyDays = [...new Set(recentAnxiety.map((c) => c.date))].length;
-              const withSymptoms = recent.filter((c) => c.symptoms && c.symptoms.length > 0);
-              const symptomCounts = {};
-              withSymptoms.forEach((c) => c.symptoms.forEach((s) => { symptomCounts[s] = (symptomCounts[s] || 0) + 1; }));
-              const topSymptoms = Object.entries(symptomCounts)
-                .filter(([, n]) => n >= withSymptoms.length * 0.3)
-                .sort(([, a], [, b]) => b - a)
-                .slice(0, 3)
-                .map(([s]) => s);
+              const recent         = checkIns.filter((c) => new Date(c.date) >= fourteenDaysAgo);
+              const recentEnergy   = recent.filter((c) => c.energyLevel);
+              const recentAnxiety  = recent.filter((c) => c.anxietyLevel);
+              const recentAppetite = recent.filter((c) => c.appetiteLevel);
+              const days         = [...new Set(recent.map((c) => c.date))].length;
+              const energyDays   = [...new Set(recentEnergy.map((c) => c.date))].length;
+              const anxietyDays  = [...new Set(recentAnxiety.map((c) => c.date))].length;
+              const appetiteDays = [...new Set(recentAppetite.map((c) => c.date))].length;
+              const uniqueSymptomDays = [...new Set(
+                recent.filter((c) => c.symptoms && c.symptoms.length > 0).map((c) => c.date)
+              )].length;
+              const symptomDayCounts = {};
+              recent.filter((c) => c.symptoms && c.symptoms.length > 0).forEach((c) => {
+                c.symptoms.forEach((s) => {
+                  if (!symptomDayCounts[s]) symptomDayCounts[s] = new Set();
+                  symptomDayCounts[s].add(c.date);
+                });
+              });
+              const topSymptoms = Object.entries(symptomDayCounts)
+                .map(([s, dates]) => ({ s, n: dates.size }))
+                .filter(({ n }) => n >= uniqueSymptomDays * 0.3)
+                .sort((a, b) => b.n - a.n)
+                .slice(0, 5);
               return (
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     {
-                      label: "Avg energy",
-                      value: recentEnergy.length > 0
-                        ? (6 - recentEnergy.reduce((s, c) => s + c.energyLevel, 0) / recentEnergy.length).toFixed(1)
+                      label: "Avg pain",
+                      value: recent.length > 0
+                        ? (recent.reduce((s, c) => s + c.painLevel, 0) / recent.length).toFixed(1)
                         : "-",
-                      count: energyDays,
-                      icons: null,
+                      count: days,
                     },
                     {
                       label: "Avg mood",
@@ -300,15 +313,13 @@ function DashboardPage() {
                         ? (6 - recent.reduce((s, c) => s + c.moodLevel, 0) / recent.length).toFixed(1)
                         : "-",
                       count: days,
-                      icons: null,
                     },
                     {
-                      label: "Avg pain",
-                      value: recent.length > 0
-                        ? (recent.reduce((s, c) => s + c.painLevel, 0) / recent.length).toFixed(1)
+                      label: "Avg energy",
+                      value: recentEnergy.length > 0
+                        ? (6 - recentEnergy.reduce((s, c) => s + c.energyLevel, 0) / recentEnergy.length).toFixed(1)
                         : "-",
-                      count: days,
-                      icons: topSymptoms,
+                      count: energyDays,
                     },
                     {
                       label: "Avg anxiety",
@@ -316,29 +327,38 @@ function DashboardPage() {
                         ? (recentAnxiety.reduce((s, c) => s + c.anxietyLevel, 0) / recentAnxiety.length).toFixed(1)
                         : "-",
                       count: anxietyDays,
-                      icons: topSymptoms,
                     },
-                  ].map(({ label, value, count, icons }) => (
+                    {
+                      label: "Avg appetite",
+                      value: recentAppetite.length > 0
+                        ? (recentAppetite.reduce((s, c) => s + c.appetiteLevel, 0) / recentAppetite.length).toFixed(1)
+                        : "-",
+                      count: appetiteDays,
+                    },
+                  ].map(({ label, value, count }) => (
                     <div key={label} className="p-4 rounded-2xl" style={{ background: "white", border: "1px solid #DDD5EE" }}>
                       <p className="text-xs" style={{ color: "#6B5F7A" }}>{label}</p>
                       <p className="text-2xl font-medium mt-1" style={{ color: "#2D2540" }}>{value}</p>
                       <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>{count} {count === 1 ? "day" : "days"}</p>
-                      {icons && icons.length > 0 && (
-                        <div className="flex gap-1 mt-2">
-                          {icons.map((s) => (
-                            <div
-                              key={s}
-                              title={s}
-                              className="w-9 h-9 flex items-center justify-center rounded-full text-xl"
-                              style={{ background: "#F0EBF8", border: "1px solid #DDD5EE" }}
-                            >
-                              {SYMPTOM_ICONS[s]}
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   ))}
+                  {/* Common symptoms card */}
+                  <div className="p-4 rounded-2xl" style={{ background: "white", border: "1px solid #DDD5EE" }}>
+                    <p className="text-xs mb-3" style={{ color: "#6B5F7A" }}>Common symptoms</p>
+                    {topSymptoms.length > 0 ? (
+                      <div className="flex gap-3">
+                        {topSymptoms.slice(0, 3).map(({ s, n }) => (
+                          <div key={s} className="flex flex-col items-center gap-1">
+                            <span className="text-4xl leading-none">{SYMPTOM_ICONS[s]}</span>
+                            <span className="text-[9px] text-center leading-tight" style={{ color: "#6B5F7A" }}>{s}</span>
+                            <span className="text-[9px]" style={{ color: "#7FAF8A" }}>{n}d</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs" style={{ color: "#9B8EC4" }}>No symptoms logged recently</p>
+                    )}
+                  </div>
                 </div>
               );
             })()}
@@ -350,7 +370,7 @@ function DashboardPage() {
             >
               <div className="flex justify-between items-center mb-4">
                 <p className="text-sm font-medium" style={{ color: "#2D2540" }}>
-                  Energy · Mood · Pain · Anxiety
+                  Energy · Mood · Pain · Anxiety · Appetite
                 </p>
                 <div className="flex gap-2">
                   {[
@@ -420,6 +440,13 @@ function DashboardPage() {
                   <Line
                     type="monotone"
                     dataKey="anxiety"
+                    stroke="#9BAFC4"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="appetite"
                     stroke="#C4A882"
                     strokeWidth={2}
                     dot={false}
@@ -459,10 +486,11 @@ function DashboardPage() {
                           </p>
                           <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
                             {[
-                              { label: "Energy",  value: c.energyLevel  ? 6 - c.energyLevel  : null, colors: COLORS_BETTER },
-                              { label: "Mood",    value: 6 - c.moodLevel,                             colors: COLORS_BETTER },
-                              { label: "Pain",    value: c.painLevel,                                 colors: COLORS_WORSE },
-                              { label: "Anxiety", value: c.anxietyLevel ? c.anxietyLevel      : null, colors: COLORS_WORSE },
+                              { label: "Energy",   value: c.energyLevel   ? 6 - c.energyLevel   : null, colors: COLORS_BETTER },
+                              { label: "Mood",     value: 6 - c.moodLevel,                              colors: COLORS_BETTER },
+                              { label: "Pain",     value: c.painLevel,                                  colors: COLORS_WORSE },
+                              { label: "Anxiety",  value: c.anxietyLevel  ? c.anxietyLevel       : null, colors: COLORS_WORSE },
+                              { label: "Appetite", value: c.appetiteLevel ? c.appetiteLevel      : null, colors: COLORS_BETTER },
                             ].filter(({ value }) => value !== null).map(({ label, value, colors }) => (
                               <div key={label} className="flex items-center gap-1">
                                 <span className="text-[10px]" style={{ color: "#6B5F7A" }}>{label}</span>
@@ -647,6 +675,32 @@ function DashboardPage() {
                 ))}
               </div>
             </div>
+            <div>
+              <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>
+                Appetite level
+              </p>
+              <div className="flex gap-2">
+                {[
+                  [1, "None"],
+                  [2, "Poor"],
+                  [3, "Fair"],
+                  [4, "Good"],
+                  [5, "Great"],
+                ].map(([level, label]) => (
+                  <button
+                    key={level}
+                    onClick={() => setEditingCheckIn({ ...editingCheckIn, appetiteLevel: level })}
+                    className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200"
+                    style={{
+                      background: editingCheckIn.appetiteLevel === level ? "#7C6BAE" : "#F0EBF8",
+                      color: editingCheckIn.appetiteLevel === level ? "white" : "#6B5F7A",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setEditingCheckIn(null)}
@@ -663,6 +717,7 @@ function DashboardPage() {
                     editingCheckIn.moodLevel,
                     editingCheckIn.energyLevel,
                     editingCheckIn.anxietyLevel,
+                    editingCheckIn.appetiteLevel,
                   )
                 }
                 className="flex-1 py-2 rounded-full text-sm text-white"

@@ -27,6 +27,7 @@ const PAIN_LABELS    = { 1: "Very Light", 2: "Light",   3: "Moderate", 4: "Sever
 const MOOD_LABELS    = { 1: "Great",      2: "Good",    3: "Okay",     4: "Low",      5: "Very Low" };
 const ENERGY_LABELS  = { 1: "Full",       2: "Good",    3: "Low",      4: "Drained",  5: "Exhausted" };
 const ANXIETY_LABELS = { 1: "Calm",       2: "Mild",    3: "Moderate", 4: "High",     5: "Severe" };
+const APPETITE_LABELS = { 1: "None",      2: "Poor",    3: "Fair",     4: "Good",     5: "Great" };
 
 function LevelButtons({ labels, selected, onSelect }) {
   return (
@@ -84,6 +85,7 @@ function CheckInModal({ onClose, onComplete }) {
   const [moodLevel, setMoodLevel] = useState(null);
   const [energyLevel, setEnergyLevel] = useState(null);
   const [anxietyLevel, setAnxietyLevel] = useState(null);
+  const [appetiteLevel, setAppetiteLevel] = useState(null);
   const [symptoms, setSymptoms] = useState([]);
   const [error, setError] = useState("");
   const [affirmation] = useState(() => AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)]);
@@ -103,12 +105,13 @@ function CheckInModal({ onClose, onComplete }) {
           moodLevel,
           energyLevel,
           anxietyLevel,
+          appetiteLevel,
           symptoms: symptoms.length > 0 ? symptoms : null,
           date: today,
         },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      setStep(7);
+      setStep(8);
     } catch (err) {
       setError(err.response?.data?.error || "Something went wrong. Please try again.");
     }
@@ -140,6 +143,7 @@ function CheckInModal({ onClose, onComplete }) {
                 setMoodLevel(null);
                 setEnergyLevel(null);
                 setAnxietyLevel(null);
+                setAppetiteLevel(null);
                 setSymptoms([]);
                 setStep(2);
               }}
@@ -160,6 +164,7 @@ function CheckInModal({ onClose, onComplete }) {
                 setMoodLevel(level);
                 setEnergyLevel(null);
                 setAnxietyLevel(null);
+                setAppetiteLevel(null);
                 setSymptoms([]);
                 setStep(3);
               }}
@@ -179,6 +184,7 @@ function CheckInModal({ onClose, onComplete }) {
               onSelect={(level) => {
                 setEnergyLevel(level);
                 setAnxietyLevel(null);
+                setAppetiteLevel(null);
                 setSymptoms([]);
                 setStep(4);
               }}
@@ -197,6 +203,7 @@ function CheckInModal({ onClose, onComplete }) {
               selected={anxietyLevel}
               onSelect={(level) => {
                 setAnxietyLevel(level);
+                setAppetiteLevel(null);
                 setSymptoms([]);
                 setStep(5);
               }}
@@ -204,8 +211,26 @@ function CheckInModal({ onClose, onComplete }) {
           </div>
         )}
 
-        {/* Step 5 — Symptoms */}
+        {/* Step 5 — Appetite */}
         {step === 5 && (
+          <div className="flex flex-col items-center gap-6 w-full">
+            <p className="text-white text-2xl font-medium text-center" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
+              How is your appetite today?
+            </p>
+            <LevelButtons
+              labels={APPETITE_LABELS}
+              selected={appetiteLevel}
+              onSelect={(level) => {
+                setAppetiteLevel(level);
+                setSymptoms([]);
+                setStep(6);
+              }}
+            />
+          </div>
+        )}
+
+        {/* Step 6 — Symptoms */}
+        {step === 6 && (
           <div className="flex flex-col items-center gap-6 w-full">
             <p className="text-white text-2xl font-medium text-center" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
               Any symptoms today?
@@ -227,7 +252,7 @@ function CheckInModal({ onClose, onComplete }) {
               ))}
             </div>
             <button
-              onClick={() => setStep(6)}
+              onClick={() => setStep(7)}
               className="w-full py-3 rounded-full bg-white font-medium hover:scale-105 transition-all duration-200 shockwave-btn"
               style={{ color: "#7C6BAE" }}
             >
@@ -236,13 +261,14 @@ function CheckInModal({ onClose, onComplete }) {
           </div>
         )}
 
-        {/* Step 6 — Review & Submit */}
-        {step === 6 && (
+        {/* Step 7 — Review & Submit */}
+        {step === 7 && (
           <div className="flex flex-col gap-3 w-full">
-            <ReviewRow label="Pain level"    value={painLevel}    labels={PAIN_LABELS}    onEdit={() => { setPainLevel(null);    setMoodLevel(null); setEnergyLevel(null); setAnxietyLevel(null); setSymptoms([]); setStep(1); }} />
-            <ReviewRow label="Mood level"    value={moodLevel}    labels={MOOD_LABELS}    onEdit={() => { setMoodLevel(null);    setEnergyLevel(null); setAnxietyLevel(null); setSymptoms([]); setStep(2); }} />
-            <ReviewRow label="Energy level"  value={energyLevel}  labels={ENERGY_LABELS}  onEdit={() => { setEnergyLevel(null);  setAnxietyLevel(null); setSymptoms([]); setStep(3); }} />
-            <ReviewRow label="Anxiety level" value={anxietyLevel} labels={ANXIETY_LABELS} onEdit={() => { setAnxietyLevel(null); setSymptoms([]); setStep(4); }} />
+            <ReviewRow label="Pain level"     value={painLevel}     labels={PAIN_LABELS}     onEdit={() => { setPainLevel(null);     setMoodLevel(null); setEnergyLevel(null); setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(1); }} />
+            <ReviewRow label="Mood level"     value={moodLevel}     labels={MOOD_LABELS}     onEdit={() => { setMoodLevel(null);     setEnergyLevel(null); setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(2); }} />
+            <ReviewRow label="Energy level"   value={energyLevel}   labels={ENERGY_LABELS}   onEdit={() => { setEnergyLevel(null);   setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(3); }} />
+            <ReviewRow label="Anxiety level"  value={anxietyLevel}  labels={ANXIETY_LABELS}  onEdit={() => { setAnxietyLevel(null);  setAppetiteLevel(null); setSymptoms([]); setStep(4); }} />
+            <ReviewRow label="Appetite level" value={appetiteLevel} labels={APPETITE_LABELS} onEdit={() => { setAppetiteLevel(null); setSymptoms([]); setStep(5); }} />
             {symptoms.length > 0 ? (
               <div
                 className="w-full p-3 rounded-2xl relative"
@@ -257,7 +283,7 @@ function CheckInModal({ onClose, onComplete }) {
                   ))}
                 </div>
                 <button
-                  onClick={() => { setSymptoms([]); setStep(5); }}
+                  onClick={() => { setSymptoms([]); setStep(6); }}
                   className="absolute right-3 top-3 text-white/50 hover:text-white transition-colors"
                 >
                   <FiEdit2 size={14} />
@@ -265,7 +291,7 @@ function CheckInModal({ onClose, onComplete }) {
               </div>
             ) : (
               <button
-                onClick={() => setStep(5)}
+                onClick={() => setStep(6)}
                 className="text-white/50 text-xs hover:text-white/80 transition-colors text-center"
               >
                 + add symptoms
@@ -282,8 +308,8 @@ function CheckInModal({ onClose, onComplete }) {
           </div>
         )}
 
-        {/* Step 7 — Celebration */}
-        {step === 7 && (
+        {/* Step 8 — Celebration */}
+        {step === 8 && (
           <div className="flex flex-col items-center gap-6 text-center">
             <p className="text-white text-3xl font-medium" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
               {affirmation.title}
@@ -299,7 +325,7 @@ function CheckInModal({ onClose, onComplete }) {
           </div>
         )}
 
-        {step !== 7 && (
+        {step !== 8 && (
           <button
             onClick={onClose}
             className="text-white/50 text-xs hover:text-white/80 transition-colors mt-4"

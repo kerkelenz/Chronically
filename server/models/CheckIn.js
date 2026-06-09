@@ -38,6 +38,11 @@ const CheckIn = sequelize.define("CheckIn", {
     allowNull: true,
     validate: { min: 1, max: 5 },
   },
+  appetiteLevel: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    validate: { min: 1, max: 5 },
+  },
   symptoms: {
     type: DataTypes.JSON,
     allowNull: true,
