@@ -14,6 +14,17 @@ import {
 } from "recharts";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 
+const SYMPTOM_ICONS = {
+  "Fatigue":          "😴",
+  "Brain fog":        "🧠",
+  "Pain flare":       "⚡",
+  "Numbness":         "🤲",
+  "Spasticity":       "💫",
+  "Vision issues":    "👁️",
+  "Heat sensitivity": "🌡️",
+  "Balance issues":   "⚖️",
+};
+
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
 // mood/energy: more bars = better (red → green)
 const COLORS_BETTER = ["#E55A5A", "#E8934A", "#E8C84A", "#8DC65C", "#5AB87A"];
@@ -264,6 +275,15 @@ function DashboardPage() {
               const days        = [...new Set(recent.map((c) => c.date))].length;
               const energyDays  = [...new Set(recentEnergy.map((c) => c.date))].length;
               const anxietyDays = [...new Set(recentAnxiety.map((c) => c.date))].length;
+              const symptomCounts = {};
+              recent
+                .filter((c) => c.symptoms && c.symptoms.length > 0)
+                .forEach((c) => c.symptoms.forEach((s) => { symptomCounts[s] = (symptomCounts[s] || 0) + 1; }));
+              const topSymptoms = Object.entries(symptomCounts)
+                .filter(([, n]) => n >= 3)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 3)
+                .map(([s]) => s);
               return (
                 <div className="grid grid-cols-2 gap-3">
                   {[
@@ -273,6 +293,7 @@ function DashboardPage() {
                         ? (6 - recentEnergy.reduce((s, c) => s + c.energyLevel, 0) / recentEnergy.length).toFixed(1)
                         : "-",
                       count: energyDays,
+                      icons: null,
                     },
                     {
                       label: "Avg mood",
@@ -280,6 +301,7 @@ function DashboardPage() {
                         ? (6 - recent.reduce((s, c) => s + c.moodLevel, 0) / recent.length).toFixed(1)
                         : "-",
                       count: days,
+                      icons: null,
                     },
                     {
                       label: "Avg pain",
@@ -287,6 +309,7 @@ function DashboardPage() {
                         ? (recent.reduce((s, c) => s + c.painLevel, 0) / recent.length).toFixed(1)
                         : "-",
                       count: days,
+                      icons: topSymptoms,
                     },
                     {
                       label: "Avg anxiety",
@@ -294,12 +317,27 @@ function DashboardPage() {
                         ? (recentAnxiety.reduce((s, c) => s + c.anxietyLevel, 0) / recentAnxiety.length).toFixed(1)
                         : "-",
                       count: anxietyDays,
+                      icons: topSymptoms,
                     },
-                  ].map(({ label, value, count }) => (
+                  ].map(({ label, value, count, icons }) => (
                     <div key={label} className="p-4 rounded-2xl" style={{ background: "white", border: "1px solid #DDD5EE" }}>
                       <p className="text-xs" style={{ color: "#6B5F7A" }}>{label}</p>
                       <p className="text-2xl font-medium mt-1" style={{ color: "#2D2540" }}>{value}</p>
                       <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>{count} {count === 1 ? "day" : "days"}</p>
+                      {icons && icons.length > 0 && (
+                        <div className="flex gap-1 mt-2">
+                          {icons.map((s) => (
+                            <div
+                              key={s}
+                              title={s}
+                              className="w-9 h-9 flex items-center justify-center rounded-full text-xl"
+                              style={{ background: "#F0EBF8", border: "1px solid #DDD5EE" }}
+                            >
+                              {SYMPTOM_ICONS[s]}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -443,17 +481,15 @@ function DashboardPage() {
                             </div>
                           )}
                         </div>
-                        {c.id === todaysCheckIns[0].id && (
-                          <div className="flex gap-2">
-                            {Date.now() - new Date(c.createdAt).getTime() < 60 * 60 * 1000 && (
-                              <button
-                                onClick={() => setEditingCheckIn(c)}
-                                className="p-1 hover:opacity-70 transition-opacity"
-                                style={{ color: "#7C6BAE" }}
-                              >
-                                <FiEdit2 size={14} />
-                              </button>
-                            )}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEditingCheckIn(c)}
+                            className="p-1 hover:opacity-70 transition-opacity"
+                            style={{ color: "#7C6BAE" }}
+                          >
+                            <FiEdit2 size={14} />
+                          </button>
+                          {c.id === todaysCheckIns[0].id && (
                             <button
                               onClick={() => handleDelete(c.id)}
                               className="p-1 hover:opacity-70 transition-opacity"
@@ -461,8 +497,8 @@ function DashboardPage() {
                             >
                               <FiTrash2 size={14} />
                             </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
