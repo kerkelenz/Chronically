@@ -402,61 +402,72 @@ function DashboardPage() {
               >
                 Today's check-ins
               </p>
-              <div className="flex flex-col gap-2">
-                {checkIns.filter((c) => c.date === checkIns[0].date).map((c) => (
-                  <div
-                    key={c.id}
-                    className="flex justify-between items-center p-3 rounded-xl"
-                    style={{ background: "#F0EBF8" }}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs" style={{ color: "#6B5F7A" }}>
-                        {c.date} · {new Date(c.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </p>
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
-                        {[
-                          { label: "Energy",  value: c.energyLevel  ? 6 - c.energyLevel  : null, colors: COLORS_BETTER },
-                          { label: "Mood",    value: 6 - c.moodLevel,                             colors: COLORS_BETTER },
-                          { label: "Pain",    value: c.painLevel,                                 colors: COLORS_WORSE },
-                          { label: "Anxiety", value: c.anxietyLevel ? c.anxietyLevel      : null, colors: COLORS_WORSE },
-                        ].filter(({ value }) => value !== null).map(({ label, value, colors }) => (
-                          <div key={label} className="flex items-center gap-1">
-                            <span className="text-[10px]" style={{ color: "#6B5F7A" }}>{label}</span>
-                            <BarRating value={value} colors={colors} />
+              {(() => {
+                const today = new Date().toLocaleDateString("en-CA");
+                const todaysCheckIns = checkIns.filter((c) => c.date === today);
+                if (todaysCheckIns.length === 0) {
+                  return <p className="text-xs" style={{ color: "#9B8EC4" }}>No check-ins yet today</p>;
+                }
+                return (
+                  <div className="flex flex-col gap-2">
+                    {todaysCheckIns.map((c) => (
+                      <div
+                        key={c.id}
+                        className="flex justify-between items-center p-3 rounded-xl"
+                        style={{ background: "#F0EBF8" }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs" style={{ color: "#6B5F7A" }}>
+                            {new Date(c.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+                            {[
+                              { label: "Energy",  value: c.energyLevel  ? 6 - c.energyLevel  : null, colors: COLORS_BETTER },
+                              { label: "Mood",    value: 6 - c.moodLevel,                             colors: COLORS_BETTER },
+                              { label: "Pain",    value: c.painLevel,                                 colors: COLORS_WORSE },
+                              { label: "Anxiety", value: c.anxietyLevel ? c.anxietyLevel      : null, colors: COLORS_WORSE },
+                            ].filter(({ value }) => value !== null).map(({ label, value, colors }) => (
+                              <div key={label} className="flex items-center gap-1">
+                                <span className="text-[10px]" style={{ color: "#6B5F7A" }}>{label}</span>
+                                <BarRating value={value} colors={colors} />
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                      {c.symptoms && c.symptoms.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {c.symptoms.map((s) => (
-                            <span key={s} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#EDE8F5", color: "#7C6BAE" }}>
-                              {s}
-                            </span>
-                          ))}
+                          {c.symptoms && c.symptoms.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {c.symptoms.map((s) => (
+                                <span key={s} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#EDE8F5", color: "#7C6BAE" }}>
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    {c.date === checkIns[0].date && (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setEditingCheckIn(c)}
-                          className="p-1 hover:opacity-70 transition-opacity"
-                          style={{ color: "#7C6BAE" }}
-                        >
-                          <FiEdit2 size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(c.id)}
-                          className="p-1 hover:opacity-70 transition-opacity"
-                          style={{ color: "#B07088" }}
-                        >
-                          <FiTrash2 size={14} />
-                        </button>
+                        {c.id === todaysCheckIns[0].id && (
+                          <div className="flex gap-2">
+                            {Date.now() - new Date(c.createdAt).getTime() < 60 * 60 * 1000 && (
+                              <button
+                                onClick={() => setEditingCheckIn(c)}
+                                className="p-1 hover:opacity-70 transition-opacity"
+                                style={{ color: "#7C6BAE" }}
+                              >
+                                <FiEdit2 size={14} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDelete(c.id)}
+                              className="p-1 hover:opacity-70 transition-opacity"
+                              style={{ color: "#B07088" }}
+                            >
+                              <FiTrash2 size={14} />
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    )}
+                    ))}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
             </div>
           </div>
         )}
