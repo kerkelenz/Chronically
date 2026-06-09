@@ -14,10 +14,26 @@ import {
 } from "recharts";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 
-const PAIN_LABELS    = { 1: "Very Light", 2: "Light",   3: "Moderate", 4: "Severe",  5: "Very Severe" };
-const MOOD_LABELS    = { 1: "Great",      2: "Good",    3: "Okay",     4: "Low",     5: "Very Low" };
-const ENERGY_LABELS  = { 1: "Full",       2: "Good",    3: "Low",      4: "Drained", 5: "Exhausted" };
-const ANXIETY_LABELS = { 1: "Calm",       2: "Mild",    3: "Moderate", 4: "High",    5: "Severe" };
+const BAR_COLORS = ["#E55A5A", "#E8934A", "#E8C84A", "#8DC65C", "#5AB87A"];
+const BAR_HEIGHTS = [8, 10, 12, 14, 16];
+
+function BarRating({ value }) {
+  return (
+    <div className="flex items-end gap-0.5">
+      {BAR_COLORS.map((color, i) => (
+        <div
+          key={i}
+          style={{
+            width: "4px",
+            height: `${BAR_HEIGHTS[i]}px`,
+            borderRadius: "1px",
+            background: i < value ? color : "rgba(0,0,0,0.1)",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -374,9 +390,19 @@ function DashboardPage() {
                       <p className="text-xs" style={{ color: "#6B5F7A" }}>
                         {c.date} · {new Date(c.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </p>
-                      <p className="text-sm font-medium" style={{ color: "#2D2540" }}>
-                        Pain: {PAIN_LABELS[c.painLevel]} · Mood: {MOOD_LABELS[c.moodLevel]} · Energy: {c.energyLevel ? ENERGY_LABELS[c.energyLevel] : "-"} · Anxiety: {c.anxietyLevel ? ANXIETY_LABELS[c.anxietyLevel] : "-"}
-                      </p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+                        {[
+                          { label: "Pain",    value: 6 - c.painLevel },
+                          { label: "Mood",    value: 6 - c.moodLevel },
+                          { label: "Energy",  value: c.energyLevel  ? 6 - c.energyLevel  : null },
+                          { label: "Anxiety", value: c.anxietyLevel ? 6 - c.anxietyLevel : null },
+                        ].filter(({ value }) => value !== null).map(({ label, value }) => (
+                          <div key={label} className="flex items-center gap-1">
+                            <span className="text-[10px]" style={{ color: "#6B5F7A" }}>{label}</span>
+                            <BarRating value={value} />
+                          </div>
+                        ))}
+                      </div>
                       {c.symptoms && c.symptoms.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
                           {c.symptoms.map((s) => (
