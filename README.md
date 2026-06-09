@@ -2,7 +2,7 @@
 
 A daily health tracking app built for people living with chronic illness.
 
-Chronically helps users log their pain and mood through a simple button-based check-in, receive personalized encouragement based on their history, and view their trends over time.
+Chronically helps users log their pain, mood, energy, and anxiety through a simple step-by-step check-in, track symptoms over time, and spot patterns in their health data.
 
 Built for my girlfriend, who has multiple sclerosis. 💙
 
@@ -11,9 +11,6 @@ Built for my girlfriend, who has multiple sclerosis. 💙
 ---
 
 ## Screenshots
-
-<!-- Add your screenshots here -->
-<!-- Drag and drop images into this section or use the format below -->
 
 ![Landing Page](screenshots/landing.png)
 ![Dashboard](screenshots/dashboard.png)
@@ -25,74 +22,88 @@ Built for my girlfriend, who has multiple sclerosis. 💙
 
 ## What It Does
 
-Chronically is designed for people who deal with chronic illness every day.
-On a bad pain day, the last thing you want is a complicated app.
-Chronically keeps it simple:
+Chronically is designed for people who deal with chronic illness every day. On a bad pain day, the last thing you want is a complicated app. Chronically keeps it simple:
 
-- **Daily check-in** — rate your pain, mood, and energy through a
-  simple step-by-step flow, no typing required
-- **Trend tracking** — see how your pain, mood, and energy correlate
-  over time on a single graph, switchable between week, month, and 3 months
-- **Pattern awareness** — stat cards show your averages over time so
-  you can spot what's improving and what isn't
-- **Full data control** — edit or delete any past check-in if you
-  made a mistake
-- **Secure accounts** — your health data stays private and belongs
-  only to you
+- **Daily check-in** — rate your pain, mood, energy, and anxiety through a simple step-by-step flow, no typing required. Check in every 4 hours to track how you feel throughout the day
+- **Symptom tagging** — flag specific symptoms like fatigue, brain fog, pain flare, numbness, and more with a single tap
+- **Trend tracking** — see how all four metrics correlate over time on a single graph, switchable between day, week, and month views
+- **Pattern awareness** — stat cards show your 14-day averages with the most common symptoms surfaced automatically
+- **Full data control** — edit or delete check-ins, with all of today's entries visible at a glance
+- **Secure accounts** — your health data stays private and belongs only to you
 
 ---
 
 ## Features
 
-- User registration and login with secure password hashing
-- JWT authentication with session persistence across refreshes
-- Daily check-in flow — pain level, mood level, and energy level on a 1-5 scale
-- Full screen check-in modal with step-by-step flow
-- Edit and delete past check-ins
-- Pain, mood and energy correlation graph with weekly/monthly/3-month views
-- Average pain, mood and energy stat cards
-- User profile with editable username and email
-- Responsive design — works on mobile and desktop
+### Check-in
+- 7-step check-in flow: Pain → Mood → Energy → Anxiety → Symptoms → Review → Celebrate
+- All interactions are button taps — no typing required
+- Check in every 4 hours, multiple times per day
+- 12 rotating affirmation messages on the celebration screen, written for chronic illness users
+- Edit any of today's check-ins, delete only the most recent
+
+### Tracking
+- Pain, mood, energy, and anxiety on a 1-5 scale
+- Symptom tags: Fatigue, Brain fog, Pain flare, Numbness, Spasticity, Vision issues, Heat sensitivity, Balance issues
+- Visual bar ratings in history replacing plain numbers
+- Symptom emoji icons in history entries
+- Correlation graph with Day / Week / Month tabs
+- Y-axis labels: Good / Mid / Bad for easy reading
+- Stat cards showing 14-day averages with check-in count
+- Most common symptom icons on pain and anxiety cards (shown after 3+ occurrences)
+
+### Auth & Security
+- User registration with email verification
+- Login blocked until email is verified
+- Forgot/reset password via email (1-hour token link)
+- Email verification on email address changes
+- JWT authentication (30-day expiry)
+- 14-day inactivity timeout
+- BCrypt password hashing (10 salt rounds)
 - Protected routes — dashboard and profile require login
+- Rate limiting on auth routes
+
+### Email
+- All transactional emails sent from `noreply@mychronically.app`
+- Branded purple HTML templates via Resend
+- Verification, password reset, and email change flows
 
 ---
 
 ## Tech Stack
 
 **Frontend**
-
 - React (Vite)
 - React Router
 - Axios
 - DaisyUI (Tailwind CSS)
 - React Icons
 - Recharts
+- Google Fonts (Playfair Display + Lato)
 
 **Backend**
-
 - Node.js
 - Express
 - JWT (jsonwebtoken)
 - BCrypt
+- Resend (transactional email)
 
 **Database**
-
 - PostgreSQL
 - Sequelize ORM
 - Supabase (cloud hosting)
 
 **Security**
-
 - Helmet
 - CORS
 - express-rate-limit
 - DotEnv
 
 **Deployment**
-
 - Render (frontend + backend)
 - Supabase (PostgreSQL)
-- Custom domain via Dreamhost
+- Cloudflare DNS
+- Custom domain: mychronically.app
 
 ---
 
@@ -114,6 +125,8 @@ chronically/
 │       │   ├── LandingPage.jsx
 │       │   ├── LoginPage.jsx
 │       │   ├── RegisterPage.jsx
+│       │   ├── ForgotPasswordPage.jsx
+│       │   ├── ResetPasswordPage.jsx
 │       │   ├── DashboardPage.jsx
 │       │   └── ProfilePage.jsx
 │       └── utils/
@@ -143,9 +156,9 @@ chronically/
 ## Installation
 
 ### Prerequisites
-
 - Node.js v18+
 - PostgreSQL database (we use Supabase)
+- Resend account (for transactional email)
 
 ### 1. Clone the repository
 
@@ -182,6 +195,7 @@ PORT=3001
 NODE_ENV=development
 DATABASE_URL=your_postgres_connection_string
 JWT_SECRET=your_jwt_secret_here
+RESEND_API_KEY=your_resend_api_key
 ```
 
 For the client create `client/.env`:
@@ -192,7 +206,7 @@ VITE_API_URL=http://localhost:3001
 
 ### 5. Set up the database
 
-Create a PostgreSQL database (Supabase free tier in this case). Add your connection string to `server/.env`. Sequelize will automatically create the tables when the server starts.
+Create a PostgreSQL database (Supabase free tier). Add your connection string to `server/.env`. Sequelize will automatically create the tables when the server starts.
 
 ### 6. Run the application
 
@@ -218,17 +232,18 @@ The app will be available at `http://localhost:5173`.
 
 ### Server (`server/.env`)
 
-| Variable       | Description                                               |
-| -------------- | --------------------------------------------------------- |
-| `PORT`         | Port the server runs on (default 3001)                    |
-| `NODE_ENV`     | Environment (development or production)                   |
-| `DATABASE_URL` | PostgreSQL connection string                              |
-| `JWT_SECRET`   | Secret key for signing JWT tokens (32+ random characters) |
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Port the server runs on (default 3001) |
+| `NODE_ENV` | Environment (development or production) |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | Secret key for signing JWT tokens (32+ random characters) |
+| `RESEND_API_KEY` | API key for Resend transactional email |
 
 ### Client (`client/.env`)
 
-| Variable       | Description                                                    |
-| -------------- | -------------------------------------------------------------- |
+| Variable | Description |
+|----------|-------------|
 | `VITE_API_URL` | Backend API URL (localhost for dev, Render URL for production) |
 
 ---
@@ -236,26 +251,26 @@ The app will be available at `http://localhost:5173`.
 ## API Endpoints
 
 ### Auth
-
-| Method | Endpoint           | Description        | Auth Required |
-| ------ | ------------------ | ------------------ | ------------- |
-| POST   | /api/auth/register | Create new account | No            |
-| POST   | /api/auth/login    | Login to account   | No            |
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | /api/auth/register | Create new account | No |
+| POST | /api/auth/login | Login to account | No |
+| POST | /api/auth/forgot-password | Send password reset email | No |
+| POST | /api/auth/reset-password | Reset password with token | No |
+| GET | /api/auth/verify-email | Verify email address | No |
 
 ### Check-ins
-
-| Method | Endpoint          | Description            | Auth Required |
-| ------ | ----------------- | ---------------------- | ------------- |
-| POST   | /api/checkins     | Create a check-in      | Yes           |
-| GET    | /api/checkins     | Get all user check-ins | Yes           |
-| PUT    | /api/checkins/:id | Update a check-in      | Yes           |
-| DELETE | /api/checkins/:id | Delete a check-in      | Yes           |
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | /api/checkins | Create a check-in | Yes |
+| GET | /api/checkins | Get all user check-ins | Yes |
+| PUT | /api/checkins/:id | Update a check-in | Yes |
+| DELETE | /api/checkins/:id | Delete a check-in | Yes |
 
 ### Users
-
-| Method | Endpoint           | Description    | Auth Required |
-| ------ | ------------------ | -------------- | ------------- |
-| PUT    | /api/users/profile | Update profile | Yes           |
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| PUT | /api/users/profile | Update profile | Yes |
 
 ---
 
@@ -263,50 +278,54 @@ The app will be available at `http://localhost:5173`.
 
 ### Users
 
-| Field     | Type    | Notes                                    |
-| --------- | ------- | ---------------------------------------- |
-| id        | INTEGER | Primary key, auto increment              |
-| username  | STRING  | Required, unique, 3-30 chars             |
-| email     | STRING  | Required, unique, valid email            |
-| password  | STRING  | Required, hashed with BCrypt (10 rounds) |
-| createdAt | DATE    | Auto-generated                           |
-| updatedAt | DATE    | Auto-generated                           |
+| Field | Type | Notes |
+|-------|------|-------|
+| id | INTEGER | Primary key, auto increment |
+| username | STRING | Required, unique, 3-30 chars |
+| email | STRING | Required, unique, valid email |
+| password | STRING | Required, hashed with BCrypt (10 rounds) |
+| isVerified | BOOLEAN | Email verification status |
+| verificationToken | STRING | Email verification token |
+| pendingEmail | STRING | New email awaiting verification |
+| resetPasswordToken | STRING | Password reset token |
+| resetPasswordExpiry | DATE | Password reset token expiry |
+| lastActive | DATE | For 14-day inactivity timeout |
+| createdAt | DATE | Auto-generated |
+| updatedAt | DATE | Auto-generated |
 
 ### CheckIns
 
-| Field        | Type     | Notes                       |
-| ------------ | -------- | --------------------------- |
-| id           | INTEGER  | Primary key, auto increment |
-| userId       | INTEGER  | Foreign key → Users.id      |
-| painLevel    | INTEGER  | Required, 1-5 scale         |
-| moodLevel    | INTEGER  | Required, 1-5 scale         |
-| followUpData | JSON     | Optional                    |
-| date         | DATEONLY | Required, defaults to today |
-| createdAt    | DATE     | Auto-generated              |
-| updatedAt    | DATE     | Auto-generated              |
-| energyLevel  | INTEGER  | Optional, 1-5 scale         |
+| Field | Type | Notes |
+|-------|------|-------|
+| id | INTEGER | Primary key, auto increment |
+| userId | INTEGER | Foreign key → Users.id |
+| painLevel | INTEGER | Required, 1-5 (1=very light, 5=very severe) |
+| moodLevel | INTEGER | Required, 1-5 (1=great, 5=very low) |
+| energyLevel | INTEGER | Optional, 1-5 (1=full, 5=exhausted) |
+| anxietyLevel | INTEGER | Optional, 1-5 (1=calm, 5=severe) |
+| symptoms | JSON | Optional, array of symptom strings |
+| followUpData | JSON | Optional |
+| date | DATEONLY | Required, sent from frontend as local date |
+| createdAt | DATE | Auto-generated |
+| updatedAt | DATE | Auto-generated |
 
 ---
 
 ## Known Issues
 
-- The free tier of Render spins down after inactivity —
-  the first request may take up to 60 seconds while the server wakes up
+- The free tier of Render spins down after inactivity — the first request may take up to 60 seconds while the server wakes up
 - Graph requires at least 2 check-ins to show a meaningful line
-- Pain stat card shows raw database value (1 = very light, 5 = very severe)
-  while mood and energy are displayed as inverted wellness scores
-  (higher = better)
 
 ---
 
 ## What's Next
 
-- Personalized insights
+- Streak and milestone celebrations
 - Medication tracker
-- Symptom tags (pain location, brain fog, numbness, etc.)
-- Doctor report export — generate a 30-day summary for appointments
-- Push notifications for daily check-in reminders
-- More visual polish and animations
+- Doctor report export — generate a summary for appointments
+- Push notifications for check-in reminders
+- Custom avatar upload
+- AI-generated personalized insights
 - iOS app via React Native
 
 ---
