@@ -3,12 +3,28 @@ import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import { FiEdit2 } from "react-icons/fi";
 
+const AFFIRMATIONS = [
+  { title: "Well done 💙", message: "You showed up today. That matters." },
+  { title: "Check-in complete 🌿", message: "Tracking your health is an act of self-care. Keep going." },
+  { title: "You did it ✨", message: "Living with chronic illness takes real strength. You have it." },
+  { title: "That took courage 💜", message: "Even on the hard days, you checked in. That's resilience." },
+  { title: "Proud of you 🌸", message: "You're paying attention to yourself. That's more powerful than it sounds." },
+  { title: "One more day 🌙", message: "Small steps still count. You're here, and that's enough." },
+  { title: "You're doing the work 💫", message: "Every check-in adds up. Your future self will thank you." },
+  { title: "Be gentle with yourself 🤍", message: "Rest is productive too. You're allowed to take it slow." },
+  { title: "You know your body 🌱", message: "This check-in helps you listen. Keep tuning in." },
+  { title: "Progress is progress 💙", message: "It looks different every day. Today's chapter is written." },
+  { title: "Take a breath 🕊️", message: "You just took care of yourself. That's worth something." },
+  { title: "You're not alone 💜", message: "Millions of people live with chronic illness. You're tracking, and that's taking charge." },
+];
+
 function CheckInModal({ onClose, onComplete }) {
   const [step, setStep] = useState(1);
   const [painLevel, setPainLevel] = useState(null);
   const [moodLevel, setMoodLevel] = useState(null);
   const [energyLevel, setEnergyLevel] = useState(null);
   const [error, setError] = useState("");
+  const [affirmation] = useState(() => AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)]);
 
   const { token } = useAuth();
 
@@ -341,10 +357,10 @@ function CheckInModal({ onClose, onComplete }) {
               className="text-white text-3xl font-medium"
               style={{ fontFamily: "Playfair Display, Georgia, serif" }}
             >
-              Well done 💙
+              {affirmation.title}
             </p>
             <p className="text-white/80 text-sm">
-              You showed up today. That matters.
+              {affirmation.message}
             </p>
             <button
               onClick={() => onComplete()}
