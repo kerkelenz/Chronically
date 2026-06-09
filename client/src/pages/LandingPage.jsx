@@ -109,7 +109,7 @@ function LandingPage() {
       />
 
       <div className="relative z-10 flex flex-col items-center gap-4">
-        <h1
+<h1
           className="text-5xl font-medium text-white"
           style={{ fontFamily: "Playfair Display, Georgia, serif", letterSpacing: "0.03em" }}
         >
