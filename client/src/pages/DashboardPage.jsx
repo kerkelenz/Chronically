@@ -221,17 +221,17 @@ function DashboardPage() {
               : "Ready to check in?"}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 justify-end" style={{ maxWidth: "160px" }}>
           <button
             onClick={() => generateReport(checkIns, user?.username)}
-            className="text-xs px-3 py-1 rounded-full transition-all duration-200 hover:scale-105"
+            className="text-xs px-3 py-1 rounded-full whitespace-nowrap transition-all duration-200 hover:scale-105"
             style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
           >
             Export Report
           </button>
           <button
             onClick={() => navigate("/profile")}
-            className="text-xs px-3 py-1 rounded-full transition-all duration-200 hover:scale-105"
+            className="text-xs px-3 py-1 rounded-full whitespace-nowrap transition-all duration-200 hover:scale-105"
             style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
           >
             Profile
@@ -241,7 +241,7 @@ function DashboardPage() {
               logout();
               navigate("/");
             }}
-            className="text-xs px-3 py-1 rounded-full transition-all duration-200 hover:scale-105"
+            className="text-xs px-3 py-1 rounded-full whitespace-nowrap transition-all duration-200 hover:scale-105"
             style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
           >
             Log out
