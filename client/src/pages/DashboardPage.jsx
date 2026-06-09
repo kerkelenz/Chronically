@@ -14,6 +14,11 @@ import {
 } from "recharts";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 
+const PAIN_LABELS    = { 1: "Very Light", 2: "Light",   3: "Moderate", 4: "Severe",  5: "Very Severe" };
+const MOOD_LABELS    = { 1: "Great",      2: "Good",    3: "Okay",     4: "Low",     5: "Very Low" };
+const ENERGY_LABELS  = { 1: "Full",       2: "Good",    3: "Low",      4: "Drained", 5: "Exhausted" };
+const ANXIETY_LABELS = { 1: "Calm",       2: "Mild",    3: "Moderate", 4: "High",    5: "Severe" };
+
 function DashboardPage() {
   const navigate = useNavigate();
   const { user, token, logout } = useAuth();
@@ -370,7 +375,7 @@ function DashboardPage() {
                         {c.date} · {new Date(c.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </p>
                       <p className="text-sm font-medium" style={{ color: "#2D2540" }}>
-                        Pain: {6 - c.painLevel} · Mood: {6 - c.moodLevel} · Energy: {c.energyLevel ? 6 - c.energyLevel : "-"} · Anxiety: {c.anxietyLevel ? 6 - c.anxietyLevel : "-"}
+                        Pain: {PAIN_LABELS[c.painLevel]} · Mood: {MOOD_LABELS[c.moodLevel]} · Energy: {c.energyLevel ? ENERGY_LABELS[c.energyLevel] : "-"} · Anxiety: {c.anxietyLevel ? ANXIETY_LABELS[c.anxietyLevel] : "-"}
                       </p>
                       {c.symptoms && c.symptoms.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
