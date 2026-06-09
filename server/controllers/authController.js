@@ -93,7 +93,7 @@ const login = async (req, res) => {
     const token = jwt.sign(
       { id: user.id, username: user.username },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" },
+      { expiresIn: "30d" },
     );
 
     // send back the token and user info so the frontend can store it and use it
@@ -120,15 +120,17 @@ const verifyEmail = async (req, res) => {
     const user = await User.findOne({ where: { verificationToken: token } });
     if (!user) return res.status(400).json({ error: "Invalid or expired verification link" });
 
-    await User.update(
-      { isVerified: true, verificationToken: null },
-      { where: { id: user.id } }
-    );
+    const updates = { isVerified: true, verificationToken: null };
+    if (user.pendingEmail) {
+      updates.email = user.pendingEmail;
+      updates.pendingEmail = null;
+    }
+    await User.update(updates, { where: { id: user.id } });
 
     const jwtToken = jwt.sign(
       { id: user.id, username: user.username },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "30d" }
     );
 
     res.status(200).json({

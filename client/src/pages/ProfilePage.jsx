@@ -15,13 +15,16 @@ function ProfilePage() {
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(
+      const response = await axios.put(
         `${import.meta.env.VITE_API_URL}/api/users/profile`,
         { username, email },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      updateUser({ ...user, username, email });
-      setSuccess("Profile updated successfully");
+      updateUser({ ...user, username, email: response.data.user.email });
+      if (response.data.emailPending) {
+        setEmail(user.email);
+      }
+      setSuccess(response.data.message);
       setError("");
     } catch (error) {
       setError(error.response?.data?.error || "Something went wrong");
