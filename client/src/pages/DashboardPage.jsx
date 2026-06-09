@@ -21,19 +21,60 @@ function DashboardPage() {
   const [checkIns, setCheckIns] = useState([]);
   const [todaysDone, setTodaysDone] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
-  const [timeframe, setTimeframe] = useState(7);
+  const [timeframe, setTimeframe] = useState("day");
   const [loading, setLoading] = useState(true);
   const [editingCheckIn, setEditingCheckIn] = useState(null);
 
   const getChartData = () => {
-    return [...checkIns]
-      .reverse()
-      .slice(-timeframe)
-      .map((c) => ({
-        date: c.date,
-        pain: 6 - c.painLevel,
-        mood: 6 - c.moodLevel,
-        energy: c.energyLevel ? 6 - c.energyLevel : null,
+    if (timeframe === "day") {
+      const today = new Date().toLocaleDateString("en-CA");
+      return [...checkIns]
+        .filter((c) => c.date === today)
+        .reverse()
+        .map((c) => ({
+          date: new Date(c.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          pain: 6 - c.painLevel,
+          mood: 6 - c.moodLevel,
+          energy: c.energyLevel ? 6 - c.energyLevel : null,
+        }));
+    }
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - timeframe);
+    const cutoffStr = cutoff.toLocaleDateString("en-CA");
+
+    const byDate = {};
+    checkIns
+      .filter((c) => c.date >= cutoffStr)
+      .forEach((c) => {
+        if (!byDate[c.date])
+          byDate[c.date] = { pains: [], moods: [], energies: [] };
+        byDate[c.date].pains.push(c.painLevel);
+        byDate[c.date].moods.push(c.moodLevel);
+        if (c.energyLevel) byDate[c.date].energies.push(c.energyLevel);
+      });
+
+    return Object.entries(byDate)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, { pains, moods, energies }]) => ({
+        date,
+        pain: parseFloat(
+          (6 - pains.reduce((s, v) => s + v, 0) / pains.length).toFixed(1),
+        ),
+        mood: parseFloat(
+          (6 - moods.reduce((s, v) => s + v, 0) / moods.length).toFixed(1),
+        ),
+        energy: energies.length
+          ? parseFloat(
+              (
+                6 -
+                energies.reduce((s, v) => s + v, 0) / energies.length
+              ).toFixed(1),
+            )
+          : null,
       }));
   };
 
@@ -74,9 +115,11 @@ function DashboardPage() {
           { headers: { Authorization: `Bearer ${token}` } },
         );
         setCheckIns(response.data.checkIns);
-        const today = new Date().toLocaleDateString("en-CA");
-        const doneToday = response.data.checkIns.some((c) => c.date === today);
-        setTodaysDone(doneToday);
+        const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
+        const recentlyDone =
+          response.data.checkIns.length > 0 &&
+          new Date(response.data.checkIns[0].createdAt).getTime() > fourHoursAgo;
+        setTodaysDone(recentlyDone);
       } catch (error) {
         console.error("Error fetching check-ins:", error);
       } finally {
@@ -129,7 +172,11 @@ function DashboardPage() {
             {user?.username}
           </h1>
           <p className="text-white/70 text-xs mt-1">
-            {todaysDone ? "Check-in complete" : "Ready to check in?"}
+            {todaysDone
+              ? `Next check-in at ${new Date(
+                  new Date(checkIns[0].createdAt).getTime() + 4 * 60 * 60 * 1000,
+                ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+              : "Ready to check in?"}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -159,9 +206,9 @@ function DashboardPage() {
         </div>
       </div>
 
-      <div className="p-6">
-        {!todaysDone ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-4">
+      <div className="p-6 flex flex-col gap-4">
+        {!todaysDone && (
+          <div className="flex flex-col items-center justify-center py-10 gap-3">
             <p
               className="text-2xl font-medium"
               style={{
@@ -169,14 +216,14 @@ function DashboardPage() {
                 fontFamily: "Playfair Display, Georgia, serif",
               }}
             >
-              How are you feeling today?
+              How are you feeling right now?
             </p>
             <p className="text-sm" style={{ color: "#6B5F7A" }}>
               It only takes a moment.
             </p>
             <button
               onClick={() => setShowCheckIn(true)}
-              className="mt-4 px-8 py-3 rounded-full text-white font-medium hover:scale-105 transition-all duration-200 shockwave-btn"
+              className="mt-2 px-8 py-3 rounded-full text-white font-medium hover:scale-105 transition-all duration-200 shockwave-btn"
               style={{
                 background: "linear-gradient(135deg, #7C6BAE, #9B8EC4)",
               }}
@@ -184,7 +231,9 @@ function DashboardPage() {
               Start Check-in
             </button>
           </div>
-        ) : (
+        )}
+
+        {checkIns.length > 0 && (
           <div className="flex flex-col gap-4">
             {/* stat cards */}
             <div className="grid grid-cols-3 gap-3">
@@ -274,9 +323,9 @@ function DashboardPage() {
                 </p>
                 <div className="flex gap-2">
                   {[
+                    { label: "Day", value: "day" },
                     { label: "Week", value: 7 },
                     { label: "Month", value: 30 },
-                    { label: "3 months", value: 90 },
                   ].map((t) => (
                     <button
                       key={t.value}
@@ -294,7 +343,10 @@ function DashboardPage() {
                 </div>
               </div>
               <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={getChartData()}>
+                <LineChart
+                  data={getChartData()}
+                  margin={{ top: 5, right: 5, left: -40, bottom: 0 }}
+                >
                   <XAxis
                     dataKey="date"
                     tick={{ fontSize: 10, fill: "#6B5F7A" }}
@@ -339,10 +391,10 @@ function DashboardPage() {
                 className="text-sm font-medium mb-3"
                 style={{ color: "#2D2540" }}
               >
-                Recent check-ins
+                Today's check-ins
               </p>
               <div className="flex flex-col gap-2">
-                {checkIns.slice(0, 3).map((c) => (
+                {checkIns.filter((c) => c.date === checkIns[0].date).map((c) => (
                   <div
                     key={c.id}
                     className="flex justify-between items-center p-3 rounded-xl"
@@ -350,32 +402,34 @@ function DashboardPage() {
                   >
                     <div>
                       <p className="text-xs" style={{ color: "#6B5F7A" }}>
-                        {c.date}
+                        {c.date} · {new Date(c.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </p>
                       <p
                         className="text-sm font-medium"
                         style={{ color: "#2D2540" }}
                       >
-                        Pain: {6 - c.painLevel} · Mood: {6 - c.moodLevel} · Energy:{" "}
-                        {c.energyLevel ? 6 - c.energyLevel : "-"}
+                        Pain: {6 - c.painLevel} · Mood: {6 - c.moodLevel} ·
+                        Energy: {c.energyLevel ? 6 - c.energyLevel : "-"}
                       </p>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setEditingCheckIn(c)}
-                        className="p-1 hover:opacity-70 transition-opacity"
-                        style={{ color: "#7C6BAE" }}
-                      >
-                        <FiEdit2 size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(c.id)}
-                        className="p-1 hover:opacity-70 transition-opacity"
-                        style={{ color: "#B07088" }}
-                      >
-                        <FiTrash2 size={14} />
-                      </button>
-                    </div>
+                    {c.date === checkIns[0].date && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setEditingCheckIn(c)}
+                          className="p-1 hover:opacity-70 transition-opacity"
+                          style={{ color: "#7C6BAE" }}
+                        >
+                          <FiEdit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(c.id)}
+                          className="p-1 hover:opacity-70 transition-opacity"
+                          style={{ color: "#B07088" }}
+                        >
+                          <FiTrash2 size={14} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -546,11 +600,12 @@ function DashboardPage() {
               { headers: { Authorization: `Bearer ${token}` } },
             );
             setCheckIns(response.data.checkIns);
-            const today = new Date().toLocaleDateString("en-CA");
-            const doneToday = response.data.checkIns.some(
-              (c) => c.date === today,
-            );
-            setTodaysDone(doneToday);
+            const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
+            const recentlyDone =
+              response.data.checkIns.length > 0 &&
+              new Date(response.data.checkIns[0].createdAt).getTime() >
+                fourHoursAgo;
+            setTodaysDone(recentlyDone);
           }}
         />
       )}

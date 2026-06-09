@@ -46,7 +46,7 @@ const getCheckIns = async (req, res) => {
     // ordering by date DESC means the most recent check-in comes back first
     const checkIns = await CheckIn.findAll({
       where: { userId: req.user.id },
-      order: [["date", "DESC"]],
+      order: [["createdAt", "DESC"]],
     });
 
     res.status(200).json({ checkIns });
