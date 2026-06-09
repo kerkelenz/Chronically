@@ -132,11 +132,11 @@ function DashboardPage() {
     }
   };
 
-  const handleUpdate = async (id, painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel) => {
+  const handleUpdate = async (id, painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, symptoms) => {
     try {
       const response = await axios.put(
         `${import.meta.env.VITE_API_URL}/api/checkins/${id}`,
-        { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel },
+        { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, symptoms },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       setCheckIns(
@@ -701,6 +701,33 @@ function DashboardPage() {
                 ))}
               </div>
             </div>
+            <div>
+              <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>Symptoms</p>
+              <div className="flex flex-wrap gap-2">
+                {["Fatigue", "Brain fog", "Pain flare", "Numbness", "Spasticity", "Vision issues", "Heat sensitivity", "Balance issues"].map((s) => {
+                  const active = (editingCheckIn.symptoms || []).includes(s);
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => {
+                        const current = editingCheckIn.symptoms || [];
+                        setEditingCheckIn({
+                          ...editingCheckIn,
+                          symptoms: active ? current.filter((x) => x !== s) : [...current, s],
+                        });
+                      }}
+                      className="px-3 py-1 rounded-full text-xs font-medium transition-all duration-200"
+                      style={{
+                        background: active ? "#7C6BAE" : "#F0EBF8",
+                        color: active ? "white" : "#6B5F7A",
+                      }}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setEditingCheckIn(null)}
@@ -718,6 +745,7 @@ function DashboardPage() {
                     editingCheckIn.energyLevel,
                     editingCheckIn.anxietyLevel,
                     editingCheckIn.appetiteLevel,
+                    editingCheckIn.symptoms?.length > 0 ? editingCheckIn.symptoms : null,
                   )
                 }
                 className="flex-1 py-2 rounded-full text-sm text-white"
