@@ -261,6 +261,9 @@ function DashboardPage() {
               const recent        = checkIns.filter((c) => new Date(c.date) >= fourteenDaysAgo);
               const recentEnergy  = recent.filter((c) => c.energyLevel);
               const recentAnxiety = recent.filter((c) => c.anxietyLevel);
+              const days        = [...new Set(recent.map((c) => c.date))].length;
+              const energyDays  = [...new Set(recentEnergy.map((c) => c.date))].length;
+              const anxietyDays = [...new Set(recentAnxiety.map((c) => c.date))].length;
               return (
                 <div className="grid grid-cols-2 gap-3">
                   {[
@@ -269,34 +272,34 @@ function DashboardPage() {
                       value: recentEnergy.length > 0
                         ? (6 - recentEnergy.reduce((s, c) => s + c.energyLevel, 0) / recentEnergy.length).toFixed(1)
                         : "-",
-                      count: recentEnergy.length,
+                      count: energyDays,
                     },
                     {
                       label: "Avg mood",
                       value: recent.length > 0
                         ? (6 - recent.reduce((s, c) => s + c.moodLevel, 0) / recent.length).toFixed(1)
                         : "-",
-                      count: recent.length,
+                      count: days,
                     },
                     {
                       label: "Avg pain",
                       value: recent.length > 0
                         ? (recent.reduce((s, c) => s + c.painLevel, 0) / recent.length).toFixed(1)
                         : "-",
-                      count: recent.length,
+                      count: days,
                     },
                     {
                       label: "Avg anxiety",
                       value: recentAnxiety.length > 0
                         ? (recentAnxiety.reduce((s, c) => s + c.anxietyLevel, 0) / recentAnxiety.length).toFixed(1)
                         : "-",
-                      count: recentAnxiety.length,
+                      count: anxietyDays,
                     },
                   ].map(({ label, value, count }) => (
                     <div key={label} className="p-4 rounded-2xl" style={{ background: "white", border: "1px solid #DDD5EE" }}>
                       <p className="text-xs" style={{ color: "#6B5F7A" }}>{label}</p>
                       <p className="text-2xl font-medium mt-1" style={{ color: "#2D2540" }}>{value}</p>
-                      <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>{count} {count === 1 ? "check-in" : "check-ins"}</p>
+                      <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>{count} {count === 1 ? "day" : "days"}</p>
                     </div>
                   ))}
                 </div>
