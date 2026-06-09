@@ -13,6 +13,7 @@ import {
   Legend,
 } from "recharts";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
+import { generateReport } from "../utils/generateReport";
 
 const SYMPTOM_ICONS = {
   "Fatigue":          "😴",
@@ -221,6 +222,13 @@ function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => generateReport(checkIns, user?.username)}
+            className="text-xs px-3 py-1 rounded-full transition-all duration-200 hover:scale-105"
+            style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
+          >
+            Export Report
+          </button>
           <button
             onClick={() => navigate("/profile")}
             className="text-xs px-3 py-1 rounded-full transition-all duration-200 hover:scale-105"
