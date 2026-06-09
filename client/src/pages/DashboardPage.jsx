@@ -153,7 +153,7 @@ function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#FAF7FF" }}>
+    <div className="min-h-screen" style={{ background: "#FAF7FF", overflowX: "hidden" }}>
       <div
         className="w-full px-6 py-4 flex justify-between items-center"
         style={{ background: "linear-gradient(135deg, #5C4E8A, #7C6BAE)" }}
@@ -180,12 +180,6 @@ function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span
-            className="text-white text-xs px-3 py-1 rounded-full"
-            style={{ background: "rgba(255,255,255,0.2)" }}
-          >
-            {checkIns.length} days
-          </span>
           <button
             onClick={() => navigate("/profile")}
             className="text-xs px-3 py-1 rounded-full transition-all duration-200 hover:scale-105"
@@ -345,7 +339,7 @@ function DashboardPage() {
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart
                   data={getChartData()}
-                  margin={{ top: 5, right: 5, left: -40, bottom: 0 }}
+                  margin={{ top: 5, right: 5, left: 0, bottom: 0 }}
                 >
                   <XAxis
                     dataKey="date"
@@ -353,7 +347,8 @@ function DashboardPage() {
                   />
                   <YAxis
                     domain={[1, 5]}
-                    tick={{ fontSize: 10, fill: "#6B5F7A" }}
+                    width={0}
+                    tick={false}
                   />
                   <Tooltip />
                   <Legend />
