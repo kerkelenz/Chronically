@@ -10,6 +10,7 @@ function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
+  const [tokenError, setTokenError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -24,7 +25,11 @@ function ResetPasswordPage() {
       await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/reset-password`, { token, password });
       setSuccess(true);
     } catch (err) {
-      setError(err.response?.data?.error || "Something went wrong. Please try again.");
+      if (err.response?.status === 400) {
+        setTokenError(err.response.data?.error || "This reset link is invalid or has expired.");
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -57,16 +62,18 @@ function ResetPasswordPage() {
           className="w-full flex flex-col gap-3 p-5 rounded-2xl"
           style={{ background: "rgba(255,255,255,0.22)", border: "1px solid rgba(255,255,255,0.4)" }}
         >
-          {!token ? (
+          {!token || tokenError ? (
             <>
-              <p className="text-white font-medium text-sm">Invalid link</p>
-              <p className="text-white/70 text-xs">This reset link is missing or malformed.</p>
+              <p className="text-white font-medium text-sm">Link expired</p>
+              <p className="text-white/70 text-xs">
+                {tokenError || "This reset link is missing or malformed."}
+              </p>
               <button
-                onClick={() => navigate("/forgot-password")}
+                onClick={() => navigate("/login")}
                 className="w-full py-2 rounded-full bg-white font-medium text-sm mt-1 hover:scale-105 transition-all duration-200 shockwave-btn"
                 style={{ color: "#7C6BAE" }}
               >
-                Request a new link
+                Back to log in
               </button>
             </>
           ) : success ? (
