@@ -256,41 +256,47 @@ function DashboardPage() {
           <div className="flex flex-col gap-4">
             {/* stat cards */}
             {(() => {
-              const uniqueDays        = [...new Set(checkIns.map((c) => c.date))].length;
-              const uniqueEnergyDays  = [...new Set(checkIns.filter((c) => c.energyLevel).map((c) => c.date))].length;
-              const uniqueAnxietyDays = [...new Set(checkIns.filter((c) => c.anxietyLevel).map((c) => c.date))].length;
+              const fourteenDaysAgo = new Date();
+              fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+              const recent        = checkIns.filter((c) => new Date(c.date) >= fourteenDaysAgo);
+              const recentEnergy  = recent.filter((c) => c.energyLevel);
+              const recentAnxiety = recent.filter((c) => c.anxietyLevel);
               return (
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     {
                       label: "Avg energy",
-                      value: checkIns.filter((c) => c.energyLevel).length > 0
-                        ? (6 - checkIns.filter((c) => c.energyLevel).reduce((s, c) => s + c.energyLevel, 0) / checkIns.filter((c) => c.energyLevel).length).toFixed(1)
+                      value: recentEnergy.length > 0
+                        ? (6 - recentEnergy.reduce((s, c) => s + c.energyLevel, 0) / recentEnergy.length).toFixed(1)
                         : "-",
-                      count: uniqueEnergyDays,
+                      count: recentEnergy.length,
                     },
                     {
                       label: "Avg mood",
-                      value: (6 - checkIns.reduce((s, c) => s + c.moodLevel, 0) / checkIns.length).toFixed(1),
-                      count: uniqueDays,
+                      value: recent.length > 0
+                        ? (6 - recent.reduce((s, c) => s + c.moodLevel, 0) / recent.length).toFixed(1)
+                        : "-",
+                      count: recent.length,
                     },
                     {
                       label: "Avg pain",
-                      value: (checkIns.reduce((s, c) => s + c.painLevel, 0) / checkIns.length).toFixed(1),
-                      count: uniqueDays,
+                      value: recent.length > 0
+                        ? (recent.reduce((s, c) => s + c.painLevel, 0) / recent.length).toFixed(1)
+                        : "-",
+                      count: recent.length,
                     },
                     {
                       label: "Avg anxiety",
-                      value: checkIns.filter((c) => c.anxietyLevel).length > 0
-                        ? (checkIns.filter((c) => c.anxietyLevel).reduce((s, c) => s + c.anxietyLevel, 0) / checkIns.filter((c) => c.anxietyLevel).length).toFixed(1)
+                      value: recentAnxiety.length > 0
+                        ? (recentAnxiety.reduce((s, c) => s + c.anxietyLevel, 0) / recentAnxiety.length).toFixed(1)
                         : "-",
-                      count: uniqueAnxietyDays,
+                      count: recentAnxiety.length,
                     },
                   ].map(({ label, value, count }) => (
                     <div key={label} className="p-4 rounded-2xl" style={{ background: "white", border: "1px solid #DDD5EE" }}>
                       <p className="text-xs" style={{ color: "#6B5F7A" }}>{label}</p>
                       <p className="text-2xl font-medium mt-1" style={{ color: "#2D2540" }}>{value}</p>
-                      <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>last {count} {count === 1 ? "day" : "days"}</p>
+                      <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>{count} {count === 1 ? "check-in" : "check-ins"}</p>
                     </div>
                   ))}
                 </div>
