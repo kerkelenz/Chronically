@@ -15,18 +15,19 @@ const updateProfile = async (req, res) => {
 
     if (emailChanging) {
       const existing = await User.findOne({ where: { email } });
-      if (existing) return res.status(400).json({ error: "Email already in use" });
+      if (existing)
+        return res.status(400).json({ error: "Email already in use" });
 
       const verificationToken = crypto.randomBytes(32).toString("hex");
       const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
 
       await User.update(
         { username, pendingEmail: email, verificationToken },
-        { where: { id: user.id } }
+        { where: { id: user.id } },
       );
 
       await resend.emails.send({
-        from: "Chronically <onboarding@resend.dev>",
+        from: "Chronically <noreply@mychronically.app>",
         to: email,
         subject: "Verify your new Chronically email",
         html: `

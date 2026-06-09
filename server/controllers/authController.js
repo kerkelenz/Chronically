@@ -44,7 +44,7 @@ const register = async (req, res) => {
     const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
 
     await resend.emails.send({
-      from: "Chronically <onboarding@resend.dev>",
+      from: "Chronically <noreply@mychronically.app>",
       to: email,
       subject: "Verify your Chronically account",
       html: `
@@ -57,7 +57,10 @@ const register = async (req, res) => {
       `,
     });
 
-    res.status(201).json({ message: "Account created. Please check your email to verify your account." });
+    res.status(201).json({
+      message:
+        "Account created. Please check your email to verify your account.",
+    });
   } catch (error) {
     console.error("Register error:", error);
     res.status(500).json({ error: "Server error during registration" });
@@ -86,7 +89,9 @@ const login = async (req, res) => {
     }
 
     if (!user.isVerified) {
-      return res.status(403).json({ error: "Please verify your email before logging in." });
+      return res
+        .status(403)
+        .json({ error: "Please verify your email before logging in." });
     }
 
     // password checks out - generate a fresh JWT token for this session
@@ -118,7 +123,10 @@ const verifyEmail = async (req, res) => {
     if (!token) return res.status(400).json({ error: "Token is required" });
 
     const user = await User.findOne({ where: { verificationToken: token } });
-    if (!user) return res.status(400).json({ error: "Invalid or expired verification link" });
+    if (!user)
+      return res
+        .status(400)
+        .json({ error: "Invalid or expired verification link" });
 
     const updates = { isVerified: true, verificationToken: null };
     if (user.pendingEmail) {
@@ -130,7 +138,7 @@ const verifyEmail = async (req, res) => {
     const jwtToken = jwt.sign(
       { id: user.id, username: user.username },
       process.env.JWT_SECRET,
-      { expiresIn: "30d" }
+      { expiresIn: "30d" },
     );
 
     res.status(200).json({
@@ -152,7 +160,9 @@ const forgotPassword = async (req, res) => {
     const user = await User.findOne({ where: { email } });
     if (!user) {
       // return success regardless to prevent email enumeration
-      return res.status(200).json({ message: "If that email is registered, a reset link has been sent." });
+      return res.status(200).json({
+        message: "If that email is registered, a reset link has been sent.",
+      });
     }
 
     const token = crypto.randomBytes(32).toString("hex");
@@ -162,7 +172,7 @@ const forgotPassword = async (req, res) => {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
     await resend.emails.send({
-      from: "Chronically <onboarding@resend.dev>",
+      from: "Chronically <noreply@mychronically.app>",
       to: email,
       subject: "Reset your Chronically password",
       html: `
@@ -175,7 +185,9 @@ const forgotPassword = async (req, res) => {
       `,
     });
 
-    res.status(200).json({ message: "If that email is registered, a reset link has been sent." });
+    res.status(200).json({
+      message: "If that email is registered, a reset link has been sent.",
+    });
   } catch (error) {
     console.error("Forgot password error:", error);
     res.status(500).json({ error: "Server error" });
@@ -203,7 +215,7 @@ const resetPassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     await User.update(
       { password: hashedPassword, resetToken: null, resetTokenExpiry: null },
-      { where: { id: user.id } }
+      { where: { id: user.id } },
     );
 
     res.status(200).json({ message: "Password reset successfully" });
@@ -214,4 +226,10 @@ const resetPassword = async (req, res) => {
 };
 
 // exporting both functions so the routes file can use them
-module.exports = { register, login, verifyEmail, forgotPassword, resetPassword };
+module.exports = {
+  register,
+  login,
+  verifyEmail,
+  forgotPassword,
+  resetPassword,
+};
