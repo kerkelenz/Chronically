@@ -221,7 +221,7 @@ function DashboardPage() {
               : "Ready to check in?"}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 justify-end" style={{ maxWidth: "160px" }}>
+        <div className="flex flex-wrap items-center gap-2 justify-end">
           <button
             onClick={() => generateReport(checkIns, user?.username)}
             className="text-xs px-3 py-1 rounded-full whitespace-nowrap transition-all duration-200 hover:scale-105"
