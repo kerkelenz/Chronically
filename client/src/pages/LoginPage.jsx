@@ -22,10 +22,8 @@ function LoginPage() {
       login(response.data.user, response.data.token);
       navigate("/dashboard");
     } catch (error) {
-      setError(
-        error.response?.data?.error ||
-          "Something went wrong. Please try again.",
-      );
+      const msg = error.response?.data?.error || "Something went wrong. Please try again.";
+      setError(msg);
     } finally {
       setLoading(false);
     }

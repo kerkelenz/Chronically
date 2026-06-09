@@ -3,10 +3,11 @@ const express = require("express");
 // keeps things organized instead of putting every route directly in server.js
 const router = express.Router();
 // pulling in the register and login functions we wrote in authController
-const { register, login, forgotPassword, resetPassword } = require("../controllers/authController");
+const { register, login, verifyEmail, forgotPassword, resetPassword } = require("../controllers/authController");
 
 router.post("/register", register);
 router.post("/login", login);
+router.post("/verify-email", verifyEmail);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 

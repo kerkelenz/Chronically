@@ -31,32 +31,33 @@ const register = async (req, res) => {
     // never store plain text passwords - bcrypt turns it into a hash that can't be reversed
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // create the user in the database with the hashed password, not the original
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+
     const user = await User.create({
       username,
       email,
       password: hashedPassword,
+      isVerified: false,
+      verificationToken,
     });
 
-    // create a JWT token so the user is immediately logged in after registering
-    // we put the user's id and username inside the token so we can identify them later
-    // token expires in 7 days so they don't have to log in constantly
-    const token = jwt.sign(
-      { id: user.id, username: user.username },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" },
-    );
+    const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
 
-    // send back the token and basic user info
-    res.status(201).json({
-      message: "Account created successfully",
-      token,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-      },
+    await resend.emails.send({
+      from: "Chronically <onboarding@resend.dev>",
+      to: email,
+      subject: "Verify your Chronically account",
+      html: `
+        <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 32px;">
+          <h2 style="color: #2D2540; font-family: Georgia, serif;">Welcome to Chronically</h2>
+          <p style="color: #6B5F7A;">Thanks for signing up, ${username}. Click the button below to verify your email address.</p>
+          <a href="${verifyUrl}" style="display: inline-block; margin-top: 16px; padding: 12px 24px; background: #7C6BAE; color: white; border-radius: 999px; text-decoration: none; font-size: 14px;">Verify Email</a>
+          <p style="color: #6B5F7A; font-size: 12px; margin-top: 24px;">If you didn't create this account, you can safely ignore this email.</p>
+        </div>
+      `,
     });
+
+    res.status(201).json({ message: "Account created. Please check your email to verify your account." });
   } catch (error) {
     console.error("Register error:", error);
     res.status(500).json({ error: "Server error during registration" });
@@ -74,18 +75,18 @@ const login = async (req, res) => {
       return res.status(400).json({ error: "Email and password are required" });
     }
 
-    // look up the user by email - if they don't exist we can't log them in
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      // using "Invalid credentials" instead of "user not found" on purpose
-      // we don't want to tell hackers which emails are registered
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // bcrypt.compare hashes the incoming password and checks it against the stored hash
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    if (!user.isVerified) {
+      return res.status(403).json({ error: "Please verify your email before logging in." });
     }
 
     // password checks out - generate a fresh JWT token for this session
@@ -108,6 +109,36 @@ const login = async (req, res) => {
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ error: "Server error during login" });
+  }
+};
+
+const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: "Token is required" });
+
+    const user = await User.findOne({ where: { verificationToken: token } });
+    if (!user) return res.status(400).json({ error: "Invalid or expired verification link" });
+
+    await User.update(
+      { isVerified: true, verificationToken: null },
+      { where: { id: user.id } }
+    );
+
+    const jwtToken = jwt.sign(
+      { id: user.id, username: user.username },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.status(200).json({
+      message: "Email verified successfully",
+      token: jwtToken,
+      user: { id: user.id, username: user.username, email: user.email },
+    });
+  } catch (error) {
+    console.error("Verify email error:", error);
+    res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -181,4 +212,4 @@ const resetPassword = async (req, res) => {
 };
 
 // exporting both functions so the routes file can use them
-module.exports = { register, login, forgotPassword, resetPassword };
+module.exports = { register, login, verifyEmail, forgotPassword, resetPassword };

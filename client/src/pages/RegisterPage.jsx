@@ -1,28 +1,26 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { useAuth } from "../hooks/useAuth";
 
 function RegisterPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await axios.post(
+      await axios.post(
         `${import.meta.env.VITE_API_URL}/api/auth/register`,
         { username, email, password },
       );
-      login(response.data.user, response.data.token);
-      navigate("/dashboard");
+      setSubmitted(true);
     } catch (error) {
       setError(
         error.response?.data?.error ||
@@ -143,74 +141,88 @@ function RegisterPage() {
           your daily companion for the chronic life.
         </p>
 
-        <form
-          onSubmit={handleSubmit}
+        <div
           className="w-full flex flex-col gap-3 p-5 rounded-2xl"
           style={{
             background: "rgba(255,255,255,0.22)",
             border: "1px solid rgba(255,255,255,0.4)",
           }}
         >
-          <p className="text-white font-medium text-sm">Create account</p>
-
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg text-sm text-white placeholder-white/60 outline-none glass-input transition-all duration-300"
-            style={{
-              background: "rgba(255,255,255,0.16)",
-              border: "1px solid rgba(255,255,255,0.32)",
-            }}
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg text-sm text-white placeholder-white/60 outline-none glass-input transition-all duration-300"
-            style={{
-              background: "rgba(255,255,255,0.16)",
-              border: "1px solid rgba(255,255,255,0.32)",
-            }}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg text-sm text-white placeholder-white/60 outline-none glass-input transition-all duration-300"
-            style={{
-              background: "rgba(255,255,255,0.16)",
-              border: "1px solid rgba(255,255,255,0.32)",
-            }}
-          />
-
-          {error && <p className="text-red-200 text-xs">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 rounded-full bg-white font-medium text-sm mt-1 hover:scale-105 transition-all duration-200 shockwave-btn"
-            style={{ color: "#7C6BAE", opacity: loading ? 0.7 : 1 }}
-          >
-            {loading ? (
-              <div className="flex items-center justify-center gap-2">
-                <div
-                  className="w-4 h-4 rounded-full border-2 animate-spin"
-                  style={{
-                    borderColor: "rgba(124,107,174,0.3)",
-                    borderTopColor: "#7C6BAE",
-                  }}
-                />
-                Creating account...
-              </div>
-            ) : (
-              "Create Account"
-            )}
-          </button>
-        </form>
+          {submitted ? (
+            <>
+              <p className="text-white font-medium text-sm">Check your email</p>
+              <p className="text-white/80 text-xs leading-relaxed">
+                We sent a verification link to <span className="text-white">{email}</span>. Click it to activate your account.
+              </p>
+              <button
+                onClick={() => navigate("/login")}
+                className="w-full py-2 rounded-full bg-white font-medium text-sm mt-1 hover:scale-105 transition-all duration-200 shockwave-btn"
+                style={{ color: "#7C6BAE" }}
+              >
+                Go to log in
+              </button>
+            </>
+          ) : (
+            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+              <p className="text-white font-medium text-sm">Create account</p>
+              <input
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg text-sm text-white placeholder-white/60 outline-none glass-input transition-all duration-300"
+                style={{
+                  background: "rgba(255,255,255,0.16)",
+                  border: "1px solid rgba(255,255,255,0.32)",
+                }}
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg text-sm text-white placeholder-white/60 outline-none glass-input transition-all duration-300"
+                style={{
+                  background: "rgba(255,255,255,0.16)",
+                  border: "1px solid rgba(255,255,255,0.32)",
+                }}
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg text-sm text-white placeholder-white/60 outline-none glass-input transition-all duration-300"
+                style={{
+                  background: "rgba(255,255,255,0.16)",
+                  border: "1px solid rgba(255,255,255,0.32)",
+                }}
+              />
+              {error && <p className="text-red-200 text-xs">{error}</p>}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2 rounded-full bg-white font-medium text-sm mt-1 hover:scale-105 transition-all duration-200 shockwave-btn"
+                style={{ color: "#7C6BAE", opacity: loading ? 0.7 : 1 }}
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div
+                      className="w-4 h-4 rounded-full border-2 animate-spin"
+                      style={{
+                        borderColor: "rgba(124,107,174,0.3)",
+                        borderTopColor: "#7C6BAE",
+                      }}
+                    />
+                    Creating account...
+                  </div>
+                ) : (
+                  "Create Account"
+                )}
+              </button>
+            </form>
+          )}
+        </div>
 
         <p className="text-white/70 text-xs">
           Already have an account?{" "}
