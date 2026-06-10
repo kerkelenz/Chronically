@@ -298,7 +298,7 @@ function DashboardPage() {
         className="p-6 flex flex-col gap-4"
         style={{ maxWidth: "1024px", margin: "0 auto" }}
       >
-        {!todaysDone && (
+        {(checkIns.length === 0 || !todaysDone) && (
           <div className="flex flex-col items-center justify-center py-10 gap-3">
             <p
               className="text-2xl font-medium"
