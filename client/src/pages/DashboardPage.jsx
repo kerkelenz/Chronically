@@ -196,9 +196,10 @@ function DashboardPage() {
 
   return (
     <div className="min-h-screen" style={{ background: "#FAF7FF", overflowX: "hidden" }}>
+      <div style={{ background: "linear-gradient(135deg, #5C4E8A, #7C6BAE)" }}>
       <div
-        className="w-full px-6 py-4 flex justify-between items-center"
-        style={{ background: "linear-gradient(135deg, #5C4E8A, #7C6BAE)" }}
+        className="px-6 py-4 flex justify-between items-center"
+        style={{ maxWidth: "1024px", margin: "0 auto" }}
       >
         <div>
           <h1
@@ -248,8 +249,9 @@ function DashboardPage() {
           </button>
         </div>
       </div>
+      </div>
 
-      <div className="p-6 flex flex-col gap-4">
+      <div className="p-6 flex flex-col gap-4" style={{ maxWidth: "1024px", margin: "0 auto" }}>
         {!todaysDone && (
           <div className="flex flex-col items-center justify-center py-10 gap-3">
             <p
