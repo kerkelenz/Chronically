@@ -362,8 +362,8 @@ function DashboardPage() {
                           {topSymptoms.slice(0, 6).map(({ s, n }) => (
                             <div key={s} className="flex flex-col items-center gap-0.5">
                               <span className="text-3xl leading-none">{SYMPTOM_ICONS[s]}</span>
-                              <span className="text-[8px] text-center leading-tight" style={{ color: "#6B5F7A" }}>{s}</span>
-                              <span className="text-[8px]" style={{ color: "#7FAF8A" }}>{n}d</span>
+                              <span className="text-[11px] text-center leading-tight" style={{ color: "#6B5F7A" }}>{s}</span>
+                              <span className="text-[11px]" style={{ color: "#7FAF8A" }}>{n}d</span>
                             </div>
                           ))}
                         </div>
