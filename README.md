@@ -15,8 +15,8 @@ Built for my girlfriend, who has multiple sclerosis. 💙
 ![Landing Page](screenshots/landing.png)
 ![Dashboard](screenshots/dashboard.png)
 ![Check-in Flow](screenshots/checkin.png)
-![Stats and Graph](screenshots/graph.png)
 ![Profile Page](screenshots/profile.png)
+![Doctor Report](screenshots/report.png)
 
 ---
 
