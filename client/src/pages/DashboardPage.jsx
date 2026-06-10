@@ -18,12 +18,12 @@ import { generateReport } from "../utils/generateReport";
 const SYMPTOM_ICONS = {
   "Fatigue":          "😴",
   "Brain fog":        "🧠",
-  "Pain flare":       "⚡",
-  "Numbness":         "🤲",
-  "Spasticity":       "💫",
+  "Pain flare":       "🔥",
+  "Numbness":         "🥶",
+  "Spasticity":       "⚡",
   "Vision issues":    "👁️",
   "Heat sensitivity": "🌡️",
-  "Balance issues":   "⚖️",
+  "Balance issues":   "🌀",
 };
 
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
