@@ -56,7 +56,7 @@ Chronically is designed for people who deal with chronic illness every day. On a
   - Pain | Mood
   - Energy | Anxiety
   - Appetite | Common Symptoms
-- Common symptoms card shows top symptoms with day count over last 14 days (3+ occurrence threshold)
+- Common symptoms card shows top symptoms with day count over last 14 days
 
 ### Doctor Report (PDF Export)
 
