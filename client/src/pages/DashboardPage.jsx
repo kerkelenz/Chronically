@@ -16,21 +16,21 @@ import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import { generateReport } from "../utils/generateReport";
 
 const SYMPTOM_ICONS = {
-  "Fatigue":          "😴",
-  "Brain fog":        "🧠",
-  "Pain flare":       "🔥",
-  "Numbness":         "🥶",
-  "Spasticity":       "⚡",
-  "Vision issues":    "👁️",
+  Fatigue: "😴",
+  "Brain fog": "🧠",
+  "Pain flare": "🔥",
+  Numbness: "🥶",
+  Spasticity: "⚡",
+  "Vision issues": "👁️",
   "Heat sensitivity": "🌡️",
-  "Balance issues":   "🌀",
+  "Balance issues": "🌀",
 };
 
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
 // mood/energy: more bars = better (red → green)
 const COLORS_BETTER = ["#E55A5A", "#E8934A", "#E8C84A", "#8DC65C", "#5AB87A"];
 // pain/anxiety: more bars = worse symptom (green → red)
-const COLORS_WORSE  = ["#5AB87A", "#5AB87A", "#E8C84A", "#E8934A", "#E55A5A"];
+const COLORS_WORSE = ["#5AB87A", "#5AB87A", "#E8C84A", "#E8934A", "#E55A5A"];
 
 function BarRating({ value, colors = COLORS_BETTER }) {
   const activeColor = value > 0 ? colors[value - 1] : "rgba(0,0,0,0.1)";
@@ -90,7 +90,13 @@ function DashboardPage() {
       .filter((c) => c.date >= cutoffStr)
       .forEach((c) => {
         if (!byDate[c.date])
-          byDate[c.date] = { pains: [], moods: [], energies: [], anxieties: [], appetites: [] };
+          byDate[c.date] = {
+            pains: [],
+            moods: [],
+            energies: [],
+            anxieties: [],
+            appetites: [],
+          };
         byDate[c.date].pains.push(c.painLevel);
         byDate[c.date].moods.push(c.moodLevel);
         if (c.energyLevel) byDate[c.date].energies.push(c.energyLevel);
@@ -109,13 +115,27 @@ function DashboardPage() {
           (6 - moods.reduce((s, v) => s + v, 0) / moods.length).toFixed(1),
         ),
         energy: energies.length
-          ? parseFloat((6 - energies.reduce((s, v) => s + v, 0) / energies.length).toFixed(1))
+          ? parseFloat(
+              (
+                6 -
+                energies.reduce((s, v) => s + v, 0) / energies.length
+              ).toFixed(1),
+            )
           : null,
         anxiety: anxieties.length
-          ? parseFloat((6 - anxieties.reduce((s, v) => s + v, 0) / anxieties.length).toFixed(1))
+          ? parseFloat(
+              (
+                6 -
+                anxieties.reduce((s, v) => s + v, 0) / anxieties.length
+              ).toFixed(1),
+            )
           : null,
         appetite: appetites.length
-          ? parseFloat((appetites.reduce((s, v) => s + v, 0) / appetites.length).toFixed(1))
+          ? parseFloat(
+              (appetites.reduce((s, v) => s + v, 0) / appetites.length).toFixed(
+                1,
+              ),
+            )
           : null,
       }));
   };
@@ -133,11 +153,26 @@ function DashboardPage() {
     }
   };
 
-  const handleUpdate = async (id, painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, symptoms) => {
+  const handleUpdate = async (
+    id,
+    painLevel,
+    moodLevel,
+    energyLevel,
+    anxietyLevel,
+    appetiteLevel,
+    symptoms,
+  ) => {
     try {
       const response = await axios.put(
         `${import.meta.env.VITE_API_URL}/api/checkins/${id}`,
-        { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, symptoms },
+        {
+          painLevel,
+          moodLevel,
+          energyLevel,
+          anxietyLevel,
+          appetiteLevel,
+          symptoms,
+        },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       setCheckIns(
@@ -160,7 +195,8 @@ function DashboardPage() {
         const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
         const recentlyDone =
           response.data.checkIns.length > 0 &&
-          new Date(response.data.checkIns[0].createdAt).getTime() > fourHoursAgo;
+          new Date(response.data.checkIns[0].createdAt).getTime() >
+            fourHoursAgo;
         setTodaysDone(recentlyDone);
       } catch (error) {
         console.error("Error fetching check-ins:", error);
@@ -195,63 +231,73 @@ function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#FAF7FF", overflowX: "hidden" }}>
+    <div
+      className="min-h-screen"
+      style={{ background: "#FAF7FF", overflowX: "hidden" }}
+    >
       <div style={{ background: "linear-gradient(135deg, #5C4E8A, #7C6BAE)" }}>
-      <div
-        className="px-6 py-4 flex justify-between items-center"
-        style={{ maxWidth: "1024px", margin: "0 auto" }}
-      >
-        <div>
-          <h1
-            className="text-white font-medium text-lg"
-            style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-          >
-            {(() => {
-              const hour = new Date().getHours();
-              if (hour < 12) return "Good morning,";
-              if (hour < 17) return "Good afternoon,";
-              return "Good evening,";
-            })()}{" "}
-            {user?.username}
-          </h1>
-          <p className="text-white/70 text-xs mt-1">
-            {todaysDone
-              ? `Next check-in at ${new Date(
-                  new Date(checkIns[0].createdAt).getTime() + 4 * 60 * 60 * 1000,
-                ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-              : "Ready to check in?"}
-          </p>
+        <div
+          className="px-6 py-4 flex justify-between items-center"
+          style={{ maxWidth: "1024px", margin: "0 auto" }}
+        >
+          <div>
+            <h1
+              className="text-white font-medium text-lg"
+              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
+            >
+              {(() => {
+                const hour = new Date().getHours();
+                if (hour < 12) return "Good morning,";
+                if (hour < 17) return "Good afternoon,";
+                return "Good evening,";
+              })()}{" "}
+              {user?.username}
+            </h1>
+            <p className="text-white/70 text-xs mt-1">
+              {todaysDone
+                ? `Next check-in at ${new Date(
+                    new Date(checkIns[0].createdAt).getTime() +
+                      4 * 60 * 60 * 1000,
+                  ).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}`
+                : "Ready to check in?"}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 justify-end">
+            <button
+              onClick={() => generateReport(checkIns, user?.username)}
+              className="text-xs px-3 py-1 rounded-full whitespace-nowrap transition-all duration-200 hover:scale-105"
+              style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
+            >
+              Export Report
+            </button>
+            <button
+              onClick={() => navigate("/profile")}
+              className="text-xs px-3 py-1 rounded-full whitespace-nowrap transition-all duration-200 hover:scale-105"
+              style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
+            >
+              Profile
+            </button>
+            <button
+              onClick={() => {
+                logout();
+                navigate("/");
+              }}
+              className="text-xs px-3 py-1 rounded-full whitespace-nowrap transition-all duration-200 hover:scale-105"
+              style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
+            >
+              Log out
+            </button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 justify-end">
-          <button
-            onClick={() => generateReport(checkIns, user?.username)}
-            className="text-xs px-3 py-1 rounded-full whitespace-nowrap transition-all duration-200 hover:scale-105"
-            style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
-          >
-            Export Report
-          </button>
-          <button
-            onClick={() => navigate("/profile")}
-            className="text-xs px-3 py-1 rounded-full whitespace-nowrap transition-all duration-200 hover:scale-105"
-            style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
-          >
-            Profile
-          </button>
-          <button
-            onClick={() => {
-              logout();
-              navigate("/");
-            }}
-            className="text-xs px-3 py-1 rounded-full whitespace-nowrap transition-all duration-200 hover:scale-105"
-            style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
-          >
-            Log out
-          </button>
-        </div>
-      </div>
       </div>
 
-      <div className="p-6 flex flex-col gap-4" style={{ maxWidth: "1024px", margin: "0 auto" }}>
+      <div
+        className="p-6 flex flex-col gap-4"
+        style={{ maxWidth: "1024px", margin: "0 auto" }}
+      >
         {!todaysDone && (
           <div className="flex flex-col items-center justify-center py-10 gap-3">
             <p
@@ -284,24 +330,36 @@ function DashboardPage() {
             {(() => {
               const fourteenDaysAgo = new Date();
               fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-              const recent         = checkIns.filter((c) => new Date(c.date) >= fourteenDaysAgo);
-              const recentEnergy   = recent.filter((c) => c.energyLevel);
-              const recentAnxiety  = recent.filter((c) => c.anxietyLevel);
+              const recent = checkIns.filter(
+                (c) => new Date(c.date) >= fourteenDaysAgo,
+              );
+              const recentEnergy = recent.filter((c) => c.energyLevel);
+              const recentAnxiety = recent.filter((c) => c.anxietyLevel);
               const recentAppetite = recent.filter((c) => c.appetiteLevel);
-              const days         = [...new Set(recent.map((c) => c.date))].length;
-              const energyDays   = [...new Set(recentEnergy.map((c) => c.date))].length;
-              const anxietyDays  = [...new Set(recentAnxiety.map((c) => c.date))].length;
-              const appetiteDays = [...new Set(recentAppetite.map((c) => c.date))].length;
-              const uniqueSymptomDays = [...new Set(
-                recent.filter((c) => c.symptoms && c.symptoms.length > 0).map((c) => c.date)
-              )].length;
+              const days = [...new Set(recent.map((c) => c.date))].length;
+              const energyDays = [...new Set(recentEnergy.map((c) => c.date))]
+                .length;
+              const anxietyDays = [...new Set(recentAnxiety.map((c) => c.date))]
+                .length;
+              const appetiteDays = [
+                ...new Set(recentAppetite.map((c) => c.date)),
+              ].length;
+              const uniqueSymptomDays = [
+                ...new Set(
+                  recent
+                    .filter((c) => c.symptoms && c.symptoms.length > 0)
+                    .map((c) => c.date),
+                ),
+              ].length;
               const symptomDayCounts = {};
-              recent.filter((c) => c.symptoms && c.symptoms.length > 0).forEach((c) => {
-                c.symptoms.forEach((s) => {
-                  if (!symptomDayCounts[s]) symptomDayCounts[s] = new Set();
-                  symptomDayCounts[s].add(c.date);
+              recent
+                .filter((c) => c.symptoms && c.symptoms.length > 0)
+                .forEach((c) => {
+                  c.symptoms.forEach((s) => {
+                    if (!symptomDayCounts[s]) symptomDayCounts[s] = new Set();
+                    symptomDayCounts[s].add(c.date);
+                  });
                 });
-              });
               const topSymptoms = Object.entries(symptomDayCounts)
                 .map(([s, dates]) => ({ s, n: dates.size }))
                 .filter(({ n }) => n >= uniqueSymptomDays * 0.3)
@@ -312,64 +370,137 @@ function DashboardPage() {
                   {[
                     {
                       label: "Avg pain",
-                      value: recent.length > 0
-                        ? (recent.reduce((s, c) => s + c.painLevel, 0) / recent.length).toFixed(1)
-                        : "-",
+                      value:
+                        recent.length > 0
+                          ? (
+                              recent.reduce((s, c) => s + c.painLevel, 0) /
+                              recent.length
+                            ).toFixed(1)
+                          : "-",
                       count: days,
                     },
                     {
                       label: "Avg mood",
-                      value: recent.length > 0
-                        ? (6 - recent.reduce((s, c) => s + c.moodLevel, 0) / recent.length).toFixed(1)
-                        : "-",
+                      value:
+                        recent.length > 0
+                          ? (
+                              6 -
+                              recent.reduce((s, c) => s + c.moodLevel, 0) /
+                                recent.length
+                            ).toFixed(1)
+                          : "-",
                       count: days,
                     },
                     {
                       label: "Avg energy",
-                      value: recentEnergy.length > 0
-                        ? (6 - recentEnergy.reduce((s, c) => s + c.energyLevel, 0) / recentEnergy.length).toFixed(1)
-                        : "-",
+                      value:
+                        recentEnergy.length > 0
+                          ? (
+                              6 -
+                              recentEnergy.reduce(
+                                (s, c) => s + c.energyLevel,
+                                0,
+                              ) /
+                                recentEnergy.length
+                            ).toFixed(1)
+                          : "-",
                       count: energyDays,
                     },
                     {
                       label: "Avg anxiety",
-                      value: recentAnxiety.length > 0
-                        ? (recentAnxiety.reduce((s, c) => s + c.anxietyLevel, 0) / recentAnxiety.length).toFixed(1)
-                        : "-",
+                      value:
+                        recentAnxiety.length > 0
+                          ? (
+                              recentAnxiety.reduce(
+                                (s, c) => s + c.anxietyLevel,
+                                0,
+                              ) / recentAnxiety.length
+                            ).toFixed(1)
+                          : "-",
                       count: anxietyDays,
                     },
                     {
                       label: "Avg appetite",
-                      value: recentAppetite.length > 0
-                        ? (recentAppetite.reduce((s, c) => s + c.appetiteLevel, 0) / recentAppetite.length).toFixed(1)
-                        : "-",
+                      value:
+                        recentAppetite.length > 0
+                          ? (
+                              recentAppetite.reduce(
+                                (s, c) => s + c.appetiteLevel,
+                                0,
+                              ) / recentAppetite.length
+                            ).toFixed(1)
+                          : "-",
                       count: appetiteDays,
                     },
                   ].map(({ label, value, count }) => (
-                    <div key={label} className="p-4 rounded-2xl" style={{ background: "white", border: "1px solid #DDD5EE" }}>
-                      <p className="text-xs" style={{ color: "#6B5F7A" }}>{label}</p>
-                      <p className="text-2xl font-medium mt-1" style={{ color: "#2D2540" }}>{value}</p>
-                      <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>{count} {count === 1 ? "day" : "days"}</p>
+                    <div
+                      key={label}
+                      className="p-4 rounded-2xl"
+                      style={{
+                        background: "white",
+                        border: "1px solid #DDD5EE",
+                      }}
+                    >
+                      <p className="text-xs" style={{ color: "#6B5F7A" }}>
+                        {label}
+                      </p>
+                      <p
+                        className="text-2xl font-medium mt-1"
+                        style={{ color: "#2D2540" }}
+                      >
+                        {value}
+                      </p>
+                      <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>
+                        {count} {count === 1 ? "day" : "days"}
+                      </p>
                     </div>
                   ))}
                   {/* Common symptoms card */}
-                  <div className="p-4 rounded-2xl" style={{ background: "white", border: "1px solid #DDD5EE" }}>
-                    <p className="text-xs mb-3" style={{ color: "#6B5F7A" }}>Common symptoms</p>
+                  <div
+                    className="p-4 rounded-2xl"
+                    style={{ background: "white", border: "1px solid #DDD5EE" }}
+                  >
+                    <p className="text-xs mb-3" style={{ color: "#6B5F7A" }}>
+                      Common symptoms
+                    </p>
                     {topSymptoms.length > 0 ? (
                       <>
-                        <p className="text-xs mb-2" style={{ color: "#7FAF8A" }}>{uniqueSymptomDays} {uniqueSymptomDays === 1 ? "day" : "days"}</p>
+                        <p
+                          className="text-xs mb-2"
+                          style={{ color: "#7FAF8A" }}
+                        >
+                          {uniqueSymptomDays}{" "}
+                          {uniqueSymptomDays === 1 ? "day" : "days"}
+                        </p>
                         <div className="grid grid-cols-3 gap-1">
                           {topSymptoms.slice(0, 3).map(({ s, n }) => (
-                            <div key={s} className="flex flex-col items-center gap-0.5">
-                              <span className="text-3xl leading-none">{SYMPTOM_ICONS[s]}</span>
-                              <span className="text-[11px] text-center leading-tight" style={{ color: "#6B5F7A" }}>{s}</span>
-                              <span className="text-[11px]" style={{ color: "#7FAF8A" }}>{n}d</span>
+                            <div
+                              key={s}
+                              className="flex flex-col items-center gap-0.5"
+                            >
+                              <span className="text-3xl leading-none">
+                                {SYMPTOM_ICONS[s]}
+                              </span>
+                              <span
+                                className="text-[11px] text-center leading-tight"
+                                style={{ color: "#6B5F7A" }}
+                              >
+                                {s}
+                              </span>
+                              <span
+                                className="text-[11px]"
+                                style={{ color: "#7FAF8A" }}
+                              >
+                                {n}d
+                              </span>
                             </div>
                           ))}
                         </div>
                       </>
                     ) : (
-                      <p className="text-xs" style={{ color: "#9B8EC4" }}>No symptoms logged recently</p>
+                      <p className="text-xs" style={{ color: "#9B8EC4" }}>
+                        No symptoms logged recently
+                      </p>
                     )}
                   </div>
                 </div>
@@ -420,15 +551,33 @@ function DashboardPage() {
                     ticks={[1, 3, 5]}
                     width={32}
                     tick={{ fontSize: 9, fill: "#6B5F7A" }}
-                    tickFormatter={(v) => ({ 1: "Bad", 3: "Mid", 5: "Good" }[v] ?? "")}
+                    tickFormatter={(v) =>
+                      ({ 1: "Bad", 3: "Mid", 5: "Good" })[v] ?? ""
+                    }
                   />
                   <Tooltip
                     formatter={(value, name) => {
                       const r = Math.round(value);
-                      const fwd = { 1: "Low", 2: "Low-Mid", 3: "Mid", 4: "Mid-High", 5: "High" };
-                      const rev = { 1: "High", 2: "Mid-High", 3: "Mid", 4: "Low-Mid", 5: "Low" };
-                      const label = (name === "pain" || name === "anxiety") ? rev[r] : fwd[r];
-                      return [label ?? value, name.charAt(0).toUpperCase() + name.slice(1)];
+                      const fwd = {
+                        1: "Low",
+                        2: "Low-Mid",
+                        3: "Mid",
+                        4: "Mid-High",
+                        5: "High",
+                      };
+                      const rev = {
+                        1: "High",
+                        2: "Mid-High",
+                        3: "Mid",
+                        4: "Low-Mid",
+                        5: "Low",
+                      };
+                      const label =
+                        name === "pain" || name === "anxiety" ? rev[r] : fwd[r];
+                      return [
+                        label ?? value,
+                        name.charAt(0).toUpperCase() + name.slice(1),
+                      ];
                     }}
                   />
                   <Legend />
@@ -486,7 +635,11 @@ function DashboardPage() {
                 const today = new Date().toLocaleDateString("en-CA");
                 const todaysCheckIns = checkIns.filter((c) => c.date === today);
                 if (todaysCheckIns.length === 0) {
-                  return <p className="text-xs" style={{ color: "#9B8EC4" }}>No check-ins yet today</p>;
+                  return (
+                    <p className="text-xs" style={{ color: "#9B8EC4" }}>
+                      No check-ins yet today
+                    </p>
+                  );
                 }
                 return (
                   <div className="flex flex-col gap-2">
@@ -498,31 +651,65 @@ function DashboardPage() {
                       >
                         <div className="flex-1 min-w-0">
                           <p className="text-xs" style={{ color: "#6B5F7A" }}>
-                            {new Date(c.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            {new Date(c.createdAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </p>
                           <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
                             {[
-                              { label: "Energy",   value: c.energyLevel   ? 6 - c.energyLevel   : null, colors: COLORS_BETTER },
-                              { label: "Mood",     value: 6 - c.moodLevel,                              colors: COLORS_BETTER },
-                              { label: "Pain",     value: c.painLevel,                                  colors: COLORS_WORSE },
-                              { label: "Anxiety",  value: c.anxietyLevel  ? c.anxietyLevel       : null, colors: COLORS_WORSE },
-                              { label: "Appetite", value: c.appetiteLevel ? c.appetiteLevel      : null, colors: COLORS_BETTER },
-                            ].filter(({ value }) => value !== null).map(({ label, value, colors }) => (
-                              <div key={label} className="flex items-center gap-1">
-                                <span className="text-[10px]" style={{ color: "#6B5F7A" }}>{label}</span>
-                                <BarRating value={value} colors={colors} />
-                              </div>
-                            ))}
-                          </div>
-                          {c.symptoms && c.symptoms.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {c.symptoms.map((s) => (
-                                <span key={s} title={s} className="text-base leading-none">
+                              {
+                                label: "Energy",
+                                value: c.energyLevel ? 6 - c.energyLevel : null,
+                                colors: COLORS_BETTER,
+                              },
+                              {
+                                label: "Mood",
+                                value: 6 - c.moodLevel,
+                                colors: COLORS_BETTER,
+                              },
+                              {
+                                label: "Pain",
+                                value: c.painLevel,
+                                colors: COLORS_WORSE,
+                              },
+                              {
+                                label: "Anxiety",
+                                value: c.anxietyLevel ? c.anxietyLevel : null,
+                                colors: COLORS_WORSE,
+                              },
+                              {
+                                label: "Appetite",
+                                value: c.appetiteLevel ? c.appetiteLevel : null,
+                                colors: COLORS_BETTER,
+                              },
+                            ]
+                              .filter(({ value }) => value !== null)
+                              .map(({ label, value, colors }) => (
+                                <div
+                                  key={label}
+                                  className="flex items-center gap-1"
+                                >
+                                  <span
+                                    className="text-[10px]"
+                                    style={{ color: "#6B5F7A" }}
+                                  >
+                                    {label}
+                                  </span>
+                                  <BarRating value={value} colors={colors} />
+                                </div>
+                              ))}
+                            {c.symptoms &&
+                              c.symptoms.map((s) => (
+                                <span
+                                  key={s}
+                                  title={s}
+                                  className="text-base leading-none"
+                                >
                                   {SYMPTOM_ICONS[s]}
                                 </span>
                               ))}
-                            </div>
-                          )}
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           <button
@@ -653,11 +840,22 @@ function DashboardPage() {
                 ].map(([level, label]) => (
                   <button
                     key={level}
-                    onClick={() => setEditingCheckIn({ ...editingCheckIn, energyLevel: level })}
+                    onClick={() =>
+                      setEditingCheckIn({
+                        ...editingCheckIn,
+                        energyLevel: level,
+                      })
+                    }
                     className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200"
                     style={{
-                      background: editingCheckIn.energyLevel === level ? "#7C6BAE" : "#F0EBF8",
-                      color: editingCheckIn.energyLevel === level ? "white" : "#6B5F7A",
+                      background:
+                        editingCheckIn.energyLevel === level
+                          ? "#7C6BAE"
+                          : "#F0EBF8",
+                      color:
+                        editingCheckIn.energyLevel === level
+                          ? "white"
+                          : "#6B5F7A",
                     }}
                   >
                     {label}
@@ -679,11 +877,22 @@ function DashboardPage() {
                 ].map(([level, label]) => (
                   <button
                     key={level}
-                    onClick={() => setEditingCheckIn({ ...editingCheckIn, anxietyLevel: level })}
+                    onClick={() =>
+                      setEditingCheckIn({
+                        ...editingCheckIn,
+                        anxietyLevel: level,
+                      })
+                    }
                     className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200"
                     style={{
-                      background: editingCheckIn.anxietyLevel === level ? "#7C6BAE" : "#F0EBF8",
-                      color: editingCheckIn.anxietyLevel === level ? "white" : "#6B5F7A",
+                      background:
+                        editingCheckIn.anxietyLevel === level
+                          ? "#7C6BAE"
+                          : "#F0EBF8",
+                      color:
+                        editingCheckIn.anxietyLevel === level
+                          ? "white"
+                          : "#6B5F7A",
                     }}
                   >
                     {label}
@@ -705,11 +914,22 @@ function DashboardPage() {
                 ].map(([level, label]) => (
                   <button
                     key={level}
-                    onClick={() => setEditingCheckIn({ ...editingCheckIn, appetiteLevel: level })}
+                    onClick={() =>
+                      setEditingCheckIn({
+                        ...editingCheckIn,
+                        appetiteLevel: level,
+                      })
+                    }
                     className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200"
                     style={{
-                      background: editingCheckIn.appetiteLevel === level ? "#7C6BAE" : "#F0EBF8",
-                      color: editingCheckIn.appetiteLevel === level ? "white" : "#6B5F7A",
+                      background:
+                        editingCheckIn.appetiteLevel === level
+                          ? "#7C6BAE"
+                          : "#F0EBF8",
+                      color:
+                        editingCheckIn.appetiteLevel === level
+                          ? "white"
+                          : "#6B5F7A",
                     }}
                   >
                     {label}
@@ -718,9 +938,20 @@ function DashboardPage() {
               </div>
             </div>
             <div>
-              <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>Symptoms</p>
+              <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>
+                Symptoms
+              </p>
               <div className="flex flex-wrap gap-2">
-                {["Fatigue", "Brain fog", "Pain flare", "Numbness", "Spasticity", "Vision issues", "Heat sensitivity", "Balance issues"].map((s) => {
+                {[
+                  "Fatigue",
+                  "Brain fog",
+                  "Pain flare",
+                  "Numbness",
+                  "Spasticity",
+                  "Vision issues",
+                  "Heat sensitivity",
+                  "Balance issues",
+                ].map((s) => {
                   const active = (editingCheckIn.symptoms || []).includes(s);
                   return (
                     <button
@@ -729,7 +960,9 @@ function DashboardPage() {
                         const current = editingCheckIn.symptoms || [];
                         setEditingCheckIn({
                           ...editingCheckIn,
-                          symptoms: active ? current.filter((x) => x !== s) : [...current, s],
+                          symptoms: active
+                            ? current.filter((x) => x !== s)
+                            : [...current, s],
                         });
                       }}
                       className="px-3 py-1 rounded-full text-xs font-medium transition-all duration-200"
@@ -761,7 +994,9 @@ function DashboardPage() {
                     editingCheckIn.energyLevel,
                     editingCheckIn.anxietyLevel,
                     editingCheckIn.appetiteLevel,
-                    editingCheckIn.symptoms?.length > 0 ? editingCheckIn.symptoms : null,
+                    editingCheckIn.symptoms?.length > 0
+                      ? editingCheckIn.symptoms
+                      : null,
                   )
                 }
                 className="flex-1 py-2 rounded-full text-sm text-white"
