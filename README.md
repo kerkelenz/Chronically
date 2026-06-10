@@ -43,20 +43,21 @@ Chronically is designed for people who deal with chronic illness every day. On a
 - Check in every 4 hours, multiple times per day
 - 12 rotating affirmation messages on the celebration screen, written for chronic illness users
 - Edit any of today's check-ins, delete only the most recent
+- Fresh accounts show only the check-in prompt until the first check-in is logged
 
 ### Tracking
 
 - Pain, mood, energy, anxiety, and appetite on a 1-5 scale
-- Symptom tags: Fatigue, Brain fog, Pain flare, Numbness, Spasticity, Vision issues, Heat sensitivity, Balance issues
-- Visual bar ratings in history (color coded — green to red for worse metrics, red to green for better)
-- Symptom emoji icons in history entries
+- Symptom tags: Fatigue 😴, Brain fog 🧠, Pain flare 🔥, Numbness 🥶, Spasticity ⚡, Vision issues 👁️, Heat sensitivity 🌡️, Balance issues 🌀
+- Visual bar ratings in history — color coded (green→red for worse metrics, red→green for better)
+- Symptom emoji icons sit inline with stat bars in history entries, wrapping to a new row on narrow screens
 - Correlation graph with Day / Week / Month tabs
 - Y-axis labels: Good / Mid / Bad for easy reading
 - 3×2 stat card grid showing 14-day averages with check-in counts:
   - Pain | Mood
   - Energy | Anxiety
   - Appetite | Common Symptoms
-- Common symptoms card shows top symptoms with day count over last 14 days
+- Common symptoms card shows top 3 symptoms in a single row with day count (3+ occurrence threshold)
 
 ### Doctor Report (PDF Export)
 
@@ -155,6 +156,7 @@ chronically/
 │       │   ├── DashboardPage.jsx
 │       │   └── ProfilePage.jsx
 │       └── utils/
+│           └── generateReport.js
 ├── server/                 (Express backend)
 │   ├── config/
 │   │   └── db.js
