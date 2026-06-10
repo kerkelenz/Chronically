@@ -306,7 +306,7 @@ function DashboardPage() {
                 .map(([s, dates]) => ({ s, n: dates.size }))
                 .filter(({ n }) => n >= uniqueSymptomDays * 0.3)
                 .sort((a, b) => b.n - a.n)
-                .slice(0, 6);
+                .slice(0, 3);
               return (
                 <div className="grid grid-cols-2 gap-3">
                   {[
@@ -359,7 +359,7 @@ function DashboardPage() {
                       <>
                         <p className="text-xs mb-2" style={{ color: "#7FAF8A" }}>{days} days</p>
                         <div className="grid grid-cols-3 gap-1">
-                          {topSymptoms.slice(0, 6).map(({ s, n }) => (
+                          {topSymptoms.slice(0, 3).map(({ s, n }) => (
                             <div key={s} className="flex flex-col items-center gap-0.5">
                               <span className="text-3xl leading-none">{SYMPTOM_ICONS[s]}</span>
                               <span className="text-[11px] text-center leading-tight" style={{ color: "#6B5F7A" }}>{s}</span>
