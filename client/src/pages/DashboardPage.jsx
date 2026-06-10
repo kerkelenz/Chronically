@@ -356,15 +356,18 @@ function DashboardPage() {
                   <div className="p-4 rounded-2xl" style={{ background: "white", border: "1px solid #DDD5EE" }}>
                     <p className="text-xs mb-3" style={{ color: "#6B5F7A" }}>Common symptoms</p>
                     {topSymptoms.length > 0 ? (
-                      <div className="grid grid-cols-3 gap-1">
-                        {topSymptoms.slice(0, 6).map(({ s, n }) => (
-                          <div key={s} className="flex flex-col items-center gap-0.5">
-                            <span className="text-3xl leading-none">{SYMPTOM_ICONS[s]}</span>
-                            <span className="text-[8px] text-center leading-tight" style={{ color: "#6B5F7A" }}>{s}</span>
-                            <span className="text-[8px]" style={{ color: "#7FAF8A" }}>{n}d</span>
-                          </div>
-                        ))}
-                      </div>
+                      <>
+                        <p className="text-xs mb-2" style={{ color: "#7FAF8A" }}>{days} days</p>
+                        <div className="grid grid-cols-3 gap-1">
+                          {topSymptoms.slice(0, 6).map(({ s, n }) => (
+                            <div key={s} className="flex flex-col items-center gap-0.5">
+                              <span className="text-3xl leading-none">{SYMPTOM_ICONS[s]}</span>
+                              <span className="text-[8px] text-center leading-tight" style={{ color: "#6B5F7A" }}>{s}</span>
+                              <span className="text-[8px]" style={{ color: "#7FAF8A" }}>{n}d</span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
                     ) : (
                       <p className="text-xs" style={{ color: "#9B8EC4" }}>No symptoms logged recently</p>
                     )}
@@ -420,10 +423,13 @@ function DashboardPage() {
                     tickFormatter={(v) => ({ 1: "Bad", 3: "Mid", 5: "Good" }[v] ?? "")}
                   />
                   <Tooltip
-                    formatter={(value, name) => [
-                      ({ 1: "Low", 2: "Low-Mid", 3: "Mid", 4: "Mid-High", 5: "High" }[Math.round(value)] ?? value),
-                      name.charAt(0).toUpperCase() + name.slice(1),
-                    ]}
+                    formatter={(value, name) => {
+                      const r = Math.round(value);
+                      const fwd = { 1: "Low", 2: "Low-Mid", 3: "Mid", 4: "Mid-High", 5: "High" };
+                      const rev = { 1: "High", 2: "Mid-High", 3: "Mid", 4: "Low-Mid", 5: "Low" };
+                      const label = (name === "pain" || name === "anxiety") ? rev[r] : fwd[r];
+                      return [label ?? value, name.charAt(0).toUpperCase() + name.slice(1)];
+                    }}
                   />
                   <Legend />
                   <Line
