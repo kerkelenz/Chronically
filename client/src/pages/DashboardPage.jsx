@@ -357,7 +357,7 @@ function DashboardPage() {
                     <p className="text-xs mb-3" style={{ color: "#6B5F7A" }}>Common symptoms</p>
                     {topSymptoms.length > 0 ? (
                       <>
-                        <p className="text-xs mb-2" style={{ color: "#7FAF8A" }}>{days} days</p>
+                        <p className="text-xs mb-2" style={{ color: "#7FAF8A" }}>{uniqueSymptomDays} days</p>
                         <div className="grid grid-cols-3 gap-1">
                           {topSymptoms.slice(0, 3).map(({ s, n }) => (
                             <div key={s} className="flex flex-col items-center gap-0.5">
