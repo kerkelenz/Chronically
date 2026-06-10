@@ -34,9 +34,10 @@ function ProfilePage() {
 
   return (
     <div className="min-h-screen" style={{ background: "#FAF7FF" }}>
+      <div style={{ background: "linear-gradient(135deg, #5C4E8A, #7C6BAE)" }}>
       <div
-        className="w-full px-6 py-6 flex flex-col items-center gap-2"
-        style={{ background: "linear-gradient(135deg, #5C4E8A, #7C6BAE)" }}
+        className="px-6 py-6 flex flex-col items-center gap-2"
+        style={{ maxWidth: "1024px", margin: "0 auto" }}
       >
         <div
           className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-medium"
@@ -56,8 +57,9 @@ function ProfilePage() {
         </p>
         <p className="text-white/70 text-sm">{user?.email}</p>
       </div>
+      </div>
       {/* settings form */}
-      <div className="p-6 flex flex-col gap-4">
+      <div className="p-6 flex flex-col gap-4" style={{ maxWidth: "1024px", margin: "0 auto" }}>
         <form onSubmit={handleUpdate} className="flex flex-col gap-3">
           <div
             className="p-4 rounded-2xl"

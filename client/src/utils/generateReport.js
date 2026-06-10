@@ -196,7 +196,8 @@ export function generateReport(checkIns, username) {
     body: dailyRows,
     headStyles: {
       fillColor: PURPLE, textColor: [255, 255, 255],
-      fontStyle: "bold", fontSize: 9, cellPadding: 2,
+      fontStyle: "bold", fontSize: 9,
+      cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
     },
     bodyStyles: {
       textColor: DARK, fontSize: 8,
@@ -206,11 +207,11 @@ export function generateReport(checkIns, username) {
     },
     columnStyles: {
       0: { cellWidth: 14 },
-      1: { cellWidth: 12, halign: "center" },
-      2: { cellWidth: 12, halign: "center" },
-      3: { cellWidth: 12, halign: "center" },
-      4: { cellWidth: 12, halign: "center" },
-      5: { cellWidth: 12, halign: "center" },
+      1: { cellWidth: 14, halign: "center" },
+      2: { cellWidth: 14, halign: "center" },
+      3: { cellWidth: 14, halign: "center" },
+      4: { cellWidth: 14, halign: "center" },
+      5: { cellWidth: 14, halign: "center" },
       6: { cellWidth: "auto" },
     },
     styles: { overflow: "linebreak" },
