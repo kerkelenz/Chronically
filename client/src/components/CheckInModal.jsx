@@ -27,7 +27,7 @@ const PAIN_LABELS    = { 1: "Very Light", 2: "Light",   3: "Moderate", 4: "Sever
 const MOOD_LABELS    = { 1: "Great",      2: "Good",    3: "Okay",     4: "Low",      5: "Very Low" };
 const ENERGY_LABELS  = { 1: "Full",       2: "Good",    3: "Low",      4: "Drained",  5: "Exhausted" };
 const ANXIETY_LABELS = { 1: "Calm",       2: "Mild",    3: "Moderate", 4: "High",     5: "Severe" };
-const APPETITE_LABELS = { 1: "None",      2: "Poor",    3: "Fair",     4: "Good",     5: "Great" };
+const APPETITE_LABELS = { 1: "Great",     2: "Good",    3: "Fair",     4: "Poor",     5: "None" };
 
 const getPainAnxietyTier = (level) => {
   if (level === 1) return "best";
@@ -338,7 +338,7 @@ function CheckInModal({ onClose, onComplete }) {
       mood     ? getPainAnxietyTier(mood)              : null,
       energy   ? getPainAnxietyTier(energy)            : null,
       anxiety  ? getPainAnxietyTier(anxiety)          : null,
-      appetite ? getMoodEnergyAppetiteTier(appetite)  : null,
+      appetite ? getPainAnxietyTier(appetite)          : null,
     ].filter(Boolean);
 
     const count = (t) => tiers.filter((x) => x === t).length;
@@ -486,7 +486,7 @@ function CheckInModal({ onClose, onComplete }) {
               onSelect={(level) => {
                 setAppetiteLevel(level);
                 setSymptoms([]);
-                showToast(getIndividualToast(getMoodEnergyAppetiteTier(level), "appetite"));
+                showToast(getIndividualToast(getPainAnxietyTier(level), "appetite"));
                 setStep(6);
               }}
             />

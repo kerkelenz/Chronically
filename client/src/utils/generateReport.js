@@ -39,7 +39,7 @@ export function generateReport(checkIns, username) {
   const avgMood     = avg(periodCheckIns, "moodLevel",     true);
   const avgEnergy   = avg(periodCheckIns, "energyLevel",   true);
   const avgAnxiety  = avg(periodCheckIns, "anxietyLevel",  true);
-  const avgAppetite = avg(periodCheckIns, "appetiteLevel", false);
+  const avgAppetite = avg(periodCheckIns, "appetiteLevel", true);
 
   const symptomStats = SYMPTOM_LIST.map((symptom) => {
     const days = daysWithCheckIns.filter((date) =>
@@ -88,7 +88,7 @@ export function generateReport(checkIns, username) {
       dayAvg("moodLevel",     true),
       dayAvg("energyLevel",   true),
       dayAvg("anxietyLevel",  true),
-      dayAvg("appetiteLevel", false),
+      dayAvg("appetiteLevel", true),
       uniqueSymptoms.length > 0 ? uniqueSymptoms.join(", ") : "—",
     ]);
   }

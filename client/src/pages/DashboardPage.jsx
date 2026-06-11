@@ -77,7 +77,7 @@ function DashboardPage() {
           mood: 6 - c.moodLevel,
           energy: c.energyLevel ? 6 - c.energyLevel : null,
           anxiety: c.anxietyLevel ? 6 - c.anxietyLevel : null,
-          appetite: c.appetiteLevel ? c.appetiteLevel : null,
+          appetite: c.appetiteLevel ? 6 - c.appetiteLevel : null,
         }));
     }
 
@@ -132,9 +132,7 @@ function DashboardPage() {
           : null,
         appetite: appetites.length
           ? parseFloat(
-              (appetites.reduce((s, v) => s + v, 0) / appetites.length).toFixed(
-                1,
-              ),
+              (6 - appetites.reduce((s, v) => s + v, 0) / appetites.length).toFixed(1),
             )
           : null,
       }));
@@ -680,7 +678,7 @@ function DashboardPage() {
                               },
                               {
                                 label: "Appetite",
-                                value: c.appetiteLevel ? c.appetiteLevel : null,
+                                value: c.appetiteLevel ? 6 - c.appetiteLevel : null,
                                 colors: COLORS_BETTER,
                               },
                             ]
@@ -906,11 +904,11 @@ function DashboardPage() {
               </p>
               <div className="flex gap-2">
                 {[
-                  [1, "None"],
-                  [2, "Poor"],
+                  [1, "Great"],
+                  [2, "Good"],
                   [3, "Fair"],
-                  [4, "Good"],
-                  [5, "Great"],
+                  [4, "Poor"],
+                  [5, "None"],
                 ].map(([level, label]) => (
                   <button
                     key={level}
