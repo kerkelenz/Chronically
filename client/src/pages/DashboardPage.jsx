@@ -132,7 +132,10 @@ function DashboardPage() {
           : null,
         appetite: appetites.length
           ? parseFloat(
-              (6 - appetites.reduce((s, v) => s + v, 0) / appetites.length).toFixed(1),
+              (
+                6 -
+                appetites.reduce((s, v) => s + v, 0) / appetites.length
+              ).toFixed(1),
             )
           : null,
       }));
@@ -654,59 +657,64 @@ function DashboardPage() {
                               minute: "2-digit",
                             })}
                           </p>
-                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
-                            {[
-                              {
-                                label: "Energy",
-                                value: c.energyLevel ? 6 - c.energyLevel : null,
-                                colors: COLORS_BETTER,
-                              },
-                              {
-                                label: "Mood",
-                                value: 6 - c.moodLevel,
-                                colors: COLORS_BETTER,
-                              },
-                              {
-                                label: "Pain",
-                                value: c.painLevel,
-                                colors: COLORS_WORSE,
-                              },
-                              {
-                                label: "Anxiety",
-                                value: c.anxietyLevel ? c.anxietyLevel : null,
-                                colors: COLORS_WORSE,
-                              },
-                              {
-                                label: "Appetite",
-                                value: c.appetiteLevel ? 6 - c.appetiteLevel : null,
-                                colors: COLORS_BETTER,
-                              },
-                            ]
-                              .filter(({ value }) => value !== null)
-                              .map(({ label, value, colors }) => (
-                                <div
-                                  key={label}
-                                  className="flex items-center gap-1"
-                                >
-                                  <span
-                                    className="text-[10px]"
-                                    style={{ color: "#6B5F7A" }}
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
+                            <div className="flex items-center gap-x-3">
+                              {[
+                                {
+                                  label: "Energy",
+                                  value: c.energyLevel ? 6 - c.energyLevel : null,
+                                  colors: COLORS_BETTER,
+                                },
+                                {
+                                  label: "Mood",
+                                  value: 6 - c.moodLevel,
+                                  colors: COLORS_BETTER,
+                                },
+                                {
+                                  label: "Appetite",
+                                  value: c.appetiteLevel ? 6 - c.appetiteLevel : null,
+                                  colors: COLORS_BETTER,
+                                },
+                                {
+                                  label: "Pain",
+                                  value: c.painLevel,
+                                  colors: COLORS_WORSE,
+                                },
+                                {
+                                  label: "Anxiety",
+                                  value: c.anxietyLevel ? c.anxietyLevel : null,
+                                  colors: COLORS_WORSE,
+                                },
+                              ]
+                                .filter(({ value }) => value !== null)
+                                .map(({ label, value, colors }) => (
+                                  <div
+                                    key={label}
+                                    className="flex items-center gap-1"
                                   >
-                                    {label}
+                                    <span
+                                      className="text-[10px]"
+                                      style={{ color: "#6B5F7A" }}
+                                    >
+                                      {label}
+                                    </span>
+                                    <BarRating value={value} colors={colors} />
+                                  </div>
+                                ))}
+                            </div>
+                            {c.symptoms && c.symptoms.length > 0 && (
+                              <div className="flex items-center gap-1">
+                                {c.symptoms.map((s) => (
+                                  <span
+                                    key={s}
+                                    title={s}
+                                    className="text-base leading-none"
+                                  >
+                                    {SYMPTOM_ICONS[s]}
                                   </span>
-                                  <BarRating value={value} colors={colors} />
-                                </div>
-                              ))}
-                            {c.symptoms &&
-                              c.symptoms.map((s) => (
-                                <span
-                                  key={s}
-                                  title={s}
-                                  className="text-base leading-none"
-                                >
-                                  {SYMPTOM_ICONS[s]}
-                                </span>
-                              ))}
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex gap-2">
