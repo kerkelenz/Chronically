@@ -388,6 +388,17 @@ function CheckInModal({ onClose, onComplete }) {
 
       <div className="relative z-10 flex flex-col items-center gap-6 w-full max-w-sm px-6">
 
+        {toastMessage && (
+          <div
+            className="flex items-center justify-center w-full text-center"
+            style={{ opacity: toastVisible ? 1 : 0, transition: "opacity 0.5s", minHeight: "260px" }}
+          >
+            <p className="text-white text-base leading-relaxed px-2">{toastMessage}</p>
+          </div>
+        )}
+
+        {!toastMessage && <>
+
         {/* Step 1 — Pain */}
         {step === 1 && (
           <div className="flex flex-col items-center gap-6 w-full">
@@ -601,22 +612,9 @@ function CheckInModal({ onClose, onComplete }) {
             cancel
           </button>
         )}
-      </div>
 
-      {toastMessage && (
-        <div
-          className="fixed bottom-8 left-1/2 -translate-x-1/2 px-5 py-3 rounded-full text-sm text-center max-w-xs z-50 transition-opacity duration-500"
-          style={{
-            background: "rgba(255,255,255,0.25)",
-            border: "1px solid rgba(255,255,255,0.4)",
-            color: "white",
-            backdropFilter: "blur(8px)",
-            opacity: toastVisible ? 1 : 0,
-          }}
-        >
-          {toastMessage}
-        </div>
-      )}
+        </>}
+      </div>
     </div>
   );
 }
