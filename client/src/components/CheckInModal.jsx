@@ -335,8 +335,8 @@ function CheckInModal({ onClose, onComplete }) {
   const getComboToast = (pain, mood, energy, anxiety, appetite) => {
     const tiers = [
       pain     ? getPainAnxietyTier(pain)            : null,
-      mood     ? getMoodEnergyAppetiteTier(mood)      : null,
-      energy   ? getMoodEnergyAppetiteTier(energy)    : null,
+      mood     ? getPainAnxietyTier(mood)              : null,
+      energy   ? getPainAnxietyTier(energy)            : null,
       anxiety  ? getPainAnxietyTier(anxiety)          : null,
       appetite ? getMoodEnergyAppetiteTier(appetite)  : null,
     ].filter(Boolean);
@@ -426,7 +426,7 @@ function CheckInModal({ onClose, onComplete }) {
                 setAnxietyLevel(null);
                 setAppetiteLevel(null);
                 setSymptoms([]);
-                showToast(getIndividualToast(getMoodEnergyAppetiteTier(level), "mood"));
+                showToast(getIndividualToast(getPainAnxietyTier(level), "mood"));
                 setStep(3);
               }}
             />
@@ -447,7 +447,7 @@ function CheckInModal({ onClose, onComplete }) {
                 setAnxietyLevel(null);
                 setAppetiteLevel(null);
                 setSymptoms([]);
-                showToast(getIndividualToast(getMoodEnergyAppetiteTier(level), "energy"));
+                showToast(getIndividualToast(getPainAnxietyTier(level), "energy"));
                 setStep(4);
               }}
             />
