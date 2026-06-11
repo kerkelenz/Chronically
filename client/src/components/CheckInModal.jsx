@@ -605,12 +605,22 @@ function CheckInModal({ onClose, onComplete }) {
         )}
 
         {step !== 8 && (
-          <button
-            onClick={onClose}
-            className="text-white/50 text-xs hover:text-white/80 transition-colors mt-4"
-          >
-            cancel
-          </button>
+          <div className="flex items-center gap-5 mt-4">
+            {step > 1 && (
+              <button
+                onClick={() => setStep(step - 1)}
+                className="text-white/50 text-xs hover:text-white/80 transition-colors"
+              >
+                back
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-white/50 text-xs hover:text-white/80 transition-colors"
+            >
+              cancel
+            </button>
+          </div>
         )}
 
         </>}
