@@ -337,14 +337,6 @@ function DashboardPage() {
               const recentEnergy = recent.filter((c) => c.energyLevel);
               const recentAnxiety = recent.filter((c) => c.anxietyLevel);
               const recentAppetite = recent.filter((c) => c.appetiteLevel);
-              const days = [...new Set(recent.map((c) => c.date))].length;
-              const energyDays = [...new Set(recentEnergy.map((c) => c.date))]
-                .length;
-              const anxietyDays = [...new Set(recentAnxiety.map((c) => c.date))]
-                .length;
-              const appetiteDays = [
-                ...new Set(recentAppetite.map((c) => c.date)),
-              ].length;
               const uniqueSymptomDays = [
                 ...new Set(
                   recent
@@ -367,6 +359,8 @@ function DashboardPage() {
                 .sort((a, b) => b.n - a.n)
                 .slice(0, 3);
               return (
+                <>
+                <p className="text-xs uppercase tracking-wide" style={{ color: "#6B5F7A" }}>Last 14 days</p>
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     {
@@ -378,7 +372,6 @@ function DashboardPage() {
                               recent.length
                             ).toFixed(1)
                           : "-",
-                      count: days,
                     },
                     {
                       label: "Avg mood",
@@ -390,7 +383,6 @@ function DashboardPage() {
                                 recent.length
                             ).toFixed(1)
                           : "-",
-                      count: days,
                     },
                     {
                       label: "Avg energy",
@@ -405,7 +397,6 @@ function DashboardPage() {
                                 recentEnergy.length
                             ).toFixed(1)
                           : "-",
-                      count: energyDays,
                     },
                     {
                       label: "Avg anxiety",
@@ -418,7 +409,6 @@ function DashboardPage() {
                               ) / recentAnxiety.length
                             ).toFixed(1)
                           : "-",
-                      count: anxietyDays,
                     },
                     {
                       label: "Avg appetite",
@@ -431,9 +421,8 @@ function DashboardPage() {
                               ) / recentAppetite.length
                             ).toFixed(1)
                           : "-",
-                      count: appetiteDays,
                     },
-                  ].map(({ label, value, count }) => (
+                  ].map(({ label, value }) => (
                     <div
                       key={label}
                       className="p-4 rounded-2xl"
@@ -451,9 +440,6 @@ function DashboardPage() {
                       >
                         {value}
                       </p>
-                      <p className="text-xs mt-1" style={{ color: "#7FAF8A" }}>
-                        {count} {count === 1 ? "day" : "days"}
-                      </p>
                     </div>
                   ))}
                   {/* Common symptoms card */}
@@ -466,13 +452,6 @@ function DashboardPage() {
                     </p>
                     {topSymptoms.length > 0 ? (
                       <>
-                        <p
-                          className="text-xs mb-2"
-                          style={{ color: "#7FAF8A" }}
-                        >
-                          {uniqueSymptomDays}{" "}
-                          {uniqueSymptomDays === 1 ? "day" : "days"}
-                        </p>
                         <div className="grid grid-cols-3 gap-1">
                           {topSymptoms.slice(0, 3).map(({ s, n }) => (
                             <div
@@ -505,6 +484,7 @@ function DashboardPage() {
                     )}
                   </div>
                 </div>
+                </>
               );
             })()}
 
@@ -647,7 +627,7 @@ function DashboardPage() {
                     {todaysCheckIns.map((c) => (
                       <div
                         key={c.id}
-                        className="flex justify-between items-center p-3 rounded-xl"
+                        className="flex justify-between items-start p-3 rounded-xl"
                         style={{ background: "#F0EBF8" }}
                       >
                         <div className="flex-1 min-w-0">
@@ -658,7 +638,7 @@ function DashboardPage() {
                             })}
                           </p>
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
-                            <div className="flex items-center gap-x-3">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                               {[
                                 {
                                   label: "Energy",
