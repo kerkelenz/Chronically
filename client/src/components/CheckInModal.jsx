@@ -93,7 +93,6 @@ const TOAST_MESSAGES = {
     "Not your best, but you're still here. 💙",
     "Low-mid days are real. So is your resilience. 💙",
     "A tougher reading today. Be kind to yourself. 💙",
-    "You noticed it. That matters. 💙",
     "Harder days deserve acknowledgment. This is yours. 💙",
     "This reading tells a story. You're still writing it. 💙",
     "A difficult marker today. You logged it anyway. 💙",
