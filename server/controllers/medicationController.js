@@ -62,10 +62,17 @@ const deleteMedication = async (req, res) => {
 
 const getLogs = async (req, res) => {
   try {
+    const { Op } = require("sequelize");
     const where = { userId: req.user.id };
-    if (req.query.date) where.date = req.query.date;
+    if (req.query.date) {
+      where.date = req.query.date;
+    } else if (req.query.startDate && req.query.endDate) {
+      where.date = { [Op.between]: [req.query.startDate, req.query.endDate] };
+    } else if (req.query.startDate) {
+      where.date = { [Op.gte]: req.query.startDate };
+    }
 
-    const logs = await MedicationLog.findAll({ where, order: [["createdAt", "ASC"]] });
+    const logs = await MedicationLog.findAll({ where, order: [["date", "ASC"], ["createdAt", "ASC"]] });
     res.json({ logs });
   } catch (error) {
     console.error("Get logs error:", error);

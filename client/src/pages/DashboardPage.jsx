@@ -200,7 +200,23 @@ function DashboardPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2 justify-end">
             <button
-              onClick={() => generateReport(checkIns, user?.username)}
+              onClick={async () => {
+                try {
+                  const startDate = new Date();
+                  startDate.setDate(startDate.getDate() - 30);
+                  const startDateStr = startDate.toLocaleDateString("en-CA");
+                  const endDateStr = new Date().toLocaleDateString("en-CA");
+                  const hdrs = { Authorization: `Bearer ${token}` };
+                  const [allMedsRes, logsRes] = await Promise.all([
+                    axios.get(`${import.meta.env.VITE_API_URL}/api/medications`, { headers: hdrs }),
+                    axios.get(`${import.meta.env.VITE_API_URL}/api/medications/logs?startDate=${startDateStr}&endDate=${endDateStr}`, { headers: hdrs }),
+                  ]);
+                  generateReport(checkIns, user?.username, allMedsRes.data.medications, logsRes.data.logs);
+                } catch (err) {
+                  console.error("Error fetching report data:", err);
+                  generateReport(checkIns, user?.username, [], []);
+                }
+              }}
               className="text-xs px-3 py-1 rounded-full whitespace-nowrap transition-all duration-200 hover:scale-105"
               style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
             >
