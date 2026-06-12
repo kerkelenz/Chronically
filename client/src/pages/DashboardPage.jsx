@@ -318,18 +318,18 @@ function DashboardPage() {
                     ].map(({ label, value }) => (
                       <div
                         key={label}
-                        className="p-4 rounded-2xl"
+                        className="px-4 py-3 rounded-2xl flex justify-between items-center"
                         style={{ background: "white", border: "1px solid #DDD5EE" }}
                       >
                         <p className="text-xs" style={{ color: "#6B5F7A" }}>{label}</p>
-                        <p className="text-2xl font-medium mt-1" style={{ color: "#2D2540" }}>
+                        <p className="text-xl font-medium" style={{ color: "#2D2540" }}>
                           {value}
                         </p>
                       </div>
                     ))}
                     {/* Common symptoms card */}
                     <div
-                      className="p-4 rounded-2xl"
+                      className="px-4 py-3 rounded-2xl"
                       style={{ background: "white", border: "1px solid #DDD5EE" }}
                     >
                       <p className="text-xs mb-3" style={{ color: "#6B5F7A" }}>Common symptoms</p>
