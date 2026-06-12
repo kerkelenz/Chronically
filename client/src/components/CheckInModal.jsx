@@ -23,21 +23,13 @@ const SYMPTOM_LIST = [
   "Spasticity", "Vision issues", "Heat sensitivity", "Balance issues",
 ];
 
-const PAIN_LABELS    = { 1: "Very Light", 2: "Light",   3: "Moderate", 4: "Severe",   5: "Very Severe" };
-const MOOD_LABELS    = { 1: "Great",      2: "Good",    3: "Okay",     4: "Low",      5: "Very Low" };
-const ENERGY_LABELS  = { 1: "Full",       2: "Good",    3: "Low",      4: "Drained",  5: "Exhausted" };
-const ANXIETY_LABELS = { 1: "Calm",       2: "Mild",    3: "Moderate", 4: "High",     5: "Severe" };
-const APPETITE_LABELS = { 1: "Great",     2: "Good",    3: "Fair",     4: "Poor",     5: "None" };
+const PAIN_LABELS    = { 1: "Very Severe", 2: "Severe",  3: "Moderate", 4: "Light",    5: "Very Light" };
+const MOOD_LABELS    = { 1: "Very Low",   2: "Low",     3: "Okay",     4: "Good",     5: "Great" };
+const ENERGY_LABELS  = { 1: "Exhausted",  2: "Drained", 3: "Low",      4: "Good",     5: "Full" };
+const ANXIETY_LABELS = { 1: "Severe",     2: "High",    3: "Moderate", 4: "Mild",     5: "Calm" };
+const APPETITE_LABELS = { 1: "None",      2: "Poor",    3: "Fair",     4: "Good",     5: "Great" };
 
-const getPainAnxietyTier = (level) => {
-  if (level === 1) return "best";
-  if (level === 2) return "highMid";
-  if (level === 3) return "mid";
-  if (level === 4) return "lowMid";
-  return "worst";
-};
-
-const getMoodEnergyAppetiteTier = (level) => {
+const getTier = (level) => {
   if (level === 5) return "best";
   if (level === 4) return "highMid";
   if (level === 3) return "mid";
@@ -333,11 +325,11 @@ function CheckInModal({ onClose, onComplete }) {
 
   const getComboToast = (pain, mood, energy, anxiety, appetite) => {
     const tiers = [
-      pain     ? getPainAnxietyTier(pain)            : null,
-      mood     ? getPainAnxietyTier(mood)              : null,
-      energy   ? getPainAnxietyTier(energy)            : null,
-      anxiety  ? getPainAnxietyTier(anxiety)          : null,
-      appetite ? getPainAnxietyTier(appetite)          : null,
+      pain     ? getTier(pain)            : null,
+      mood     ? getTier(mood)              : null,
+      energy   ? getTier(energy)            : null,
+      anxiety  ? getTier(anxiety)          : null,
+      appetite ? getTier(appetite)          : null,
     ].filter(Boolean);
 
     const count = (t) => tiers.filter((x) => x === t).length;
@@ -414,7 +406,7 @@ function CheckInModal({ onClose, onComplete }) {
                 setAnxietyLevel(null);
                 setAppetiteLevel(null);
                 setSymptoms([]);
-                showToast(getIndividualToast(getPainAnxietyTier(level), "pain"));
+                showToast(getIndividualToast(getTier(level), "pain"));
                 setStep(2);
               }}
             />
@@ -436,7 +428,7 @@ function CheckInModal({ onClose, onComplete }) {
                 setAnxietyLevel(null);
                 setAppetiteLevel(null);
                 setSymptoms([]);
-                showToast(getIndividualToast(getPainAnxietyTier(level), "mood"));
+                showToast(getIndividualToast(getTier(level), "mood"));
                 setStep(3);
               }}
             />
@@ -457,7 +449,7 @@ function CheckInModal({ onClose, onComplete }) {
                 setAnxietyLevel(null);
                 setAppetiteLevel(null);
                 setSymptoms([]);
-                showToast(getIndividualToast(getPainAnxietyTier(level), "energy"));
+                showToast(getIndividualToast(getTier(level), "energy"));
                 setStep(4);
               }}
             />
@@ -477,7 +469,7 @@ function CheckInModal({ onClose, onComplete }) {
                 setAnxietyLevel(level);
                 setAppetiteLevel(null);
                 setSymptoms([]);
-                showToast(getIndividualToast(getPainAnxietyTier(level), "anxiety"));
+                showToast(getIndividualToast(getTier(level), "anxiety"));
                 setStep(5);
               }}
             />
@@ -496,7 +488,7 @@ function CheckInModal({ onClose, onComplete }) {
               onSelect={(level) => {
                 setAppetiteLevel(level);
                 setSymptoms([]);
-                showToast(getIndividualToast(getPainAnxietyTier(level), "appetite"));
+                showToast(getIndividualToast(getTier(level), "appetite"));
                 setStep(6);
               }}
             />

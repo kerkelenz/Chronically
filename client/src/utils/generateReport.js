@@ -28,18 +28,17 @@ export function generateReport(checkIns, username) {
     ? (periodCheckIns.length / totalDaysTracked).toFixed(1)
     : "0";
 
-  const avg = (arr, key, invert = false) => {
+  const avg = (arr, key) => {
     const vals = arr.filter((c) => c[key]);
     if (vals.length === 0) return "-";
-    const mean = vals.reduce((s, c) => s + c[key], 0) / vals.length;
-    return (invert ? 6 - mean : mean).toFixed(1);
+    return (vals.reduce((s, c) => s + c[key], 0) / vals.length).toFixed(1);
   };
 
-  const avgPain     = avg(periodCheckIns, "painLevel",     false);
-  const avgMood     = avg(periodCheckIns, "moodLevel",     true);
-  const avgEnergy   = avg(periodCheckIns, "energyLevel",   true);
-  const avgAnxiety  = avg(periodCheckIns, "anxietyLevel",  true);
-  const avgAppetite = avg(periodCheckIns, "appetiteLevel", true);
+  const avgPain     = avg(periodCheckIns, "painLevel");
+  const avgMood     = avg(periodCheckIns, "moodLevel");
+  const avgEnergy   = avg(periodCheckIns, "energyLevel");
+  const avgAnxiety  = avg(periodCheckIns, "anxietyLevel");
+  const avgAppetite = avg(periodCheckIns, "appetiteLevel");
 
   const symptomStats = SYMPTOM_LIST.map((symptom) => {
     const days = daysWithCheckIns.filter((date) =>
@@ -71,11 +70,10 @@ export function generateReport(checkIns, username) {
       continue;
     }
 
-    const dayAvg = (key, invert = false) => {
+    const dayAvg = (key) => {
       const vals = dayCheckins.filter((c) => c[key]);
       if (vals.length === 0) return "-";
-      const mean = vals.reduce((s, c) => s + c[key], 0) / vals.length;
-      return (invert ? 6 - mean : mean).toFixed(1);
+      return (vals.reduce((s, c) => s + c[key], 0) / vals.length).toFixed(1);
     };
 
     const uniqueSymptoms = [
@@ -84,11 +82,11 @@ export function generateReport(checkIns, username) {
 
     dailyRows.push([
       label,
-      dayAvg("painLevel",     false),
-      dayAvg("moodLevel",     true),
-      dayAvg("energyLevel",   true),
-      dayAvg("anxietyLevel",  true),
-      dayAvg("appetiteLevel", true),
+      dayAvg("painLevel"),
+      dayAvg("moodLevel"),
+      dayAvg("energyLevel"),
+      dayAvg("anxietyLevel"),
+      dayAvg("appetiteLevel"),
       uniqueSymptoms.length > 0 ? uniqueSymptoms.join(", ") : "—",
     ]);
   }

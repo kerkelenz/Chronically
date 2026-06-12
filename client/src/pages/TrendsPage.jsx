@@ -19,15 +19,12 @@ function TrendsPage() {
         .filter((c) => c.date === today)
         .reverse()
         .map((c) => ({
-          date: new Date(c.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          pain:     6 - c.painLevel,
-          mood:     6 - c.moodLevel,
-          energy:   c.energyLevel   ? 6 - c.energyLevel   : null,
-          anxiety:  c.anxietyLevel  ? 6 - c.anxietyLevel  : null,
-          appetite: c.appetiteLevel ? 6 - c.appetiteLevel : null,
+          date:     new Date(c.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          pain:     c.painLevel,
+          mood:     c.moodLevel,
+          energy:   c.energyLevel   ?? null,
+          anxiety:  c.anxietyLevel  ?? null,
+          appetite: c.appetiteLevel ?? null,
         }));
     }
 
@@ -52,11 +49,11 @@ function TrendsPage() {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, { pains, moods, energies, anxieties, appetites }]) => ({
         date,
-        pain:     parseFloat((6 - pains.reduce((s, v) => s + v, 0) / pains.length).toFixed(1)),
-        mood:     parseFloat((6 - moods.reduce((s, v) => s + v, 0) / moods.length).toFixed(1)),
-        energy:   energies.length   ? parseFloat((6 - energies.reduce((s, v) => s + v, 0)   / energies.length).toFixed(1))   : null,
-        anxiety:  anxieties.length  ? parseFloat((6 - anxieties.reduce((s, v) => s + v, 0)  / anxieties.length).toFixed(1))  : null,
-        appetite: appetites.length  ? parseFloat((6 - appetites.reduce((s, v) => s + v, 0)  / appetites.length).toFixed(1))  : null,
+        pain:     parseFloat((pains.reduce((s, v) => s + v, 0) / pains.length).toFixed(1)),
+        mood:     parseFloat((moods.reduce((s, v) => s + v, 0) / moods.length).toFixed(1)),
+        energy:   energies.length   ? parseFloat((energies.reduce((s, v) => s + v, 0)   / energies.length).toFixed(1))   : null,
+        anxiety:  anxieties.length  ? parseFloat((anxieties.reduce((s, v) => s + v, 0)  / anxieties.length).toFixed(1))  : null,
+        appetite: appetites.length  ? parseFloat((appetites.reduce((s, v) => s + v, 0)  / appetites.length).toFixed(1))  : null,
       }));
   };
 
@@ -157,10 +154,8 @@ function TrendsPage() {
                 <Tooltip
                   formatter={(value, name) => {
                     const r = Math.round(value);
-                    const fwd = { 1: "Low", 2: "Low-Mid", 3: "Mid", 4: "Mid-High", 5: "High" };
-                    const rev = { 1: "High", 2: "Mid-High", 3: "Mid", 4: "Low-Mid", 5: "Low" };
-                    const label = name === "pain" || name === "anxiety" ? rev[r] : fwd[r];
-                    return [label ?? value, name.charAt(0).toUpperCase() + name.slice(1)];
+                    const labels = { 1: "Very Low", 2: "Low", 3: "Mid", 4: "High", 5: "Very High" };
+                    return [labels[r] ?? value, name.charAt(0).toUpperCase() + name.slice(1)];
                   }}
                 />
                 <Line type="monotone" dataKey="energy"   stroke="#8FAF9B" strokeWidth={2} dot={false} />

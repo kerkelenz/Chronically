@@ -5,6 +5,8 @@ import CheckInModal from "../components/CheckInModal";
 import { FiEdit2, FiTrash2, FiRotateCcw } from "react-icons/fi";
 import { generateReport } from "../utils/generateReport";
 import Navigation, { NavHamburger } from "../components/Navigation";
+import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
+import "react-circular-progressbar/dist/styles.css";
 import { TYPE_ICONS, FREQUENCY_LABELS, formatTime, isMedicationDueToday } from "../utils/medicationHelpers";
 
 const SYMPTOM_ICONS = {
@@ -20,7 +22,6 @@ const SYMPTOM_ICONS = {
 
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
 const COLORS_BETTER = ["#E55A5A", "#E8934A", "#E8C84A", "#8DC65C", "#5AB87A"];
-const COLORS_WORSE  = ["#5AB87A", "#5AB87A", "#E8C84A", "#E8934A", "#E55A5A"];
 
 function BarRating({ value, colors = COLORS_BETTER }) {
   const activeColor = value > 0 ? colors[value - 1] : "rgba(0,0,0,0.1)";
@@ -278,56 +279,50 @@ function DashboardPage() {
                 .filter(({ n }) => n >= uniqueSymptomDays * 0.3)
                 .sort((a, b) => b.n - a.n)
                 .slice(0, 3);
+              const avgPain     = recent.length > 0         ? recent.reduce((s, c) => s + c.painLevel, 0) / recent.length : 0;
+              const avgMood     = recent.length > 0         ? recent.reduce((s, c) => s + c.moodLevel, 0) / recent.length : 0;
+              const avgEnergy   = recentEnergy.length > 0   ? recentEnergy.reduce((s, c) => s + c.energyLevel, 0) / recentEnergy.length : 0;
+              const avgAnxiety  = recentAnxiety.length > 0  ? recentAnxiety.reduce((s, c) => s + c.anxietyLevel, 0) / recentAnxiety.length : 0;
+              const avgAppetite = recentAppetite.length > 0 ? recentAppetite.reduce((s, c) => s + c.appetiteLevel, 0) / recentAppetite.length : 0;
+
               return (
                 <>
                   <p className="text-xs uppercase tracking-wide" style={{ color: "#6B5F7A" }}>
                     Last 14 days
                   </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      {
-                        label: "Avg pain",
-                        value: recent.length > 0
-                          ? (recent.reduce((s, c) => s + c.painLevel, 0) / recent.length).toFixed(1)
-                          : "-",
-                      },
-                      {
-                        label: "Avg mood",
-                        value: recent.length > 0
-                          ? (6 - recent.reduce((s, c) => s + c.moodLevel, 0) / recent.length).toFixed(1)
-                          : "-",
-                      },
-                      {
-                        label: "Avg energy",
-                        value: recentEnergy.length > 0
-                          ? (6 - recentEnergy.reduce((s, c) => s + c.energyLevel, 0) / recentEnergy.length).toFixed(1)
-                          : "-",
-                      },
-                      {
-                        label: "Avg anxiety",
-                        value: recentAnxiety.length > 0
-                          ? (recentAnxiety.reduce((s, c) => s + c.anxietyLevel, 0) / recentAnxiety.length).toFixed(1)
-                          : "-",
-                      },
-                      {
-                        label: "Avg appetite",
-                        value: recentAppetite.length > 0
-                          ? (recentAppetite.reduce((s, c) => s + c.appetiteLevel, 0) / recentAppetite.length).toFixed(1)
-                          : "-",
-                      },
-                    ].map(({ label, value }) => (
-                      <div
-                        key={label}
-                        className="px-4 py-3 rounded-2xl flex justify-between items-center"
-                        style={{ background: "white", border: "1px solid #DDD5EE" }}
-                      >
-                        <p className="text-xs" style={{ color: "#6B5F7A" }}>{label}</p>
-                        <p className="text-xl font-medium" style={{ color: "#2D2540" }}>
-                          {value}
-                        </p>
-                      </div>
-                    ))}
-                    {/* Common symptoms card */}
+                  <div className="flex flex-col gap-3">
+                    {/* Circular progress dials */}
+                    <div className="flex justify-between items-center px-2 py-3">
+                      {[
+                        { label: "Pain",     value: avgPain,     color: "#7C6BAE" },
+                        { label: "Mood",     value: avgMood,     color: "#C4A8C0" },
+                        { label: "Energy",   value: avgEnergy,   color: "#8FAF9B" },
+                        { label: "Anxiety",  value: avgAnxiety,  color: "#9BAFC4" },
+                        { label: "Appetite", value: avgAppetite, color: "#C4A882" },
+                      ].map(({ label, value, color }) => {
+                        const percentage = value > 0 ? (value / 5) * 100 : 0;
+                        return (
+                          <div key={label} className="flex flex-col items-center gap-1">
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-[72px] md:h-[72px]">
+                              <CircularProgressbar
+                                value={percentage}
+                                text={value > 0 ? value.toFixed(1) : "—"}
+                                styles={buildStyles({
+                                  textSize: "28px",
+                                  textColor: "#2D2540",
+                                  pathColor: color,
+                                  trailColor: "#F0EBF8",
+                                  strokeLinecap: "round",
+                                })}
+                              />
+                            </div>
+                            <p className="text-[10px]" style={{ color: "#6B5F7A" }}>{label}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Common symptoms — full width */}
                     <div
                       className="px-4 py-3 rounded-2xl"
                       style={{ background: "white", border: "1px solid #DDD5EE" }}
@@ -561,11 +556,11 @@ function DashboardPage() {
                           <div className="flex flex-col gap-y-1 mt-1">
                             <div className="flex flex-wrap gap-x-3 gap-y-1">
                               {[
-                                { label: "Energy",   value: c.energyLevel   ? 6 - c.energyLevel   : null, colors: COLORS_BETTER },
-                                { label: "Mood",     value: 6 - c.moodLevel,                               colors: COLORS_BETTER },
-                                { label: "Appetite", value: c.appetiteLevel ? 6 - c.appetiteLevel : null, colors: COLORS_BETTER },
-                                { label: "Pain",     value: c.painLevel,                                   colors: COLORS_WORSE  },
-                                { label: "Anxiety",  value: c.anxietyLevel  ? c.anxietyLevel       : null, colors: COLORS_WORSE  },
+                                { label: "Energy",   value: c.energyLevel   ?? null, colors: COLORS_BETTER },
+                                { label: "Mood",     value: c.moodLevel,              colors: COLORS_BETTER },
+                                { label: "Appetite", value: c.appetiteLevel ?? null,  colors: COLORS_BETTER },
+                                { label: "Pain",     value: c.painLevel,              colors: COLORS_BETTER },
+                                { label: "Anxiety",  value: c.anxietyLevel  ?? null,  colors: COLORS_BETTER },
                               ]
                                 .filter(({ value }) => value !== null)
                                 .map(({ label, value, colors }) => (
@@ -644,7 +639,7 @@ function DashboardPage() {
             <div>
               <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>Pain level</p>
               <div className="flex gap-2">
-                {[[1,"Very Light"],[2,"Light"],[3,"Moderate"],[4,"Severe"],[5,"Very Severe"]].map(([level, label]) => (
+                {[[1,"Very Severe"],[2,"Severe"],[3,"Moderate"],[4,"Light"],[5,"Very Light"]].map(([level, label]) => (
                   <button
                     key={level}
                     onClick={() => setEditingCheckIn({ ...editingCheckIn, painLevel: level })}
@@ -662,7 +657,7 @@ function DashboardPage() {
             <div>
               <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>Mood level</p>
               <div className="flex gap-2">
-                {[[1,"Great"],[2,"Good"],[3,"Okay"],[4,"Low"],[5,"Very Low"]].map(([level, label]) => (
+                {[[1,"Very Low"],[2,"Low"],[3,"Okay"],[4,"Good"],[5,"Great"]].map(([level, label]) => (
                   <button
                     key={level}
                     onClick={() => setEditingCheckIn({ ...editingCheckIn, moodLevel: level })}
@@ -680,7 +675,7 @@ function DashboardPage() {
             <div>
               <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>Energy level</p>
               <div className="flex gap-2">
-                {[[1,"Full"],[2,"Good"],[3,"Low"],[4,"Drained"],[5,"Exhausted"]].map(([level, label]) => (
+                {[[1,"Exhausted"],[2,"Drained"],[3,"Low"],[4,"Good"],[5,"Full"]].map(([level, label]) => (
                   <button
                     key={level}
                     onClick={() => setEditingCheckIn({ ...editingCheckIn, energyLevel: level })}
@@ -698,7 +693,7 @@ function DashboardPage() {
             <div>
               <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>Anxiety level</p>
               <div className="flex gap-2">
-                {[[1,"Calm"],[2,"Mild"],[3,"Moderate"],[4,"High"],[5,"Severe"]].map(([level, label]) => (
+                {[[1,"Severe"],[2,"High"],[3,"Moderate"],[4,"Mild"],[5,"Calm"]].map(([level, label]) => (
                   <button
                     key={level}
                     onClick={() => setEditingCheckIn({ ...editingCheckIn, anxietyLevel: level })}
@@ -716,7 +711,7 @@ function DashboardPage() {
             <div>
               <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>Appetite level</p>
               <div className="flex gap-2">
-                {[[1,"Great"],[2,"Good"],[3,"Fair"],[4,"Poor"],[5,"None"]].map(([level, label]) => (
+                {[[1,"None"],[2,"Poor"],[3,"Fair"],[4,"Good"],[5,"Great"]].map(([level, label]) => (
                   <button
                     key={level}
                     onClick={() => setEditingCheckIn({ ...editingCheckIn, appetiteLevel: level })}
