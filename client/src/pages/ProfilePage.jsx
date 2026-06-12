@@ -16,6 +16,9 @@ function ProfilePage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  const hasChanges =
+    username !== (user?.username || "") || email !== (user?.email || "");
+
   const handleDeleteAccount = async () => {
     setDeleteLoading(true);
     setDeleteError("");
@@ -111,7 +114,7 @@ function ProfilePage() {
                 <input
                   type="text"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => { setUsername(e.target.value); setSuccess(""); setError(""); }}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all duration-200 placeholder-white/40"
                   style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }}
                 />
@@ -121,7 +124,7 @@ function ProfilePage() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setSuccess(""); setError(""); }}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all duration-200 placeholder-white/40"
                   style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }}
                 />
@@ -133,16 +136,18 @@ function ProfilePage() {
             <p className="text-xs text-center font-medium" style={{ color: "#7FAF8A" }}>{success}</p>
           )}
           {error && (
-            <p className="text-xs text-center" style={{ color: "#B07088" }}>{error}</p>
+            <p className="text-xs text-center" style={{ color: "#FF6B8A" }}>{error}</p>
           )}
 
-          <button
-            type="submit"
-            className="w-full py-3 rounded-full font-medium hover:opacity-90 transition-all duration-200"
-            style={{ background: "white", color: "#7C6BAE" }}
-          >
-            Save changes
-          </button>
+          {hasChanges && (
+            <button
+              type="submit"
+              className="w-full py-3 rounded-full font-medium hover:opacity-90 transition-all duration-200"
+              style={{ background: "white", color: "#7C6BAE" }}
+            >
+              Save changes
+            </button>
+          )}
         </form>
 
         {/* Session and danger */}
@@ -160,11 +165,11 @@ function ProfilePage() {
           </button>
           <button
             onClick={() => { setShowDeleteModal(true); setDeleteError(""); }}
-            className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
-            style={{ color: "#E55A7A" }}
+            className="w-full px-4 py-3 text-left text-sm font-medium flex justify-between items-center transition-colors"
+            style={{ color: "white", background: "rgba(220,50,80,0.25)" }}
           >
             Delete account
-            <span style={{ color: "#E55A7A" }}>›</span>
+            <span style={{ color: "rgba(255,160,170,0.8)" }}>›</span>
           </button>
         </div>
       </div>

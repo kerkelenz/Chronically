@@ -18,6 +18,14 @@ const SYMPTOM_ICONS = {
   "Vision issues": "👁️",
   "Heat sensitivity": "🌡️",
   "Balance issues": "🌀",
+  "Dizziness": "😵",
+  "Headache": "🤕",
+  "Muscle weakness": "💪",
+  "Joint pain": "🦴",
+  "Shortness of breath": "😮‍💨",
+  "Nausea": "🤢",
+  "Sleep disturbance": "💤",
+  "Bladder urgency": "🚽",
 };
 
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
@@ -432,7 +440,7 @@ function DashboardPage() {
               const borderColor = {
                 taken: "#7FAF8A",
                 skipped: "rgba(255,255,255,0.3)",
-                missed: "#B07088",
+                missed: "#FF6B8A",
                 "past-due": "#C4A882",
                 upcoming: "transparent",
               };
@@ -522,10 +530,10 @@ function DashboardPage() {
                                   <button
                                     onClick={() => handleUndoLog(log.id)}
                                     title="Undo"
-                                    className="p-1 hover:opacity-70 transition-opacity"
-                                    style={{ color: "rgba(255,255,255,0.7)" }}
+                                    className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
+                                    style={{ background: "rgba(255,255,255,0.25)" }}
                                   >
-                                    <FiRotateCcw size={12} />
+                                    <FiRotateCcw size={12} color="white" />
                                   </button>
                                 </div>
                               )}
@@ -563,21 +571,21 @@ function DashboardPage() {
               style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
             >
               <p className="text-sm font-medium mb-3" style={{ color: "white" }}>
-                Today's check-ins
+                Last 24 hours
               </p>
               {(() => {
-                const today = new Date().toLocaleDateString("en-CA");
-                const todaysCheckIns = checkIns.filter((c) => c.date === today);
-                if (todaysCheckIns.length === 0) {
+                const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                const recentCheckIns = checkIns.filter((c) => new Date(c.createdAt) >= cutoff);
+                if (recentCheckIns.length === 0) {
                   return (
                     <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>
-                      No check-ins yet today
+                      No check-ins in the last 24 hours
                     </p>
                   );
                 }
                 return (
                   <div className="flex flex-col gap-2">
-                    {todaysCheckIns.map((c) => (
+                    {recentCheckIns.map((c) => (
                       <div
                         key={c.id}
                         className="flex items-start gap-3 p-3 rounded-xl"
@@ -627,21 +635,21 @@ function DashboardPage() {
                             )}
                           </div>
                         </div>
-                        <div className="flex-shrink-0 flex flex-col gap-1">
+                        <div className="flex-shrink-0 flex flex-col gap-2 self-center">
                           <button
                             onClick={() => setEditingCheckIn(c)}
-                            className="p-1 hover:opacity-70 transition-opacity"
-                            style={{ color: "rgba(255,255,255,0.8)" }}
+                            className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
+                            style={{ background: "rgba(255,255,255,0.25)" }}
                           >
-                            <FiEdit2 size={14} />
+                            <FiEdit2 size={12} color="white" />
                           </button>
-                          {c.id === todaysCheckIns[0].id && (
+                          {c.id === recentCheckIns[0].id && (
                             <button
                               onClick={() => handleDelete(c.id)}
-                              className="p-1 hover:opacity-70 transition-opacity"
-                              style={{ color: "#B07088" }}
+                              className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
+                              style={{ background: "rgba(255,100,100,0.4)" }}
                             >
-                              <FiTrash2 size={14} />
+                              <FiTrash2 size={12} color="white" />
                             </button>
                           )}
                         </div>
@@ -680,7 +688,7 @@ function DashboardPage() {
             <div>
               <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>Pain level</p>
               <div className="flex gap-2">
-                {[[1,"Very Severe"],[2,"Severe"],[3,"Moderate"],[4,"Light"],[5,"Very Light"]].map(([level, label]) => (
+                {[[5,"Very Light"],[4,"Light"],[3,"Moderate"],[2,"Severe"],[1,"Very Severe"]].map(([level, label]) => (
                   <button
                     key={level}
                     onClick={() => setEditingCheckIn({ ...editingCheckIn, painLevel: level })}
@@ -698,7 +706,7 @@ function DashboardPage() {
             <div>
               <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>Mood level</p>
               <div className="flex gap-2">
-                {[[1,"Very Low"],[2,"Low"],[3,"Okay"],[4,"Good"],[5,"Great"]].map(([level, label]) => (
+                {[[5,"Great"],[4,"Good"],[3,"Okay"],[2,"Low"],[1,"Very Low"]].map(([level, label]) => (
                   <button
                     key={level}
                     onClick={() => setEditingCheckIn({ ...editingCheckIn, moodLevel: level })}
@@ -716,7 +724,7 @@ function DashboardPage() {
             <div>
               <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>Energy level</p>
               <div className="flex gap-2">
-                {[[1,"Exhausted"],[2,"Drained"],[3,"Low"],[4,"Good"],[5,"Full"]].map(([level, label]) => (
+                {[[5,"Full"],[4,"Good"],[3,"Low"],[2,"Drained"],[1,"Exhausted"]].map(([level, label]) => (
                   <button
                     key={level}
                     onClick={() => setEditingCheckIn({ ...editingCheckIn, energyLevel: level })}
@@ -734,7 +742,7 @@ function DashboardPage() {
             <div>
               <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>Anxiety level</p>
               <div className="flex gap-2">
-                {[[1,"Severe"],[2,"High"],[3,"Moderate"],[4,"Mild"],[5,"Calm"]].map(([level, label]) => (
+                {[[5,"Calm"],[4,"Mild"],[3,"Moderate"],[2,"High"],[1,"Severe"]].map(([level, label]) => (
                   <button
                     key={level}
                     onClick={() => setEditingCheckIn({ ...editingCheckIn, anxietyLevel: level })}
@@ -752,7 +760,7 @@ function DashboardPage() {
             <div>
               <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>Appetite level</p>
               <div className="flex gap-2">
-                {[[1,"None"],[2,"Poor"],[3,"Fair"],[4,"Good"],[5,"Great"]].map(([level, label]) => (
+                {[[5,"Great"],[4,"Good"],[3,"Fair"],[2,"Poor"],[1,"None"]].map(([level, label]) => (
                   <button
                     key={level}
                     onClick={() => setEditingCheckIn({ ...editingCheckIn, appetiteLevel: level })}
@@ -773,6 +781,8 @@ function DashboardPage() {
                 {[
                   "Fatigue","Brain fog","Pain flare","Numbness",
                   "Spasticity","Vision issues","Heat sensitivity","Balance issues",
+                  "Dizziness","Headache","Muscle weakness","Joint pain",
+                  "Shortness of breath","Nausea","Sleep disturbance","Bladder urgency",
                 ].map((s) => {
                   const active = (editingCheckIn.symptoms || []).includes(s);
                   return (

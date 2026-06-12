@@ -262,17 +262,17 @@ function MedCard({ med, onEdit, onDelete, onLogDose }) {
           )}
           <button
             onClick={() => onEdit(med)}
-            className="p-1 hover:opacity-70 transition-opacity"
-            style={{ color: "rgba(255,255,255,0.8)" }}
+            className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
+            style={{ background: "rgba(255,255,255,0.25)" }}
           >
-            <FiEdit2 size={14} />
+            <FiEdit2 size={12} color="white" />
           </button>
           <button
             onClick={() => onDelete(med.id)}
-            className="p-1 hover:opacity-70 transition-opacity"
-            style={{ color: "#B07088" }}
+            className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
+            style={{ background: "rgba(255,100,100,0.4)" }}
           >
-            <FiTrash2 size={14} />
+            <FiTrash2 size={12} color="white" />
           </button>
         </div>
       </div>

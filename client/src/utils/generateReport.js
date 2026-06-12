@@ -4,6 +4,8 @@ import autoTable from "jspdf-autotable";
 const SYMPTOM_LIST = [
   "Fatigue", "Brain fog", "Pain flare", "Numbness",
   "Spasticity", "Vision issues", "Heat sensitivity", "Balance issues",
+  "Dizziness", "Headache", "Muscle weakness", "Joint pain",
+  "Shortness of breath", "Nausea", "Sleep disturbance", "Bladder urgency",
 ];
 
 const PURPLE = [124, 107, 174];

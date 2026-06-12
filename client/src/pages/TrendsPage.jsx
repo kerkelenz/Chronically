@@ -12,7 +12,7 @@ function TrendsPage() {
   const [checkIns, setCheckIns] = useState([]);
   const [medications, setMedications] = useState([]);
   const [medLogs, setMedLogs] = useState([]);
-  const [timeframe, setTimeframe] = useState(1);
+  const [timeframe, setTimeframe] = useState(2);
   const [loading, setLoading] = useState(true);
 
   const getChartData = () => {
@@ -109,7 +109,7 @@ function TrendsPage() {
   }, [token]);
 
   const TIMEFRAME_TABS = [
-    { label: "2d",    value: 1  },
+    { label: "3d",    value: 2  },
     { label: "Week",  value: 7  },
     { label: "Month", value: 30 },
   ];

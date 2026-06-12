@@ -21,6 +21,8 @@ const AFFIRMATIONS = [
 const SYMPTOM_LIST = [
   "Fatigue", "Brain fog", "Pain flare", "Numbness",
   "Spasticity", "Vision issues", "Heat sensitivity", "Balance issues",
+  "Dizziness", "Headache", "Muscle weakness", "Joint pain",
+  "Shortness of breath", "Nausea", "Sleep disturbance", "Bladder urgency",
 ];
 
 const PAIN_LABELS    = { 1: "Very Severe", 2: "Severe",  3: "Moderate", 4: "Light",    5: "Very Light" };
