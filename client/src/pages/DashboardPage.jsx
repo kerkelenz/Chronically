@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import CheckInModal from "../components/CheckInModal";
-import { FiEdit2, FiTrash2 } from "react-icons/fi";
+import { FiEdit2, FiTrash2, FiRotateCcw } from "react-icons/fi";
 import { generateReport } from "../utils/generateReport";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import { TYPE_ICONS, FREQUENCY_LABELS, formatTime, isMedicationDueToday } from "../utils/medicationHelpers";
@@ -139,6 +139,18 @@ function DashboardPage() {
       setTodayLogs((prev) => [...prev, res.data.log]);
     } catch (err) {
       console.error("Error logging take:", err);
+    }
+  };
+
+  const handleUndoLog = async (logId) => {
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL}/api/medications/logs/${logId}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setTodayLogs((prev) => prev.filter((l) => l.id !== logId));
+    } catch (err) {
+      console.error("Error undoing log:", err);
     }
   };
 
@@ -470,8 +482,20 @@ function DashboardPage() {
                                   </p>
                                 </div>
                               </div>
-                              {status === "taken" && (
-                                <span className="text-sm flex-shrink-0" style={{ color: "#7FAF8A" }}>✓</span>
+                              {(status === "taken" || status === "skipped") && (
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  {status === "taken" && (
+                                    <span className="text-sm" style={{ color: "#7FAF8A" }}>✓</span>
+                                  )}
+                                  <button
+                                    onClick={() => handleUndoLog(log.id)}
+                                    title="Undo"
+                                    className="p-1 hover:opacity-70 transition-opacity"
+                                    style={{ color: "#6B5F7A" }}
+                                  >
+                                    <FiRotateCcw size={12} />
+                                  </button>
+                                </div>
                               )}
                               {(status === "upcoming" || status === "past-due") && (
                                 <div className="flex gap-1.5 flex-shrink-0">

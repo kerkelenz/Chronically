@@ -103,4 +103,18 @@ const updateLog = async (req, res) => {
   }
 };
 
-module.exports = { getMedications, createMedication, updateMedication, deleteMedication, getLogs, createLog, updateLog };
+const deleteMedicationLog = async (req, res) => {
+  try {
+    const log = await MedicationLog.findOne({
+      where: { id: req.params.id, userId: req.user.id },
+    });
+    if (!log) return res.status(404).json({ error: "Log entry not found" });
+    await log.destroy();
+    res.status(200).json({ message: "Log entry removed" });
+  } catch (error) {
+    console.error("Delete medication log error:", error);
+    res.status(500).json({ error: "Server error removing log entry" });
+  }
+};
+
+module.exports = { getMedications, createMedication, updateMedication, deleteMedication, getLogs, createLog, updateLog, deleteMedicationLog };
