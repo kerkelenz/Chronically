@@ -1,6 +1,410 @@
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { useAuth } from "../hooks/useAuth";
+import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import Navigation, { NavHamburger } from "../components/Navigation";
+import {
+  TYPE_ICONS,
+  FREQUENCY_LABELS,
+  FREQUENCY_TIME_COUNTS,
+  formatTime,
+} from "../utils/medicationHelpers";
+
+const EMPTY_FORM = {
+  name: "",
+  type: "pill",
+  dosage: "",
+  frequency: "daily",
+  frequencyWeeks: 2,
+  scheduledTimes: ["08:00"],
+  notes: "",
+  active: true,
+};
+
+const SKIP_REASONS = [
+  "Forgot",
+  "Felt sick / threw up",
+  "Side effects",
+  "Ran out",
+  "Doctor advised",
+  "Already took it",
+  "Too painful to take",
+];
+
+function MedModal({ form, setForm, onSave, onClose, saving }) {
+  const timeCount = FREQUENCY_TIME_COUNTS[form.frequency] ?? 1;
+
+  const handleFrequencyChange = (newFreq) => {
+    const count = FREQUENCY_TIME_COUNTS[newFreq] ?? 1;
+    const current = form.scheduledTimes || [];
+    let times;
+    if (count === 0) {
+      times = [];
+    } else if (count > current.length) {
+      times = [...current, ...Array(count - current.length).fill("08:00")];
+    } else {
+      times = current.slice(0, count);
+    }
+    setForm({ ...form, frequency: newFreq, scheduledTimes: times });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.4)" }}
+    >
+      <div
+        className="w-full max-w-sm mx-4 p-6 rounded-2xl flex flex-col gap-4 overflow-y-auto"
+        style={{ background: "white", maxHeight: "90vh" }}
+      >
+        <p
+          className="font-medium"
+          style={{ color: "#2D2540", fontFamily: "Playfair Display, Georgia, serif" }}
+        >
+          {form.id ? "Edit Medication" : "Add Medication"}
+        </p>
+
+        {/* Name */}
+        <div>
+          <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>Name</p>
+          <input
+            type="text"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+            style={{ background: "#F0EBF8", border: "1px solid #DDD5EE", color: "#2D2540" }}
+            placeholder="e.g. Baclofen"
+          />
+        </div>
+
+        {/* Type */}
+        <div>
+          <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>Type</p>
+          <div className="flex gap-2">
+            {[
+              { value: "pill",        icon: "💊", label: "Pill" },
+              { value: "injection",   icon: "💉", label: "Injection" },
+              { value: "infusion",    icon: "🩺", label: "Infusion" },
+              { value: "supplement",  icon: "🌿", label: "Supplement" },
+            ].map(({ value, icon, label }) => (
+              <button
+                key={value}
+                onClick={() => setForm({ ...form, type: value })}
+                className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200 flex flex-col items-center gap-0.5"
+                style={{
+                  background: form.type === value ? "#7C6BAE" : "#F0EBF8",
+                  color:      form.type === value ? "white"   : "#6B5F7A",
+                }}
+              >
+                <span className="text-base">{icon}</span>
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Dosage */}
+        <div>
+          <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>Dosage (optional)</p>
+          <input
+            type="text"
+            value={form.dosage}
+            onChange={(e) => setForm({ ...form, dosage: e.target.value })}
+            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+            style={{ background: "#F0EBF8", border: "1px solid #DDD5EE", color: "#2D2540" }}
+            placeholder="e.g. 20mg"
+          />
+        </div>
+
+        {/* Frequency */}
+        <div>
+          <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>Frequency</p>
+          <select
+            value={form.frequency}
+            onChange={(e) => handleFrequencyChange(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+            style={{ background: "#F0EBF8", border: "1px solid #DDD5EE", color: "#2D2540" }}
+          >
+            {Object.entries(FREQUENCY_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+          {form.frequency === "every_x_weeks" && (
+            <input
+              type="number"
+              min={1}
+              max={52}
+              value={form.frequencyWeeks}
+              onChange={(e) => setForm({ ...form, frequencyWeeks: parseInt(e.target.value) || 2 })}
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none mt-2"
+              style={{ background: "#F0EBF8", border: "1px solid #DDD5EE", color: "#2D2540" }}
+              placeholder="Number of weeks"
+            />
+          )}
+        </div>
+
+        {/* Scheduled times */}
+        {timeCount > 0 && (
+          <div>
+            <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>
+              Scheduled time{timeCount > 1 ? "s" : ""}
+            </p>
+            <div className="flex flex-col gap-2">
+              {Array.from({ length: timeCount }).map((_, i) => (
+                <input
+                  key={i}
+                  type="time"
+                  value={form.scheduledTimes?.[i] || "08:00"}
+                  onChange={(e) => {
+                    const times = [...(form.scheduledTimes || [])];
+                    times[i] = e.target.value;
+                    setForm({ ...form, scheduledTimes: times });
+                  }}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ background: "#F0EBF8", border: "1px solid #DDD5EE", color: "#2D2540" }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Notes */}
+        <div>
+          <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>Notes (optional)</p>
+          <textarea
+            value={form.notes}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            rows={2}
+            className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+            style={{ background: "#F0EBF8", border: "1px solid #DDD5EE", color: "#2D2540" }}
+            placeholder="Any notes…"
+          />
+        </div>
+
+        {/* Active toggle */}
+        <div className="flex items-center justify-between">
+          <p className="text-sm" style={{ color: "#2D2540" }}>Active</p>
+          <button
+            onClick={() => setForm({ ...form, active: !form.active })}
+            className="w-10 h-6 rounded-full transition-all duration-200 relative flex-shrink-0"
+            style={{ background: form.active ? "#7C6BAE" : "#DDD5EE" }}
+          >
+            <span
+              className="absolute top-0.5 w-5 h-5 rounded-full transition-all duration-200"
+              style={{ background: "white", left: form.active ? "calc(100% - 22px)" : "2px" }}
+            />
+          </button>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2 rounded-full text-sm"
+            style={{ background: "#F0EBF8", color: "#6B5F7A" }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSave}
+            disabled={!form.name.trim() || saving}
+            className="flex-1 py-2 rounded-full text-sm text-white transition-all duration-200"
+            style={{ background: "#7C6BAE", opacity: !form.name.trim() || saving ? 0.6 : 1 }}
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MedCard({ med, onEdit, onDelete, onLogDose }) {
+  const icon = TYPE_ICONS[med.type] || "💊";
+  const freqLabel = FREQUENCY_LABELS[med.frequency] || med.frequency;
+  const times = med.scheduledTimes?.map(formatTime).filter(Boolean).join(" · ") || "";
+
+  return (
+    <div
+      className="p-4 rounded-2xl"
+      style={{
+        background: "white",
+        border: "1px solid #DDD5EE",
+        opacity: med.active ? 1 : 0.6,
+      }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2 flex-1 min-w-0">
+          <span className="text-xl leading-none mt-0.5">{icon}</span>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm" style={{ color: "#2D2540" }}>{med.name}</p>
+            <p className="text-xs mt-0.5" style={{ color: "#6B5F7A" }}>
+              {[med.dosage, freqLabel].filter(Boolean).join(" · ")}
+            </p>
+            {times && (
+              <p className="text-xs mt-0.5" style={{ color: "#9B8EC4" }}>{times}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-0.5 flex-shrink-0">
+          {med.frequency === "as_needed" && med.active && (
+            <button
+              onClick={() => onLogDose(med)}
+              className="px-2 py-1 rounded-full text-[10px] mr-1 transition-all duration-200 hover:opacity-80"
+              style={{ background: "#F0EBF8", color: "#7C6BAE" }}
+            >
+              Log dose
+            </button>
+          )}
+          <button
+            onClick={() => onEdit(med)}
+            className="p-1 hover:opacity-70 transition-opacity"
+            style={{ color: "#7C6BAE" }}
+          >
+            <FiEdit2 size={14} />
+          </button>
+          <button
+            onClick={() => onDelete(med.id)}
+            className="p-1 hover:opacity-70 transition-opacity"
+            style={{ color: "#B07088" }}
+          >
+            <FiTrash2 size={14} />
+          </button>
+        </div>
+      </div>
+      {!med.active && (
+        <span
+          className="inline-block mt-2 px-2 py-0.5 rounded-full text-[10px]"
+          style={{ background: "#F0EBF8", color: "#6B5F7A" }}
+        >
+          Inactive
+        </span>
+      )}
+    </div>
+  );
+}
 
 function MedicationsPage() {
+  const { token } = useAuth();
+  const [medications, setMedications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    const fetchMedications = async () => {
+      try {
+        const res = await axios.get(
+          `${import.meta.env.VITE_API_URL}/api/medications`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        setMedications(res.data.medications);
+      } catch (err) {
+        console.error("Error fetching medications:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (token) fetchMedications();
+  }, [token]);
+
+  const openAdd = () => {
+    setForm(EMPTY_FORM);
+    setShowModal(true);
+  };
+
+  const openEdit = (med) => {
+    setForm({
+      id:             med.id,
+      name:           med.name,
+      type:           med.type,
+      dosage:         med.dosage || "",
+      frequency:      med.frequency,
+      frequencyWeeks: med.frequencyWeeks || 2,
+      scheduledTimes: med.scheduledTimes || [],
+      notes:          med.notes || "",
+      active:         med.active,
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.name.trim()) return;
+    setSaving(true);
+    try {
+      const payload = {
+        name:           form.name.trim(),
+        type:           form.type,
+        dosage:         form.dosage.trim() || null,
+        frequency:      form.frequency,
+        frequencyWeeks: form.frequency === "every_x_weeks" ? form.frequencyWeeks : null,
+        scheduledTimes: form.scheduledTimes?.length > 0 ? form.scheduledTimes : null,
+        notes:          form.notes.trim() || null,
+        active:         form.active,
+      };
+      if (form.id) {
+        const res = await axios.put(
+          `${import.meta.env.VITE_API_URL}/api/medications/${form.id}`,
+          payload,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        setMedications(medications.map((m) => m.id === form.id ? res.data.medication : m));
+      } else {
+        const res = await axios.post(
+          `${import.meta.env.VITE_API_URL}/api/medications`,
+          payload,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        setMedications([...medications, res.data.medication]);
+      }
+      setShowModal(false);
+    } catch (err) {
+      console.error("Error saving medication:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    setDeleting(true);
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL}/api/medications/${id}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setMedications(medications.filter((m) => m.id !== id));
+      setDeleteConfirm(null);
+    } catch (err) {
+      console.error("Error deleting medication:", err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleLogDose = async (med) => {
+    const today = new Date().toLocaleDateString("en-CA");
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/medications/logs`,
+        {
+          medicationId: med.id,
+          date: today,
+          scheduledTime: null,
+          takenAt: new Date().toISOString(),
+          status: "taken",
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+    } catch (err) {
+      console.error("Error logging dose:", err);
+    }
+  };
+
+  const activeMeds   = medications.filter((m) => m.active);
+  const inactiveMeds = medications.filter((m) => !m.active);
+
   return (
     <div className="min-h-screen" style={{ background: "#FAF7FF", overflowX: "hidden" }}>
       <div style={{ background: "linear-gradient(135deg, #5C4E8A, #7C6BAE)" }}>
@@ -14,27 +418,139 @@ function MedicationsPage() {
           >
             Medications
           </h1>
-          <NavHamburger />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={openAdd}
+              className="text-xs px-3 py-1 rounded-full whitespace-nowrap transition-all duration-200 hover:scale-105"
+              style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
+            >
+              + Add Medication
+            </button>
+            <NavHamburger />
+          </div>
         </div>
       </div>
 
       <div
-        className="p-6 pb-20 flex flex-col items-center justify-center"
-        style={{ maxWidth: "1024px", margin: "0 auto", minHeight: "60vh" }}
+        className="p-6 pb-20 flex flex-col gap-4"
+        style={{ maxWidth: "1024px", margin: "0 auto" }}
       >
-        <div className="flex flex-col items-center gap-3 text-center">
-          <span style={{ fontSize: "48px", lineHeight: 1 }}>💊</span>
-          <p
-            className="text-lg font-medium mt-2"
-            style={{ color: "#2D2540", fontFamily: "Playfair Display, Georgia, serif" }}
-          >
-            Medication tracking coming soon
-          </p>
-          <p className="text-sm" style={{ color: "#6B5F7A", maxWidth: "280px" }}>
-            Log your medications, track adherence, and see how they affect your symptoms.
-          </p>
-        </div>
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-3">
+            <div
+              className="w-8 h-8 rounded-full border-2 animate-spin"
+              style={{ borderColor: "rgba(124,107,174,0.3)", borderTopColor: "#7C6BAE" }}
+            />
+            <p className="text-sm" style={{ color: "#6B5F7A" }}>Loading...</p>
+          </div>
+        ) : medications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+            <span style={{ fontSize: "48px", lineHeight: 1 }}>💊</span>
+            <p
+              className="text-lg font-medium mt-2"
+              style={{ color: "#2D2540", fontFamily: "Playfair Display, Georgia, serif" }}
+            >
+              No medications yet
+            </p>
+            <p className="text-sm" style={{ color: "#6B5F7A", maxWidth: "280px" }}>
+              Add your first medication to start tracking.
+            </p>
+            <button
+              onClick={openAdd}
+              className="mt-2 px-6 py-2 rounded-full text-white text-sm hover:scale-105 transition-all duration-200"
+              style={{ background: "linear-gradient(135deg, #7C6BAE, #9B8EC4)" }}
+            >
+              + Add Medication
+            </button>
+          </div>
+        ) : (
+          <>
+            {activeMeds.length > 0 && (
+              <div className="flex flex-col gap-3">
+                <p className="text-xs uppercase tracking-wide" style={{ color: "#6B5F7A" }}>
+                  Active
+                </p>
+                {activeMeds.map((med) => (
+                  <MedCard
+                    key={med.id}
+                    med={med}
+                    onEdit={openEdit}
+                    onDelete={setDeleteConfirm}
+                    onLogDose={handleLogDose}
+                  />
+                ))}
+              </div>
+            )}
+            {inactiveMeds.length > 0 && (
+              <div className="flex flex-col gap-3">
+                <p className="text-xs uppercase tracking-wide" style={{ color: "#6B5F7A" }}>
+                  Inactive
+                </p>
+                {inactiveMeds.map((med) => (
+                  <MedCard
+                    key={med.id}
+                    med={med}
+                    onEdit={openEdit}
+                    onDelete={setDeleteConfirm}
+                    onLogDose={handleLogDose}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
+
+      {showModal && (
+        <MedModal
+          form={form}
+          setForm={setForm}
+          onSave={handleSave}
+          onClose={() => setShowModal(false)}
+          saving={saving}
+        />
+      )}
+
+      {deleteConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.4)" }}
+        >
+          <div
+            className="w-full max-w-sm mx-4 p-6 rounded-2xl flex flex-col gap-4"
+            style={{ background: "white" }}
+          >
+            <div className="flex flex-col gap-1">
+              <p
+                className="font-medium"
+                style={{ color: "#2D2540", fontFamily: "Playfair Display, Georgia, serif" }}
+              >
+                Delete this medication?
+              </p>
+              <p className="text-sm" style={{ color: "#6B5F7A" }}>
+                All associated logs will also be deleted. This cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 py-2 rounded-full text-sm"
+                style={{ background: "#F0EBF8", color: "#6B5F7A" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirm)}
+                disabled={deleting}
+                className="flex-1 py-2 rounded-full text-sm text-white transition-all duration-200"
+                style={{ background: "#B07088", opacity: deleting ? 0.7 : 1 }}
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Navigation />
     </div>
