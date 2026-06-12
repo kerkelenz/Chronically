@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   FiHome, FiTrendingUp, FiPackage, FiUser, FiMenu, FiX,
 } from "react-icons/fi";
@@ -16,7 +16,7 @@ export function NavHamburger() {
   const [open, setOpen] = useState(false);
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const pathname = window.location.pathname;
   const ref = useRef(null);
 
   useEffect(() => {
@@ -79,7 +79,7 @@ export function NavHamburger() {
 }
 
 function Navigation() {
-  const { pathname } = useLocation();
+  const pathname = window.location.pathname;
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
@@ -92,8 +92,12 @@ function Navigation() {
             <Link
               key={path}
               to={path}
-              className="flex flex-col items-center gap-0.5 py-2"
-              style={{ color: isActive ? "#7C6BAE" : "#6B5F7A" }}
+              className="flex flex-col items-center gap-0.5 py-2 mx-1 rounded-xl"
+              style={{
+                color:      isActive ? "#7C6BAE" : "#6B5F7A",
+                background: isActive ? "#F0EBF8" : "transparent",
+                fontWeight: isActive ? "500" : "400",
+              }}
             >
               <Icon size={20} />
               <span style={{ fontSize: "10px" }}>{label}</span>
