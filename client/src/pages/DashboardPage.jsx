@@ -590,7 +590,7 @@ function DashboardPage() {
                               {(status === "taken" || status === "skipped") && (
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
                                   {status === "taken" && (
-                                    <span className="text-sm" style={{ color: "#7FAF8A" }}>✓</span>
+                                    <span className="text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>✓</span>
                                   )}
                                   <button
                                     onClick={() => handleUndoLog(log.id)}
