@@ -77,23 +77,6 @@ function TrendsPage() {
     if (token) fetchCheckIns();
   }, [token]);
 
-  if (loading) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "linear-gradient(160deg, #7C6BAE 0%, #9B8EC4 55%, #C4A8C0 100%)" }}
-      >
-        <div className="flex flex-col items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-full border-2 animate-spin"
-            style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "white" }}
-          />
-          <p className="text-sm text-white opacity-70">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen" style={{ background: "#FAF7FF", overflowX: "hidden" }}>
       <div style={{ background: "linear-gradient(135deg, #5C4E8A, #7C6BAE)" }}>
@@ -115,7 +98,15 @@ function TrendsPage() {
         className="p-6 pb-20 flex flex-col gap-4"
         style={{ maxWidth: "1024px", margin: "0 auto" }}
       >
-        {checkIns.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-3">
+            <div
+              className="w-8 h-8 rounded-full border-2 animate-spin"
+              style={{ borderColor: "rgba(124,107,174,0.3)", borderTopColor: "#7C6BAE" }}
+            />
+            <p className="text-sm" style={{ color: "#6B5F7A" }}>Loading...</p>
+          </div>
+        ) : checkIns.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <p className="text-base" style={{ color: "#9B8EC4" }}>
               No data yet. Complete a check-in to see your trends.
