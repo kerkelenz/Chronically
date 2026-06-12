@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import CheckInModal from "../components/CheckInModal";
-import { FiEdit2, FiTrash2, FiRotateCcw } from "react-icons/fi";
+import { FiEdit2, FiTrash2, FiRotateCcw, FiCalendar } from "react-icons/fi";
 import { generateReport } from "../utils/generateReport";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
@@ -69,6 +69,7 @@ function DashboardPage() {
   const [todayLogs, setTodayLogs] = useState([]);
   const [medLoading, setMedLoading] = useState(true);
   const [skippingDoseKey, setSkippingDoseKey] = useState(null);
+  const [appointments, setAppointments] = useState([]);
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this check-in?")) return;
@@ -141,6 +142,20 @@ function DashboardPage() {
       }
     };
     if (token) fetchMeds();
+  }, [token]);
+
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/appointments`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setAppointments(res.data.appointments);
+      } catch (err) {
+        console.error("Error fetching appointments:", err);
+      }
+    };
+    if (token) fetchAppointments();
   }, [token]);
 
   const handleTake = async (med, scheduledTime) => {
@@ -239,10 +254,10 @@ function DashboardPage() {
                     axios.get(`${import.meta.env.VITE_API_URL}/api/medications`, { headers: hdrs }),
                     axios.get(`${import.meta.env.VITE_API_URL}/api/medications/logs?startDate=${startDateStr}&endDate=${endDateStr}`, { headers: hdrs }),
                   ]);
-                  generateReport(checkIns, user?.username, allMedsRes.data.medications, logsRes.data.logs);
+                  generateReport(checkIns, user?.username, allMedsRes.data.medications, logsRes.data.logs, appointments);
                 } catch (err) {
                   console.error("Error fetching report data:", err);
-                  generateReport(checkIns, user?.username, [], []);
+                  generateReport(checkIns, user?.username, [], [], appointments);
                 }
               }}
               className="text-xs px-3 py-1 rounded-full whitespace-nowrap transition-all duration-200 hover:scale-105"
@@ -396,6 +411,56 @@ function DashboardPage() {
                     </div>
                   </div>
                 </>
+              );
+            })()}
+
+            {/* upcoming appointments reminder */}
+            {(() => {
+              const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+              const upcomingAppts = appointments
+                .filter((a) => a.status === "upcoming" && new Date(a.date) >= new Date() && new Date(a.date) <= sevenDaysFromNow)
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+              if (upcomingAppts.length === 0) return null;
+              const formatApptLabel = (dateStr) => {
+                const appt = new Date(dateStr);
+                const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+                const tomorrowStart = new Date(todayStart); tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+                const apptDay = new Date(appt); apptDay.setHours(0, 0, 0, 0);
+                if (apptDay.getTime() === todayStart.getTime()) return "Today";
+                if (apptDay.getTime() === tomorrowStart.getTime()) return "Tomorrow";
+                return appt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+              };
+              return (
+                <div
+                  className="p-4 rounded-2xl flex flex-col gap-2"
+                  style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
+                >
+                  <p className="text-sm font-medium" style={{ color: "white" }}>Upcoming appointments</p>
+                  {upcomingAppts.map((appt) => (
+                    <a
+                      key={appt.id}
+                      href="/appointments"
+                      className="flex items-center gap-3 p-2.5 rounded-xl transition-all duration-200 hover:opacity-80"
+                      style={{ background: "rgba(255,255,255,0.1)" }}
+                    >
+                      <div
+                        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{ background: "rgba(255,255,255,0.2)" }}
+                      >
+                        <FiCalendar size={13} color="white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium leading-tight" style={{ color: "white" }}>
+                          {appt.doctorName}
+                          {appt.specialty ? ` — ${appt.specialty}` : ""}
+                        </p>
+                        <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>
+                          {formatApptLabel(appt.date)} at {new Date(appt.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
+                    </a>
+                  ))}
+                </div>
               );
             })()}
 

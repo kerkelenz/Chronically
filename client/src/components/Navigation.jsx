@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  FiHome, FiTrendingUp, FiPackage, FiUser, FiMenu, FiX,
+  FiHome, FiTrendingUp, FiPackage, FiUser, FiCalendar, FiMenu, FiX,
 } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
 
 const NAV_ITEMS = [
-  { label: "Dashboard",   path: "/dashboard",   Icon: FiHome },
-  { label: "Trends",      path: "/trends",       Icon: FiTrendingUp },
-  { label: "Medications", path: "/medications",  Icon: FiPackage },
-  { label: "Profile",     path: "/profile",      Icon: FiUser },
+  { label: "Dashboard",    mobileLabel: "Home",    path: "/dashboard",    Icon: FiHome },
+  { label: "Trends",       mobileLabel: "Trends",  path: "/trends",       Icon: FiTrendingUp },
+  { label: "Medications",  mobileLabel: "Meds",    path: "/medications",  Icon: FiPackage },
+  { label: "Appointments", mobileLabel: "Appts",   path: "/appointments", Icon: FiCalendar },
+  { label: "Profile",      mobileLabel: "Profile", path: "/profile",      Icon: FiUser },
 ];
 
 export function NavHamburger() {
@@ -85,14 +86,14 @@ function Navigation() {
       className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
       style={{ background: "white", borderTop: "1px solid #DDD5EE" }}
     >
-      <div className="grid grid-cols-4">
-        {NAV_ITEMS.map(({ label, path, Icon }) => {
+      <div className="grid grid-cols-5">
+        {NAV_ITEMS.map(({ mobileLabel, path, Icon }) => {
           const isActive = pathname === path;
           return (
             <Link
               key={path}
               to={path}
-              className="flex flex-col items-center gap-0.5 py-2 mx-1 rounded-xl"
+              className="flex flex-col items-center gap-0.5 py-2 mx-0.5 rounded-xl"
               style={{
                 color:      isActive ? "#7C6BAE" : "#6B5F7A",
                 background: isActive ? "#F0EBF8" : "transparent",
@@ -100,7 +101,7 @@ function Navigation() {
               }}
             >
               <Icon size={20} />
-              <span style={{ fontSize: "10px" }}>{label}</span>
+              <span style={{ fontSize: "9px" }}>{mobileLabel}</span>
             </Link>
           );
         })}

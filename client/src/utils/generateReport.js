@@ -62,7 +62,7 @@ const countScheduledDoses = (med, startDateStr, endDateStr) => {
   return count;
 };
 
-export function generateReport(checkIns, username, medications = [], medicationLogs = []) {
+export function generateReport(checkIns, username, medications = [], medicationLogs = [], appointments = []) {
   const today         = new Date();
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -491,7 +491,84 @@ export function generateReport(checkIns, username, medications = [], medicationL
     });
     y2 = doc.lastAutoTable.finalY + gap;
 
-    // Section 5: Daily medication log
+    // Section 5: Recent Appointments (last 30 days)
+    const recentAppts = appointments
+      .filter((a) => { const d = new Date(a.date); return d >= thirtyDaysAgo && d <= today; })
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    doc.setFontSize(11);
+    doc.setTextColor(...PURPLE);
+    doc.setFont(undefined, "bold");
+    doc.text("Recent Appointments (Last 30 Days)", margin, y2);
+    y2 += 3;
+
+    const formatApptDatePdf = (dateStr) => {
+      if (!dateStr) return "—";
+      const d = new Date(dateStr);
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) +
+        " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    };
+
+    autoTable(doc, {
+      startY: y2,
+      head: [["Date", "Doctor", "Specialty", "Reason", "Notes After"]],
+      body: recentAppts.length > 0
+        ? recentAppts.map((a) => [
+            formatApptDatePdf(a.date),
+            a.doctorName || "—",
+            a.specialty  || "—",
+            a.reason     || "—",
+            a.notesAfter || "—",
+          ])
+        : [["No appointments in this period", "", "", "", ""]],
+      headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
+      bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
+      columnStyles: {
+        0: { cellWidth: 36 }, 1: { cellWidth: 35 }, 2: { cellWidth: 28 },
+        3: { cellWidth: 30 }, 4: { cellWidth: "auto" },
+      },
+      styles: { overflow: "linebreak" },
+      margin: { left: margin, right: margin, top: 14 },
+      theme: "grid",
+    });
+    y2 = doc.lastAutoTable.finalY + gap;
+
+    // Section 6: Upcoming Appointments
+    const upcomingAppts = appointments
+      .filter((a) => a.status === "upcoming" && new Date(a.date) >= today)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    doc.setFontSize(11);
+    doc.setTextColor(...PURPLE);
+    doc.setFont(undefined, "bold");
+    doc.text("Upcoming Appointments", margin, y2);
+    y2 += 3;
+
+    autoTable(doc, {
+      startY: y2,
+      head: [["Date", "Doctor", "Specialty", "Reason", "Notes Before"]],
+      body: upcomingAppts.length > 0
+        ? upcomingAppts.map((a) => [
+            formatApptDatePdf(a.date),
+            a.doctorName   || "—",
+            a.specialty    || "—",
+            a.reason       || "—",
+            a.notesBefore  || "—",
+          ])
+        : [["No upcoming appointments", "", "", "", ""]],
+      headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
+      bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
+      columnStyles: {
+        0: { cellWidth: 36 }, 1: { cellWidth: 35 }, 2: { cellWidth: 28 },
+        3: { cellWidth: 30 }, 4: { cellWidth: "auto" },
+      },
+      styles: { overflow: "linebreak" },
+      margin: { left: margin, right: margin, top: 14 },
+      theme: "grid",
+    });
+    y2 = doc.lastAutoTable.finalY + gap;
+
+    // Section 7: Daily medication log
     doc.setFontSize(11);
     doc.setTextColor(...PURPLE);
     doc.setFont(undefined, "bold");
@@ -563,6 +640,76 @@ export function generateReport(checkIns, username, medications = [], medicationL
           data.cell.styles.halign = "center";
         }
       } : undefined,
+    });
+  }
+
+  // Appointments-only page 2 (when no medications)
+  if (medications.length === 0 && appointments.length > 0) {
+    const recentAppts2 = appointments
+      .filter((a) => { const d = new Date(a.date); return d >= thirtyDaysAgo && d <= today; })
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+    const upcomingAppts2 = appointments
+      .filter((a) => a.status === "upcoming" && new Date(a.date) >= today)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    doc.addPage();
+    let yA = 15;
+
+    doc.setFontSize(14);
+    doc.setTextColor(...PURPLE);
+    doc.setFont(undefined, "bold");
+    doc.text("Chronically Health Report — Appointments", margin, yA);
+    yA += 6;
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY);
+    doc.setFont(undefined, "normal");
+    doc.text(`Patient: ${username}`, margin, yA);
+    yA += gap + 2;
+
+    const fmtAppt = (dateStr) => {
+      if (!dateStr) return "—";
+      const d = new Date(dateStr);
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) +
+        " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    };
+
+    doc.setFontSize(11);
+    doc.setTextColor(...PURPLE);
+    doc.setFont(undefined, "bold");
+    doc.text("Recent Appointments (Last 30 Days)", margin, yA);
+    yA += 3;
+    autoTable(doc, {
+      startY: yA,
+      head: [["Date", "Doctor", "Specialty", "Reason", "Notes After"]],
+      body: recentAppts2.length > 0
+        ? recentAppts2.map((a) => [fmtAppt(a.date), a.doctorName || "—", a.specialty || "—", a.reason || "—", a.notesAfter || "—"])
+        : [["No appointments in this period", "", "", "", ""]],
+      headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
+      bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
+      columnStyles: { 0: { cellWidth: 36 }, 1: { cellWidth: 35 }, 2: { cellWidth: 28 }, 3: { cellWidth: 30 }, 4: { cellWidth: "auto" } },
+      styles: { overflow: "linebreak" },
+      margin: { left: margin, right: margin, top: 14 },
+      theme: "grid",
+    });
+    yA = doc.lastAutoTable.finalY + gap;
+
+    doc.setFontSize(11);
+    doc.setTextColor(...PURPLE);
+    doc.setFont(undefined, "bold");
+    doc.text("Upcoming Appointments", margin, yA);
+    yA += 3;
+    autoTable(doc, {
+      startY: yA,
+      head: [["Date", "Doctor", "Specialty", "Reason", "Notes Before"]],
+      body: upcomingAppts2.length > 0
+        ? upcomingAppts2.map((a) => [fmtAppt(a.date), a.doctorName || "—", a.specialty || "—", a.reason || "—", a.notesBefore || "—"])
+        : [["No upcoming appointments", "", "", "", ""]],
+      headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
+      bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
+      columnStyles: { 0: { cellWidth: 36 }, 1: { cellWidth: 35 }, 2: { cellWidth: 28 }, 3: { cellWidth: 30 }, 4: { cellWidth: "auto" } },
+      styles: { overflow: "linebreak" },
+      margin: { left: margin, right: margin, top: 14 },
+      theme: "grid",
     });
   }
 

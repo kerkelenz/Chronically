@@ -9,6 +9,7 @@ const checkInRoutes = require("./routes/checkInRoutes");
 const authenticateToken = require("./middleware/auth");
 const userRoutes = require("./routes/userRoutes");
 const medicationRoutes = require("./routes/medicationRoutes");
+const appointmentRoutes = require("./routes/appointmentRoutes");
 const rateLimit = require("express-rate-limit");
 
 // importing the models here so Sequelize knows about them before we call sync
@@ -17,6 +18,7 @@ require("./models/User");
 require("./models/CheckIn");
 require("./models/Medication");
 require("./models/MedicationLog");
+require("./models/Appointment");
 
 // creating the express app - everything gets attached to this
 const app = express();
@@ -78,6 +80,7 @@ const startServer = async () => {
 
   app.use("/api/users", userRoutes);
   app.use("/api/medications", medicationRoutes);
+  app.use("/api/appointments", appointmentRoutes);
 
   // use the PORT from .env if it exists, otherwise default to 3001
   const PORT = process.env.PORT || 3001;
