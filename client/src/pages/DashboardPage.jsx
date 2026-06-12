@@ -561,7 +561,6 @@ function DashboardPage() {
                       ];
                     }}
                   />
-                  <Legend />
                   <Line
                     type="monotone"
                     dataKey="energy"
@@ -599,6 +598,20 @@ function DashboardPage() {
                   />
                 </LineChart>
               </ResponsiveContainer>
+              <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2">
+                {[
+                  { key: "energy",  color: "#8FAF9B" },
+                  { key: "mood",    color: "#C4A8C0" },
+                  { key: "pain",    color: "#7C6BAE" },
+                  { key: "anxiety", color: "#9BAFC4" },
+                  { key: "appetite",color: "#C4A882" },
+                ].map(({ key, color }) => (
+                  <span key={key} className="flex items-center gap-1 text-xs" style={{ color: "#6B5F7A" }}>
+                    <span style={{ display: "inline-block", width: 16, height: 2, background: color, borderRadius: 1 }} />
+                    {key}
+                  </span>
+                ))}
+              </div>
             </div>
 
             {/* check-in history */}
@@ -627,7 +640,7 @@ function DashboardPage() {
                     {todaysCheckIns.map((c) => (
                       <div
                         key={c.id}
-                        className="flex justify-between items-start p-3 rounded-xl"
+                        className="flex items-start gap-3 p-3 rounded-xl"
                         style={{ background: "#F0EBF8" }}
                       >
                         <div className="flex-1 min-w-0">
@@ -637,8 +650,8 @@ function DashboardPage() {
                               minute: "2-digit",
                             })}
                           </p>
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <div className="flex flex-col gap-y-1 mt-1">
+                            <div className="flex flex-wrap gap-x-3 gap-y-1">
                               {[
                                 {
                                   label: "Energy",
@@ -670,11 +683,12 @@ function DashboardPage() {
                                 .map(({ label, value, colors }) => (
                                   <div
                                     key={label}
-                                    className="flex items-center gap-1"
+                                    className="flex items-center gap-1 shrink-0"
+                                    style={{ width: "80px" }}
                                   >
                                     <span
-                                      className="text-[10px]"
-                                      style={{ color: "#6B5F7A" }}
+                                      className="text-[10px] shrink-0"
+                                      style={{ color: "#6B5F7A", width: "46px" }}
                                     >
                                       {label}
                                     </span>
@@ -683,7 +697,7 @@ function DashboardPage() {
                                 ))}
                             </div>
                             {c.symptoms && c.symptoms.length > 0 && (
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 mt-0.5">
                                 {c.symptoms.map((s) => (
                                   <span
                                     key={s}
@@ -697,7 +711,7 @@ function DashboardPage() {
                             )}
                           </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex-shrink-0 flex flex-col gap-1">
                           <button
                             onClick={() => setEditingCheckIn(c)}
                             className="p-1 hover:opacity-70 transition-opacity"
