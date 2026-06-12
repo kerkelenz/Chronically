@@ -7,26 +7,8 @@ import { generateReport } from "../utils/generateReport";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
-import { TYPE_ICONS, FREQUENCY_LABELS, formatTime, isMedicationDueToday } from "../utils/medicationHelpers";
-
-const SYMPTOM_ICONS = {
-  Fatigue: "😴",
-  "Brain fog": "🧠",
-  "Pain flare": "🔥",
-  Numbness: "🥶",
-  Spasticity: "⚡",
-  "Vision issues": "👁️",
-  "Heat sensitivity": "🌡️",
-  "Balance issues": "🌀",
-  "Dizziness": "😵",
-  "Headache": "🤕",
-  "Muscle weakness": "💪",
-  "Joint pain": "🦴",
-  "Shortness of breath": "😮‍💨",
-  "Nausea": "🤢",
-  "Sleep disturbance": "💤",
-  "Bladder urgency": "🚽",
-};
+import { FREQUENCY_LABELS, formatTime, isMedicationDueToday } from "../utils/medicationHelpers";
+import { SymptomIcon, MedicationTypeIcon } from "../components/SymptomIcon";
 
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
 const COLORS_BETTER = [
@@ -392,7 +374,7 @@ function DashboardPage() {
                         <div className="grid grid-cols-3 gap-1">
                           {topSymptoms.slice(0, 3).map(({ s, n }) => (
                             <div key={s} className="flex flex-col items-center gap-0.5">
-                              <span className="text-3xl leading-none">{SYMPTOM_ICONS[s]}</span>
+                              <SymptomIcon name={s} size={36} />
                               <span
                                 className="text-[11px] text-center leading-tight"
                                 style={{ color: "rgba(255,255,255,0.8)" }}
@@ -564,7 +546,7 @@ function DashboardPage() {
                           ) : (
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <span className="text-base leading-none">{TYPE_ICONS[med.type] || "💊"}</span>
+                                <MedicationTypeIcon type={med.type} size={22} />
                                 <div className="min-w-0">
                                   <p className="text-sm font-medium leading-tight" style={{ color: "white" }}>
                                     {med.name}
@@ -692,9 +674,7 @@ function DashboardPage() {
                             {c.symptoms && c.symptoms.length > 0 && (
                               <div className="flex items-center gap-1 mt-0.5">
                                 {c.symptoms.map((s) => (
-                                  <span key={s} title={s} className="text-base leading-none">
-                                    {SYMPTOM_ICONS[s]}
-                                  </span>
+                                  <SymptomIcon key={s} name={s} size={18} />
                                 ))}
                               </div>
                             )}

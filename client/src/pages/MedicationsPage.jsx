@@ -4,11 +4,11 @@ import { useAuth } from "../hooks/useAuth";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import {
-  TYPE_ICONS,
   FREQUENCY_LABELS,
   FREQUENCY_TIME_COUNTS,
   formatTime,
 } from "../utils/medicationHelpers";
+import { MedicationTypeIcon } from "../components/SymptomIcon";
 
 const EMPTY_FORM = {
   name: "",
@@ -87,11 +87,11 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
           <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>Type</p>
           <div className="flex gap-2">
             {[
-              { value: "pill",        icon: "💊", label: "Pill" },
-              { value: "injection",   icon: "💉", label: "Injection" },
-              { value: "infusion",    icon: "🩺", label: "Infusion" },
-              { value: "supplement",  icon: "🌿", label: "Supplement" },
-            ].map(({ value, icon, label }) => (
+              { value: "pill",       label: "Pill" },
+              { value: "injection",  label: "Injection" },
+              { value: "infusion",   label: "Infusion" },
+              { value: "supplement", label: "Supplement" },
+            ].map(({ value, label }) => (
               <button
                 key={value}
                 onClick={() => setForm({ ...form, type: value })}
@@ -101,7 +101,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
                   color: "white",
                 }}
               >
-                <span className="text-base">{icon}</span>
+                <MedicationTypeIcon type={value} size={20} />
                 <span>{label}</span>
               </button>
             ))}
@@ -224,7 +224,6 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
 }
 
 function MedCard({ med, onEdit, onDelete, onLogDose }) {
-  const icon = TYPE_ICONS[med.type] || "💊";
   const freqLabel = FREQUENCY_LABELS[med.frequency] || med.frequency;
   const times = med.scheduledTimes?.map(formatTime).filter(Boolean).join(" · ") || "";
 
@@ -239,7 +238,7 @@ function MedCard({ med, onEdit, onDelete, onLogDose }) {
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 flex-1 min-w-0">
-          <span className="text-xl leading-none mt-0.5">{icon}</span>
+          <MedicationTypeIcon type={med.type} size={24} style={{ marginTop: "2px" }} />
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm" style={{ color: "white" }}>{med.name}</p>
             <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.7)" }}>
@@ -465,7 +464,7 @@ function MedicationsPage() {
           </div>
         ) : medications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-            <span style={{ fontSize: "48px", lineHeight: 1 }}>💊</span>
+            <MedicationTypeIcon type="pill" size={48} />
             <p
               className="text-lg font-medium mt-2"
               style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}
