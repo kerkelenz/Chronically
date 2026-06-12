@@ -12,6 +12,25 @@ function ProfilePage() {
   const [email, setEmail] = useState(user?.email || "");
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const handleDeleteAccount = async () => {
+    setDeleteLoading(true);
+    setDeleteError("");
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL}/api/users/account`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      logout();
+      navigate("/");
+    } catch (err) {
+      setDeleteError(err.response?.data?.error || "Something went wrong. Please try again.");
+      setDeleteLoading(false);
+    }
+  };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -129,6 +148,7 @@ function ProfilePage() {
             <span style={{ color: "#DDD5EE" }}>›</span>
           </button>
           <button
+            onClick={() => { setShowDeleteModal(true); setDeleteError(""); }}
             className="w-full px-4 py-3 text-left text-sm flex justify-between items-center hover:bg-gray-50 transition-colors"
             style={{ color: "#B07088" }}
           >
@@ -137,6 +157,51 @@ function ProfilePage() {
           </button>
         </div>
       </div>
+
+      {showDeleteModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.4)" }}
+        >
+          <div
+            className="w-full max-w-sm mx-4 p-6 rounded-2xl flex flex-col gap-4"
+            style={{ background: "white" }}
+          >
+            <div className="flex flex-col gap-1">
+              <p
+                className="font-medium"
+                style={{ color: "#2D2540", fontFamily: "Playfair Display, Georgia, serif" }}
+              >
+                Delete your account?
+              </p>
+              <p className="text-sm" style={{ color: "#6B5F7A" }}>
+                This will permanently delete your account and all your check-in data. This cannot be undone.
+              </p>
+            </div>
+            {deleteError && (
+              <p className="text-xs" style={{ color: "#B07088" }}>{deleteError}</p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleteLoading}
+                className="flex-1 py-2 rounded-full text-sm transition-all duration-200"
+                style={{ background: "#F0EBF8", color: "#6B5F7A" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteLoading}
+                className="flex-1 py-2 rounded-full text-sm text-white transition-all duration-200"
+                style={{ background: "#B07088", opacity: deleteLoading ? 0.7 : 1 }}
+              >
+                {deleteLoading ? "Deleting…" : "Delete account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Navigation />
     </div>

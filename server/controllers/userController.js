@@ -59,4 +59,17 @@ const updateProfile = async (req, res) => {
   }
 };
 
-module.exports = { updateProfile };
+const deleteAccount = async (req, res) => {
+  try {
+    const user = await User.findOne({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    await user.destroy();
+    res.status(200).json({ message: "Account deleted successfully" });
+  } catch (error) {
+    console.error("Delete account error:", error);
+    res.status(500).json({ error: "Server error deleting account" });
+  }
+};
+
+module.exports = { updateProfile, deleteAccount };
