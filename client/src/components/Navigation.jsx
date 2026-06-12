@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   FiHome, FiTrendingUp, FiPackage, FiUser, FiMenu, FiX,
 } from "react-icons/fi";
@@ -16,6 +16,7 @@ export function NavHamburger() {
   const [open, setOpen] = useState(false);
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const ref = useRef(null);
 
   useEffect(() => {
@@ -46,21 +47,24 @@ export function NavHamburger() {
             boxShadow: "0 8px 24px rgba(92,78,138,0.12)",
           }}
         >
-          {NAV_ITEMS.map(({ label, path, Icon }) => (
-            <NavLink
-              key={path}
-              to={path}
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[#F0EBF8]"
-              style={({ isActive }) => ({
-                color: isActive ? "#7C6BAE" : "#6B5F7A",
-                fontWeight: isActive ? "500" : "400",
-              })}
-            >
-              <Icon size={15} />
-              {label}
-            </NavLink>
-          ))}
+          {NAV_ITEMS.map(({ label, path, Icon }) => {
+            const isActive = pathname === path;
+            return (
+              <Link
+                key={path}
+                to={path}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[#F0EBF8]"
+                style={{
+                  color: isActive ? "#7C6BAE" : "#6B5F7A",
+                  fontWeight: isActive ? "500" : "400",
+                }}
+              >
+                <Icon size={15} />
+                {label}
+              </Link>
+            );
+          })}
           <button
             onClick={() => { setOpen(false); logout(); navigate("/"); }}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-[#F0EBF8] transition-colors"
@@ -75,23 +79,27 @@ export function NavHamburger() {
 }
 
 function Navigation() {
+  const { pathname } = useLocation();
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
       style={{ background: "white", borderTop: "1px solid #DDD5EE" }}
     >
       <div className="grid grid-cols-4">
-        {NAV_ITEMS.map(({ label, path, Icon }) => (
-          <NavLink
-            key={path}
-            to={path}
-            className="flex flex-col items-center gap-0.5 py-2 transition-colors"
-            style={({ isActive }) => ({ color: isActive ? "#7C6BAE" : "#6B5F7A" })}
-          >
-            <Icon size={20} />
-            <span style={{ fontSize: "10px" }}>{label}</span>
-          </NavLink>
-        ))}
+        {NAV_ITEMS.map(({ label, path, Icon }) => {
+          const isActive = pathname === path;
+          return (
+            <Link
+              key={path}
+              to={path}
+              className="flex flex-col items-center gap-0.5 py-2"
+              style={{ color: isActive ? "#7C6BAE" : "#6B5F7A" }}
+            >
+              <Icon size={20} />
+              <span style={{ fontSize: "10px" }}>{label}</span>
+            </Link>
+          );
+        })}
       </div>
     </nav>
   );
