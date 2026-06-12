@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
+import Navigation, { NavHamburger } from "../components/Navigation";
 
 function ProfilePage() {
   const navigate = useNavigate();
@@ -35,31 +36,34 @@ function ProfilePage() {
   return (
     <div className="min-h-screen" style={{ background: "#FAF7FF" }}>
       <div style={{ background: "linear-gradient(135deg, #5C4E8A, #7C6BAE)" }}>
-      <div
-        className="px-6 py-6 flex flex-col items-center gap-2"
-        style={{ maxWidth: "480px", margin: "0 auto" }}
-      >
-        <div
-          className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-medium"
-          style={{
-            background: "rgba(255,255,255,0.25)",
-            border: "2px solid rgba(255,255,255,0.5)",
-            color: "white",
-          }}
-        >
-          {user?.username?.slice(0, 2).toUpperCase()}
+        <div style={{ maxWidth: "480px", margin: "0 auto" }}>
+          <div className="px-6 pt-3 flex justify-end">
+            <NavHamburger />
+          </div>
+          <div className="px-6 pb-6 flex flex-col items-center gap-2">
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-medium"
+              style={{
+                background: "rgba(255,255,255,0.25)",
+                border: "2px solid rgba(255,255,255,0.5)",
+                color: "white",
+              }}
+            >
+              {user?.username?.slice(0, 2).toUpperCase()}
+            </div>
+            <p
+              className="text-white font-medium"
+              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
+            >
+              {user?.username}
+            </p>
+            <p className="text-white/70 text-sm">{user?.email}</p>
+          </div>
         </div>
-        <p
-          className="text-white font-medium"
-          style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-        >
-          {user?.username}
-        </p>
-        <p className="text-white/70 text-sm">{user?.email}</p>
       </div>
-      </div>
+
       {/* settings form */}
-      <div className="p-6 flex flex-col gap-4" style={{ maxWidth: "480px", margin: "0 auto" }}>
+      <div className="p-6 pb-20 flex flex-col gap-4" style={{ maxWidth: "480px", margin: "0 auto" }}>
         <form onSubmit={handleUpdate} className="flex flex-col gap-3">
           <div
             className="p-4 rounded-2xl"
@@ -73,49 +77,33 @@ function ProfilePage() {
             </p>
             <div className="flex flex-col gap-3">
               <div>
-                <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>
-                  Username
-                </p>
+                <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>Username</p>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all duration-200"
-                  style={{
-                    background: "#F0EBF8",
-                    border: "1px solid #DDD5EE",
-                    color: "#2D2540",
-                  }}
+                  style={{ background: "#F0EBF8", border: "1px solid #DDD5EE", color: "#2D2540" }}
                 />
               </div>
               <div>
-                <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>
-                  Email
-                </p>
+                <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>Email</p>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all duration-200"
-                  style={{
-                    background: "#F0EBF8",
-                    border: "1px solid #DDD5EE",
-                    color: "#2D2540",
-                  }}
+                  style={{ background: "#F0EBF8", border: "1px solid #DDD5EE", color: "#2D2540" }}
                 />
               </div>
             </div>
           </div>
 
           {success && (
-            <p className="text-xs text-center" style={{ color: "#7FAF8A" }}>
-              {success}
-            </p>
+            <p className="text-xs text-center" style={{ color: "#7FAF8A" }}>{success}</p>
           )}
           {error && (
-            <p className="text-xs text-center" style={{ color: "#B07088" }}>
-              {error}
-            </p>
+            <p className="text-xs text-center" style={{ color: "#B07088" }}>{error}</p>
           )}
 
           <button
@@ -133,10 +121,7 @@ function ProfilePage() {
           style={{ background: "white", border: "1px solid #DDD5EE" }}
         >
           <button
-            onClick={() => {
-              logout();
-              navigate("/");
-            }}
+            onClick={() => { logout(); navigate("/"); }}
             className="w-full px-4 py-3 text-left text-sm flex justify-between items-center hover:bg-gray-50 transition-colors"
             style={{ color: "#6B5F7A", borderBottom: "1px solid #F0EBF8" }}
           >
@@ -151,15 +136,9 @@ function ProfilePage() {
             <span style={{ color: "#B07088" }}>›</span>
           </button>
         </div>
-
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="text-xs text-center hover:opacity-80 transition-opacity"
-          style={{ color: "#6B5F7A" }}
-        >
-          ← Back to dashboard
-        </button>
       </div>
+
+      <Navigation />
     </div>
   );
 }
