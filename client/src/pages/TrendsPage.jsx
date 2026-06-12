@@ -130,7 +130,7 @@ function TrendsPage() {
       <div className="absolute rounded-full opacity-20" style={{ width: "200px", height: "200px", background: "#C4A8C0", filter: "blur(60px)", bottom: "100px", right: "-30px", pointerEvents: "none" }} />
 
       {/* Header */}
-      <div className="relative z-10">
+      <div className="relative z-20">
         <div
           className="px-6 py-4 flex justify-between items-center"
           style={{ maxWidth: "1024px", margin: "0 auto" }}
