@@ -51,35 +51,40 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.4)" }}
+      style={{ background: "rgba(0,0,0,0.5)" }}
     >
       <div
         className="w-full max-w-sm mx-4 p-6 rounded-2xl flex flex-col gap-4 overflow-y-auto"
-        style={{ background: "white", maxHeight: "90vh" }}
+        style={{
+          background: "rgba(255,255,255,0.2)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(255,255,255,0.3)",
+          maxHeight: "90vh",
+        }}
       >
         <p
           className="font-medium"
-          style={{ color: "#2D2540", fontFamily: "Playfair Display, Georgia, serif" }}
+          style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}
         >
           {form.id ? "Edit Medication" : "Add Medication"}
         </p>
 
         {/* Name */}
         <div>
-          <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>Name</p>
+          <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>Name</p>
           <input
             type="text"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-            style={{ background: "#F0EBF8", border: "1px solid #DDD5EE", color: "#2D2540" }}
+            style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }}
             placeholder="e.g. Baclofen"
           />
         </div>
 
         {/* Type */}
         <div>
-          <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>Type</p>
+          <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>Type</p>
           <div className="flex gap-2">
             {[
               { value: "pill",        icon: "💊", label: "Pill" },
@@ -92,8 +97,8 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
                 onClick={() => setForm({ ...form, type: value })}
                 className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200 flex flex-col items-center gap-0.5"
                 style={{
-                  background: form.type === value ? "#7C6BAE" : "#F0EBF8",
-                  color:      form.type === value ? "white"   : "#6B5F7A",
+                  background: form.type === value ? "#7C6BAE" : "rgba(255,255,255,0.15)",
+                  color: "white",
                 }}
               >
                 <span className="text-base">{icon}</span>
@@ -105,28 +110,28 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
 
         {/* Dosage */}
         <div>
-          <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>Dosage (optional)</p>
+          <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>Dosage (optional)</p>
           <input
             type="text"
             value={form.dosage}
             onChange={(e) => setForm({ ...form, dosage: e.target.value })}
             className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-            style={{ background: "#F0EBF8", border: "1px solid #DDD5EE", color: "#2D2540" }}
+            style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }}
             placeholder="e.g. 20mg"
           />
         </div>
 
         {/* Frequency */}
         <div>
-          <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>Frequency</p>
+          <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>Frequency</p>
           <select
             value={form.frequency}
             onChange={(e) => handleFrequencyChange(e.target.value)}
             className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-            style={{ background: "#F0EBF8", border: "1px solid #DDD5EE", color: "#2D2540" }}
+            style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }}
           >
             {Object.entries(FREQUENCY_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
+              <option key={value} value={value} style={{ background: "#6B5F7A", color: "white" }}>{label}</option>
             ))}
           </select>
           {form.frequency === "every_x_weeks" && (
@@ -137,7 +142,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
               value={form.frequencyWeeks}
               onChange={(e) => setForm({ ...form, frequencyWeeks: parseInt(e.target.value) || 2 })}
               className="w-full px-3 py-2 rounded-lg text-sm outline-none mt-2"
-              style={{ background: "#F0EBF8", border: "1px solid #DDD5EE", color: "#2D2540" }}
+              style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }}
               placeholder="Number of weeks"
             />
           )}
@@ -146,7 +151,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
         {/* Scheduled times */}
         {timeCount > 0 && (
           <div>
-            <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>
+            <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>
               Scheduled time{timeCount > 1 ? "s" : ""}
             </p>
             <div className="flex flex-col gap-2">
@@ -161,7 +166,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
                     setForm({ ...form, scheduledTimes: times });
                   }}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                  style={{ background: "#F0EBF8", border: "1px solid #DDD5EE", color: "#2D2540" }}
+                  style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }}
                 />
               ))}
             </div>
@@ -170,24 +175,24 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
 
         {/* Notes */}
         <div>
-          <p className="text-xs mb-1" style={{ color: "#6B5F7A" }}>Notes (optional)</p>
+          <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>Notes (optional)</p>
           <textarea
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
             rows={2}
             className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
-            style={{ background: "#F0EBF8", border: "1px solid #DDD5EE", color: "#2D2540" }}
+            style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }}
             placeholder="Any notes…"
           />
         </div>
 
         {/* Active toggle */}
         <div className="flex items-center justify-between">
-          <p className="text-sm" style={{ color: "#2D2540" }}>Active</p>
+          <p className="text-sm" style={{ color: "white" }}>Active</p>
           <button
             onClick={() => setForm({ ...form, active: !form.active })}
             className="w-10 h-6 rounded-full transition-all duration-200 relative flex-shrink-0"
-            style={{ background: form.active ? "#7C6BAE" : "#DDD5EE" }}
+            style={{ background: form.active ? "#7C6BAE" : "rgba(255,255,255,0.2)" }}
           >
             <span
               className="absolute top-0.5 w-5 h-5 rounded-full transition-all duration-200"
@@ -200,7 +205,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
           <button
             onClick={onClose}
             className="flex-1 py-2 rounded-full text-sm"
-            style={{ background: "#F0EBF8", color: "#6B5F7A" }}
+            style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.8)" }}
           >
             Cancel
           </button>
@@ -227,8 +232,8 @@ function MedCard({ med, onEdit, onDelete, onLogDose }) {
     <div
       className="p-4 rounded-2xl"
       style={{
-        background: "white",
-        border: "1px solid #DDD5EE",
+        background: "rgba(255,255,255,0.15)",
+        border: "1px solid rgba(255,255,255,0.3)",
         opacity: med.active ? 1 : 0.6,
       }}
     >
@@ -236,12 +241,12 @@ function MedCard({ med, onEdit, onDelete, onLogDose }) {
         <div className="flex items-start gap-2 flex-1 min-w-0">
           <span className="text-xl leading-none mt-0.5">{icon}</span>
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm" style={{ color: "#2D2540" }}>{med.name}</p>
-            <p className="text-xs mt-0.5" style={{ color: "#6B5F7A" }}>
+            <p className="font-medium text-sm" style={{ color: "white" }}>{med.name}</p>
+            <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.7)" }}>
               {[med.dosage, freqLabel].filter(Boolean).join(" · ")}
             </p>
             {times && (
-              <p className="text-xs mt-0.5" style={{ color: "#9B8EC4" }}>{times}</p>
+              <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>{times}</p>
             )}
           </div>
         </div>
@@ -250,7 +255,7 @@ function MedCard({ med, onEdit, onDelete, onLogDose }) {
             <button
               onClick={() => onLogDose(med)}
               className="px-2 py-1 rounded-full text-[10px] mr-1 transition-all duration-200 hover:opacity-80"
-              style={{ background: "#F0EBF8", color: "#7C6BAE" }}
+              style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
             >
               Log dose
             </button>
@@ -258,7 +263,7 @@ function MedCard({ med, onEdit, onDelete, onLogDose }) {
           <button
             onClick={() => onEdit(med)}
             className="p-1 hover:opacity-70 transition-opacity"
-            style={{ color: "#7C6BAE" }}
+            style={{ color: "rgba(255,255,255,0.8)" }}
           >
             <FiEdit2 size={14} />
           </button>
@@ -274,7 +279,7 @@ function MedCard({ med, onEdit, onDelete, onLogDose }) {
       {!med.active && (
         <span
           className="inline-block mt-2 px-2 py-0.5 rounded-full text-[10px]"
-          style={{ background: "#F0EBF8", color: "#6B5F7A" }}
+          style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)" }}
         >
           Inactive
         </span>
@@ -406,8 +411,22 @@ function MedicationsPage() {
   const inactiveMeds = medications.filter((m) => !m.active);
 
   return (
-    <div className="min-h-screen" style={{ background: "#FAF7FF", overflowX: "hidden" }}>
-      <div style={{ background: "linear-gradient(135deg, #5C4E8A, #7C6BAE)" }}>
+    <div
+      className="min-h-screen"
+      style={{
+        background: "linear-gradient(160deg, #7C6BAE 0%, #9B8EC4 55%, #C4A8C0 100%)",
+        position: "relative",
+        overflowX: "hidden",
+      }}
+    >
+      {/* Background blobs */}
+      <div className="absolute rounded-full opacity-20" style={{ width: "300px", height: "300px", background: "#5C4E8A", filter: "blur(80px)", top: "-50px", left: "-100px", pointerEvents: "none" }} />
+      <div className="absolute rounded-full opacity-20" style={{ width: "250px", height: "250px", background: "#DEC8DA", filter: "blur(70px)", top: "200px", right: "-80px", pointerEvents: "none" }} />
+      <div className="absolute rounded-full opacity-20" style={{ width: "280px", height: "280px", background: "#9B8EC4", filter: "blur(75px)", bottom: "300px", left: "-50px", pointerEvents: "none" }} />
+      <div className="absolute rounded-full opacity-20" style={{ width: "200px", height: "200px", background: "#C4A8C0", filter: "blur(60px)", bottom: "100px", right: "-30px", pointerEvents: "none" }} />
+
+      {/* Header */}
+      <div className="relative z-10">
         <div
           className="px-6 py-4 flex justify-between items-center"
           style={{ maxWidth: "1024px", margin: "0 auto" }}
@@ -431,34 +450,35 @@ function MedicationsPage() {
         </div>
       </div>
 
+      {/* Main content */}
       <div
-        className="p-6 pb-20 flex flex-col gap-4"
+        className="relative z-10 p-6 pb-20 flex flex-col gap-4"
         style={{ maxWidth: "1024px", margin: "0 auto" }}
       >
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <div
               className="w-8 h-8 rounded-full border-2 animate-spin"
-              style={{ borderColor: "rgba(124,107,174,0.3)", borderTopColor: "#7C6BAE" }}
+              style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "white" }}
             />
-            <p className="text-sm" style={{ color: "#6B5F7A" }}>Loading...</p>
+            <p className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>Loading...</p>
           </div>
         ) : medications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
             <span style={{ fontSize: "48px", lineHeight: 1 }}>💊</span>
             <p
               className="text-lg font-medium mt-2"
-              style={{ color: "#2D2540", fontFamily: "Playfair Display, Georgia, serif" }}
+              style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}
             >
               No medications yet
             </p>
-            <p className="text-sm" style={{ color: "#6B5F7A", maxWidth: "280px" }}>
+            <p className="text-sm" style={{ color: "rgba(255,255,255,0.7)", maxWidth: "280px" }}>
               Add your first medication to start tracking.
             </p>
             <button
               onClick={openAdd}
               className="mt-2 px-6 py-2 rounded-full text-white text-sm hover:scale-105 transition-all duration-200"
-              style={{ background: "linear-gradient(135deg, #7C6BAE, #9B8EC4)" }}
+              style={{ background: "rgba(255,255,255,0.25)" }}
             >
               + Add Medication
             </button>
@@ -467,7 +487,7 @@ function MedicationsPage() {
           <>
             {activeMeds.length > 0 && (
               <div className="flex flex-col gap-3">
-                <p className="text-xs uppercase tracking-wide" style={{ color: "#6B5F7A" }}>
+                <p className="text-xs uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>
                   Active
                 </p>
                 {activeMeds.map((med) => (
@@ -483,7 +503,7 @@ function MedicationsPage() {
             )}
             {inactiveMeds.length > 0 && (
               <div className="flex flex-col gap-3">
-                <p className="text-xs uppercase tracking-wide" style={{ color: "#6B5F7A" }}>
+                <p className="text-xs uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>
                   Inactive
                 </p>
                 {inactiveMeds.map((med) => (
@@ -514,20 +534,24 @@ function MedicationsPage() {
       {deleteConfirm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.4)" }}
+          style={{ background: "rgba(0,0,0,0.5)" }}
         >
           <div
             className="w-full max-w-sm mx-4 p-6 rounded-2xl flex flex-col gap-4"
-            style={{ background: "white" }}
+            style={{
+              background: "rgba(255,255,255,0.2)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(255,255,255,0.3)",
+            }}
           >
             <div className="flex flex-col gap-1">
               <p
                 className="font-medium"
-                style={{ color: "#2D2540", fontFamily: "Playfair Display, Georgia, serif" }}
+                style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}
               >
                 Delete this medication?
               </p>
-              <p className="text-sm" style={{ color: "#6B5F7A" }}>
+              <p className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
                 All associated logs will also be deleted. This cannot be undone.
               </p>
             </div>
@@ -535,7 +559,7 @@ function MedicationsPage() {
               <button
                 onClick={() => setDeleteConfirm(null)}
                 className="flex-1 py-2 rounded-full text-sm"
-                style={{ background: "#F0EBF8", color: "#6B5F7A" }}
+                style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.8)" }}
               >
                 Cancel
               </button>

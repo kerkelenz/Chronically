@@ -24,7 +24,7 @@ const BAR_HEIGHTS = [8, 10, 12, 14, 16];
 const COLORS_BETTER = ["#E55A5A", "#E8934A", "#E8C84A", "#8DC65C", "#5AB87A"];
 
 function BarRating({ value, colors = COLORS_BETTER }) {
-  const activeColor = value > 0 ? colors[value - 1] : "rgba(0,0,0,0.1)";
+  const activeColor = value > 0 ? colors[value - 1] : "rgba(255,255,255,0.2)";
   return (
     <div className="flex items-end gap-0.5">
       {colors.map((_, i) => (
@@ -34,7 +34,7 @@ function BarRating({ value, colors = COLORS_BETTER }) {
             width: "4px",
             height: `${BAR_HEIGHTS[i]}px`,
             borderRadius: "1px",
-            background: i < value ? activeColor : "rgba(0,0,0,0.1)",
+            background: i < value ? activeColor : "rgba(255,255,255,0.2)",
           }}
         />
       ))}
@@ -171,8 +171,22 @@ function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "#FAF7FF", overflowX: "hidden" }}>
-      <div style={{ background: "linear-gradient(135deg, #5C4E8A, #7C6BAE)" }}>
+    <div
+      className="min-h-screen"
+      style={{
+        background: "linear-gradient(160deg, #7C6BAE 0%, #9B8EC4 55%, #C4A8C0 100%)",
+        position: "relative",
+        overflowX: "hidden",
+      }}
+    >
+      {/* Background blobs */}
+      <div className="absolute rounded-full opacity-20" style={{ width: "300px", height: "300px", background: "#5C4E8A", filter: "blur(80px)", top: "-50px", left: "-100px", pointerEvents: "none" }} />
+      <div className="absolute rounded-full opacity-20" style={{ width: "250px", height: "250px", background: "#DEC8DA", filter: "blur(70px)", top: "200px", right: "-80px", pointerEvents: "none" }} />
+      <div className="absolute rounded-full opacity-20" style={{ width: "280px", height: "280px", background: "#9B8EC4", filter: "blur(75px)", bottom: "300px", left: "-50px", pointerEvents: "none" }} />
+      <div className="absolute rounded-full opacity-20" style={{ width: "200px", height: "200px", background: "#C4A8C0", filter: "blur(60px)", bottom: "100px", right: "-30px", pointerEvents: "none" }} />
+
+      {/* Header */}
+      <div className="relative z-10">
         <div
           className="px-6 py-4 flex justify-between items-center"
           style={{ maxWidth: "1024px", margin: "0 auto" }}
@@ -227,17 +241,18 @@ function DashboardPage() {
         </div>
       </div>
 
+      {/* Main content */}
       <div
-        className="p-6 pb-20 flex flex-col gap-4"
+        className="relative z-10 p-6 pb-20 flex flex-col gap-4"
         style={{ maxWidth: "1024px", margin: "0 auto" }}
       >
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <div
               className="w-8 h-8 rounded-full border-2 animate-spin"
-              style={{ borderColor: "rgba(124,107,174,0.3)", borderTopColor: "#7C6BAE" }}
+              style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "white" }}
             />
-            <p className="text-sm" style={{ color: "#6B5F7A" }}>Loading...</p>
+            <p className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>Loading...</p>
           </div>
         ) : (
           <>
@@ -245,17 +260,17 @@ function DashboardPage() {
           <div className="flex flex-col items-center justify-center py-10 gap-3">
             <p
               className="text-2xl font-medium"
-              style={{ color: "#2D2540", fontFamily: "Playfair Display, Georgia, serif" }}
+              style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}
             >
               How are you feeling right now?
             </p>
-            <p className="text-sm" style={{ color: "#6B5F7A" }}>
+            <p className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
               It only takes a moment.
             </p>
             <button
               onClick={() => setShowCheckIn(true)}
               className="mt-2 px-8 py-3 rounded-full text-white font-medium hover:scale-105 transition-all duration-200 shockwave-btn"
-              style={{ background: "linear-gradient(135deg, #7C6BAE, #9B8EC4)" }}
+              style={{ background: "rgba(255,255,255,0.25)" }}
             >
               Start Check-in
             </button>
@@ -303,7 +318,7 @@ function DashboardPage() {
 
               return (
                 <>
-                  <p className="text-xs uppercase tracking-wide" style={{ color: "#6B5F7A" }}>
+                  <p className="text-xs uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>
                     Last 14 days
                   </p>
                   <div className="flex flex-col gap-3">
@@ -325,25 +340,25 @@ function DashboardPage() {
                                 text={value > 0 ? value.toFixed(1) : "—"}
                                 styles={buildStyles({
                                   textSize: "28px",
-                                  textColor: "#2D2540",
+                                  textColor: "white",
                                   pathColor: color,
-                                  trailColor: "#F0EBF8",
+                                  trailColor: "rgba(255,255,255,0.2)",
                                   strokeLinecap: "round",
                                 })}
                               />
                             </div>
-                            <p className="text-[10px]" style={{ color: "#6B5F7A" }}>{label}</p>
+                            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.8)" }}>{label}</p>
                           </div>
                         );
                       })}
                     </div>
 
-                    {/* Common symptoms — full width */}
+                    {/* Common symptoms */}
                     <div
                       className="px-4 py-3 rounded-2xl"
-                      style={{ background: "white", border: "1px solid #DDD5EE" }}
+                      style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
                     >
-                      <p className="text-xs mb-3" style={{ color: "#6B5F7A" }}>Common symptoms</p>
+                      <p className="text-xs mb-3" style={{ color: "rgba(255,255,255,0.7)" }}>Common symptoms</p>
                       {topSymptoms.length > 0 ? (
                         <div className="grid grid-cols-3 gap-1">
                           {topSymptoms.slice(0, 3).map(({ s, n }) => (
@@ -351,7 +366,7 @@ function DashboardPage() {
                               <span className="text-3xl leading-none">{SYMPTOM_ICONS[s]}</span>
                               <span
                                 className="text-[11px] text-center leading-tight"
-                                style={{ color: "#6B5F7A" }}
+                                style={{ color: "rgba(255,255,255,0.8)" }}
                               >
                                 {s}
                               </span>
@@ -360,7 +375,7 @@ function DashboardPage() {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-xs" style={{ color: "#9B8EC4" }}>
+                        <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>
                           No symptoms logged recently
                         </p>
                       )}
@@ -410,7 +425,7 @@ function DashboardPage() {
 
               const borderColor = {
                 taken: "#7FAF8A",
-                skipped: "#DDD5EE",
+                skipped: "rgba(255,255,255,0.3)",
                 missed: "#B07088",
                 "past-due": "#C4A882",
                 upcoming: "transparent",
@@ -422,12 +437,12 @@ function DashboardPage() {
               ];
 
               return (
-                <div className="p-4 rounded-2xl" style={{ background: "white", border: "1px solid #DDD5EE" }}>
-                  <p className="text-sm font-medium mb-3" style={{ color: "#2D2540" }}>
+                <div className="p-4 rounded-2xl" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}>
+                  <p className="text-sm font-medium mb-3" style={{ color: "white" }}>
                     Today's medications
                   </p>
                   {doses.length === 0 ? (
-                    <p className="text-xs" style={{ color: "#9B8EC4" }}>
+                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>
                       No medications scheduled for today
                     </p>
                   ) : (
@@ -437,14 +452,14 @@ function DashboardPage() {
                           key={doseKey}
                           className="p-3 rounded-xl"
                           style={{
-                            background: "white",
-                            border: "1px solid #F0EBF8",
+                            background: "rgba(255,255,255,0.08)",
+                            border: "1px solid rgba(255,255,255,0.15)",
                             borderLeft: `3px solid ${borderColor[status] || "transparent"}`,
                           }}
                         >
                           {skippingDoseKey === doseKey ? (
                             <div className="flex flex-col gap-2">
-                              <p className="text-xs font-medium" style={{ color: "#6B5F7A" }}>
+                              <p className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.8)" }}>
                                 Why are you skipping?
                               </p>
                               <div className="flex flex-wrap gap-1.5">
@@ -453,7 +468,7 @@ function DashboardPage() {
                                     key={r}
                                     onClick={() => handleSkip(med, scheduledTime, r)}
                                     className="px-2 py-1 rounded-full text-[10px] transition-all duration-200 hover:opacity-80"
-                                    style={{ background: "#F0EBF8", color: "#6B5F7A" }}
+                                    style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
                                   >
                                     {r}
                                   </button>
@@ -462,7 +477,7 @@ function DashboardPage() {
                               <button
                                 onClick={() => setSkippingDoseKey(null)}
                                 className="text-[10px] text-left hover:opacity-70"
-                                style={{ color: "#9B8EC4" }}
+                                style={{ color: "rgba(255,255,255,0.6)" }}
                               >
                                 Cancel
                               </button>
@@ -472,15 +487,15 @@ function DashboardPage() {
                               <div className="flex items-center gap-2 flex-1 min-w-0">
                                 <span className="text-base leading-none">{TYPE_ICONS[med.type] || "💊"}</span>
                                 <div className="min-w-0">
-                                  <p className="text-sm font-medium leading-tight" style={{ color: "#2D2540" }}>
+                                  <p className="text-sm font-medium leading-tight" style={{ color: "white" }}>
                                     {med.name}
                                     {med.dosage && (
-                                      <span className="font-normal ml-1" style={{ color: "#9B8EC4" }}>
+                                      <span className="font-normal ml-1" style={{ color: "rgba(255,255,255,0.6)" }}>
                                         {med.dosage}
                                       </span>
                                     )}
                                   </p>
-                                  <p className="text-[10px] mt-0.5" style={{ color: "#9B8EC4" }}>
+                                  <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>
                                     {status === "taken" && log?.takenAt
                                       ? `Taken at ${new Date(log.takenAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
                                       : status === "skipped"
@@ -502,7 +517,7 @@ function DashboardPage() {
                                     onClick={() => handleUndoLog(log.id)}
                                     title="Undo"
                                     className="p-1 hover:opacity-70 transition-opacity"
-                                    style={{ color: "#6B5F7A" }}
+                                    style={{ color: "rgba(255,255,255,0.7)" }}
                                   >
                                     <FiRotateCcw size={12} />
                                   </button>
@@ -520,7 +535,7 @@ function DashboardPage() {
                                   <button
                                     onClick={() => setSkippingDoseKey(doseKey)}
                                     className="px-2.5 py-1 rounded-full text-[10px] transition-all duration-200 hover:opacity-80"
-                                    style={{ background: "#F0EBF8", color: "#6B5F7A" }}
+                                    style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
                                   >
                                     Skip
                                   </button>
@@ -539,9 +554,9 @@ function DashboardPage() {
             {/* check-in history */}
             <div
               className="p-4 rounded-2xl"
-              style={{ background: "white", border: "1px solid #DDD5EE" }}
+              style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
             >
-              <p className="text-sm font-medium mb-3" style={{ color: "#2D2540" }}>
+              <p className="text-sm font-medium mb-3" style={{ color: "white" }}>
                 Today's check-ins
               </p>
               {(() => {
@@ -549,7 +564,7 @@ function DashboardPage() {
                 const todaysCheckIns = checkIns.filter((c) => c.date === today);
                 if (todaysCheckIns.length === 0) {
                   return (
-                    <p className="text-xs" style={{ color: "#9B8EC4" }}>
+                    <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>
                       No check-ins yet today
                     </p>
                   );
@@ -560,10 +575,10 @@ function DashboardPage() {
                       <div
                         key={c.id}
                         className="flex items-start gap-3 p-3 rounded-xl"
-                        style={{ background: "#F0EBF8" }}
+                        style={{ background: "rgba(255,255,255,0.1)" }}
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs" style={{ color: "#6B5F7A" }}>
+                          <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
                             {new Date(c.createdAt).toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",
@@ -587,7 +602,7 @@ function DashboardPage() {
                                   >
                                     <span
                                       className="text-[10px] shrink-0"
-                                      style={{ color: "#6B5F7A", width: "46px" }}
+                                      style={{ color: "rgba(255,255,255,0.7)", width: "46px" }}
                                     >
                                       {label}
                                     </span>
@@ -610,7 +625,7 @@ function DashboardPage() {
                           <button
                             onClick={() => setEditingCheckIn(c)}
                             className="p-1 hover:opacity-70 transition-opacity"
-                            style={{ color: "#7C6BAE" }}
+                            style={{ color: "rgba(255,255,255,0.8)" }}
                           >
                             <FiEdit2 size={14} />
                           </button>
@@ -640,20 +655,24 @@ function DashboardPage() {
       {editingCheckIn && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.4)" }}
+          style={{ background: "rgba(0,0,0,0.5)" }}
         >
           <div
             className="w-full max-w-sm mx-4 p-6 rounded-2xl flex flex-col gap-4"
-            style={{ background: "white" }}
+            style={{
+              background: "rgba(255,255,255,0.2)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(255,255,255,0.3)",
+            }}
           >
             <p
               className="font-medium"
-              style={{ color: "#2D2540", fontFamily: "Playfair Display, Georgia, serif" }}
+              style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}
             >
               Edit Check-in
             </p>
             <div>
-              <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>Pain level</p>
+              <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>Pain level</p>
               <div className="flex gap-2">
                 {[[1,"Very Severe"],[2,"Severe"],[3,"Moderate"],[4,"Light"],[5,"Very Light"]].map(([level, label]) => (
                   <button
@@ -661,8 +680,8 @@ function DashboardPage() {
                     onClick={() => setEditingCheckIn({ ...editingCheckIn, painLevel: level })}
                     className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200"
                     style={{
-                      background: editingCheckIn.painLevel === level ? "#7C6BAE" : "#F0EBF8",
-                      color:      editingCheckIn.painLevel === level ? "white"   : "#6B5F7A",
+                      background: editingCheckIn.painLevel === level ? "#7C6BAE" : "rgba(255,255,255,0.15)",
+                      color: "white",
                     }}
                   >
                     {label}
@@ -671,7 +690,7 @@ function DashboardPage() {
               </div>
             </div>
             <div>
-              <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>Mood level</p>
+              <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>Mood level</p>
               <div className="flex gap-2">
                 {[[1,"Very Low"],[2,"Low"],[3,"Okay"],[4,"Good"],[5,"Great"]].map(([level, label]) => (
                   <button
@@ -679,8 +698,8 @@ function DashboardPage() {
                     onClick={() => setEditingCheckIn({ ...editingCheckIn, moodLevel: level })}
                     className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200"
                     style={{
-                      background: editingCheckIn.moodLevel === level ? "#7C6BAE" : "#F0EBF8",
-                      color:      editingCheckIn.moodLevel === level ? "white"   : "#6B5F7A",
+                      background: editingCheckIn.moodLevel === level ? "#7C6BAE" : "rgba(255,255,255,0.15)",
+                      color: "white",
                     }}
                   >
                     {label}
@@ -689,7 +708,7 @@ function DashboardPage() {
               </div>
             </div>
             <div>
-              <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>Energy level</p>
+              <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>Energy level</p>
               <div className="flex gap-2">
                 {[[1,"Exhausted"],[2,"Drained"],[3,"Low"],[4,"Good"],[5,"Full"]].map(([level, label]) => (
                   <button
@@ -697,8 +716,8 @@ function DashboardPage() {
                     onClick={() => setEditingCheckIn({ ...editingCheckIn, energyLevel: level })}
                     className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200"
                     style={{
-                      background: editingCheckIn.energyLevel === level ? "#7C6BAE" : "#F0EBF8",
-                      color:      editingCheckIn.energyLevel === level ? "white"   : "#6B5F7A",
+                      background: editingCheckIn.energyLevel === level ? "#7C6BAE" : "rgba(255,255,255,0.15)",
+                      color: "white",
                     }}
                   >
                     {label}
@@ -707,7 +726,7 @@ function DashboardPage() {
               </div>
             </div>
             <div>
-              <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>Anxiety level</p>
+              <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>Anxiety level</p>
               <div className="flex gap-2">
                 {[[1,"Severe"],[2,"High"],[3,"Moderate"],[4,"Mild"],[5,"Calm"]].map(([level, label]) => (
                   <button
@@ -715,8 +734,8 @@ function DashboardPage() {
                     onClick={() => setEditingCheckIn({ ...editingCheckIn, anxietyLevel: level })}
                     className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200"
                     style={{
-                      background: editingCheckIn.anxietyLevel === level ? "#7C6BAE" : "#F0EBF8",
-                      color:      editingCheckIn.anxietyLevel === level ? "white"   : "#6B5F7A",
+                      background: editingCheckIn.anxietyLevel === level ? "#7C6BAE" : "rgba(255,255,255,0.15)",
+                      color: "white",
                     }}
                   >
                     {label}
@@ -725,7 +744,7 @@ function DashboardPage() {
               </div>
             </div>
             <div>
-              <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>Appetite level</p>
+              <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>Appetite level</p>
               <div className="flex gap-2">
                 {[[1,"None"],[2,"Poor"],[3,"Fair"],[4,"Good"],[5,"Great"]].map(([level, label]) => (
                   <button
@@ -733,8 +752,8 @@ function DashboardPage() {
                     onClick={() => setEditingCheckIn({ ...editingCheckIn, appetiteLevel: level })}
                     className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200"
                     style={{
-                      background: editingCheckIn.appetiteLevel === level ? "#7C6BAE" : "#F0EBF8",
-                      color:      editingCheckIn.appetiteLevel === level ? "white"   : "#6B5F7A",
+                      background: editingCheckIn.appetiteLevel === level ? "#7C6BAE" : "rgba(255,255,255,0.15)",
+                      color: "white",
                     }}
                   >
                     {label}
@@ -743,7 +762,7 @@ function DashboardPage() {
               </div>
             </div>
             <div>
-              <p className="text-xs mb-2" style={{ color: "#6B5F7A" }}>Symptoms</p>
+              <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>Symptoms</p>
               <div className="flex flex-wrap gap-2">
                 {[
                   "Fatigue","Brain fog","Pain flare","Numbness",
@@ -762,8 +781,8 @@ function DashboardPage() {
                       }}
                       className="px-3 py-1 rounded-full text-xs font-medium transition-all duration-200"
                       style={{
-                        background: active ? "#7C6BAE" : "#F0EBF8",
-                        color:      active ? "white"   : "#6B5F7A",
+                        background: active ? "#7C6BAE" : "rgba(255,255,255,0.15)",
+                        color: "white",
                       }}
                     >
                       {s}
@@ -776,7 +795,7 @@ function DashboardPage() {
               <button
                 onClick={() => setEditingCheckIn(null)}
                 className="flex-1 py-2 rounded-full text-sm"
-                style={{ background: "#F0EBF8", color: "#6B5F7A" }}
+                style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.8)" }}
               >
                 Cancel
               </button>
