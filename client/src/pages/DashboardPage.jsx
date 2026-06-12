@@ -21,7 +21,13 @@ const SYMPTOM_ICONS = {
 };
 
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
-const COLORS_BETTER = ["#E55A5A", "#E8934A", "#E8C84A", "#8DC65C", "#5AB87A"];
+const COLORS_BETTER = [
+  "rgba(255,255,255,0.2)",
+  "rgba(255,255,255,0.35)",
+  "rgba(255,255,255,0.55)",
+  "rgba(255,255,255,0.75)",
+  "rgba(255,255,255,0.95)",
+];
 
 function BarRating({ value, colors = COLORS_BETTER }) {
   const activeColor = value > 0 ? colors[value - 1] : "rgba(255,255,255,0.2)";
@@ -325,11 +331,11 @@ function DashboardPage() {
                     {/* Circular progress dials */}
                     <div className="flex justify-between items-center px-2 py-3">
                       {[
-                        { label: "Pain",     value: avgPain,     color: "#7C6BAE" },
-                        { label: "Mood",     value: avgMood,     color: "#C4A8C0" },
-                        { label: "Energy",   value: avgEnergy,   color: "#8FAF9B" },
-                        { label: "Anxiety",  value: avgAnxiety,  color: "#9BAFC4" },
-                        { label: "Appetite", value: avgAppetite, color: "#C4A882" },
+                        { label: "Pain",     value: avgPain,     color: "rgba(255,255,255,0.9)"   },
+                        { label: "Mood",     value: avgMood,     color: "rgba(222,200,218,0.95)"  },
+                        { label: "Energy",   value: avgEnergy,   color: "rgba(143,175,155,0.95)"  },
+                        { label: "Anxiety",  value: avgAnxiety,  color: "rgba(155,175,196,0.95)"  },
+                        { label: "Appetite", value: avgAppetite, color: "rgba(196,168,130,0.95)"  },
                       ].map(({ label, value, color }) => {
                         const percentage = value > 0 ? (value / 5) * 100 : 0;
                         return (
@@ -370,7 +376,7 @@ function DashboardPage() {
                               >
                                 {s}
                               </span>
-                              <span className="text-[11px]" style={{ color: "#7FAF8A" }}>{n}d</span>
+                              <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.6)" }}>{n}d</span>
                             </div>
                           ))}
                         </div>

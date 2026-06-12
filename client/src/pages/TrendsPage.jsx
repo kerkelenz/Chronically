@@ -12,25 +12,10 @@ function TrendsPage() {
   const [checkIns, setCheckIns] = useState([]);
   const [medications, setMedications] = useState([]);
   const [medLogs, setMedLogs] = useState([]);
-  const [timeframe, setTimeframe] = useState("day");
+  const [timeframe, setTimeframe] = useState(1);
   const [loading, setLoading] = useState(true);
 
   const getChartData = () => {
-    if (timeframe === "day") {
-      const today = new Date().toLocaleDateString("en-CA");
-      return [...checkIns]
-        .filter((c) => c.date === today)
-        .reverse()
-        .map((c) => ({
-          date:     new Date(c.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          pain:     c.painLevel,
-          mood:     c.moodLevel,
-          energy:   c.energyLevel   ?? null,
-          anxiety:  c.anxietyLevel  ?? null,
-          appetite: c.appetiteLevel ?? null,
-        }));
-    }
-
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - timeframe);
     const cutoffStr = cutoff.toLocaleDateString("en-CA");
@@ -61,10 +46,6 @@ function TrendsPage() {
   };
 
   const getPeriodLogs = () => {
-    if (timeframe === "day") {
-      const today = new Date().toLocaleDateString("en-CA");
-      return medLogs.filter((l) => l.date === today);
-    }
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - timeframe);
     const cutoffStr = cutoff.toLocaleDateString("en-CA");
@@ -128,9 +109,9 @@ function TrendsPage() {
   }, [token]);
 
   const TIMEFRAME_TABS = [
-    { label: "Day",   value: "day" },
-    { label: "Week",  value: 7     },
-    { label: "Month", value: 30    },
+    { label: "2d",    value: 1  },
+    { label: "Week",  value: 7  },
+    { label: "Month", value: 30 },
   ];
 
   return (
