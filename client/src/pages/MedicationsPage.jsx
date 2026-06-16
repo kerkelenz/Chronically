@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
-import { FiEdit2, FiTrash2, FiDownload, FiRotateCcw } from "react-icons/fi";
+import { FiEdit2, FiTrash2, FiDownload, FiRotateCcw, FiPlus } from "react-icons/fi";
 import { exportDoctorReport } from "../utils/exportReport";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import {
@@ -478,10 +478,11 @@ function MedicationsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={openAdd}
-              className="text-xs px-3 py-1 rounded-full whitespace-nowrap transition-all duration-200 hover:scale-105"
-              style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:opacity-90"
+              style={{ background: "rgba(255,255,255,0.25)", color: "white", border: "1px solid rgba(255,255,255,0.4)" }}
             >
-              + Add Medication
+              <FiPlus size={14} />
+              Add
             </button>
             <NavHamburger />
           </div>

@@ -189,23 +189,22 @@ function ProfilePage() {
           >
             <Avatar user={user} size={64} />
           </button>
-          <div className="flex items-center gap-2 text-xs" style={{ color: "rgba(255,255,255,0.65)" }}>
+          <div className="flex items-center gap-2">
             <button
               onClick={() => fileInputRef.current.click()}
-              className="hover:text-white transition-colors"
+              className="px-4 py-1.5 rounded-full text-xs font-medium transition-opacity hover:opacity-80"
+              style={{ background: "rgba(255,255,255,0.25)", border: "1px solid rgba(255,255,255,0.4)", color: "white" }}
             >
-              Change photo
+              {user?.avatar ? "Change photo" : "Add photo"}
             </button>
             {user?.avatar && (
-              <>
-                <span style={{ color: "rgba(255,255,255,0.35)" }}>·</span>
-                <button
-                  onClick={handleRemoveAvatar}
-                  className="hover:text-white transition-colors"
-                >
-                  Remove
-                </button>
-              </>
+              <button
+                onClick={handleRemoveAvatar}
+                className="px-4 py-1.5 rounded-full text-xs font-medium transition-opacity hover:opacity-80"
+                style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.25)", color: "rgba(255,255,255,0.7)" }}
+              >
+                Remove
+              </button>
             )}
           </div>
           <p
