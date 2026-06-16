@@ -1,12 +1,41 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import Cropper from "react-easy-crop";
 import { useAuth } from "../hooks/useAuth";
 import Navigation, { NavHamburger } from "../components/Navigation";
+import Avatar from "../components/Avatar";
+
+function getCroppedImg(imageSrc, croppedAreaPixels) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(
+        img,
+        croppedAreaPixels.x,
+        croppedAreaPixels.y,
+        croppedAreaPixels.width,
+        croppedAreaPixels.height,
+        0,
+        0,
+        256,
+        256,
+      );
+      resolve(canvas.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = reject;
+    img.src = imageSrc;
+  });
+}
 
 function ProfilePage() {
   const navigate = useNavigate();
   const { user, token, logout, updateUser } = useAuth();
+  const fileInputRef = useRef(null);
 
   const [username, setUsername] = useState(user?.username || "");
   const [email, setEmail] = useState(user?.email || "");
@@ -15,6 +44,15 @@ function ProfilePage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+
+  // Crop modal state
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [imageSrc, setImageSrc] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [savingAvatar, setSavingAvatar] = useState(false);
+  const [cropError, setCropError] = useState("");
 
   const hasChanges =
     username !== (user?.username || "") || email !== (user?.email || "");
@@ -55,6 +93,75 @@ function ProfilePage() {
     }
   };
 
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = "";
+    if (!file.type.startsWith("image/")) {
+      setCropError("Please select an image file.");
+      setShowCropModal(true);
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setCropError("Image must be under 10 MB.");
+      setShowCropModal(true);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageSrc(reader.result);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
+      setCropError("");
+      setShowCropModal(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const onCropComplete = useCallback((_, pixels) => {
+    setCroppedAreaPixels(pixels);
+  }, []);
+
+  const handleSaveAvatar = async () => {
+    if (!croppedAreaPixels) return;
+    setSavingAvatar(true);
+    setCropError("");
+    try {
+      const croppedImage = await getCroppedImg(imageSrc, croppedAreaPixels);
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/users/avatar`,
+        { image: croppedImage },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      updateUser({ ...user, avatar: res.data.avatar });
+      setShowCropModal(false);
+      setImageSrc(null);
+    } catch (err) {
+      setCropError(err.response?.data?.error || "Failed to save photo. Please try again.");
+    } finally {
+      setSavingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL}/api/users/avatar`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      updateUser({ ...user, avatar: null });
+    } catch (err) {
+      setError("Failed to remove photo. Please try again.");
+    }
+  };
+
+  const closeCropModal = () => {
+    setShowCropModal(false);
+    setImageSrc(null);
+    setCropError("");
+  };
+
   return (
     <div
       className="min-h-screen"
@@ -75,15 +182,31 @@ function ProfilePage() {
           <NavHamburger />
         </div>
         <div className="px-6 pb-6 flex flex-col items-center gap-2" style={{ maxWidth: "480px", margin: "0 auto" }}>
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-medium"
-            style={{
-              background: "rgba(255,255,255,0.25)",
-              border: "2px solid rgba(255,255,255,0.5)",
-              color: "white",
-            }}
+          <button
+            onClick={() => fileInputRef.current.click()}
+            className="rounded-full transition-opacity hover:opacity-80"
+            aria-label="Change profile photo"
           >
-            {user?.username?.slice(0, 2).toUpperCase()}
+            <Avatar user={user} size={64} />
+          </button>
+          <div className="flex items-center gap-2 text-xs" style={{ color: "rgba(255,255,255,0.65)" }}>
+            <button
+              onClick={() => fileInputRef.current.click()}
+              className="hover:text-white transition-colors"
+            >
+              Change photo
+            </button>
+            {user?.avatar && (
+              <>
+                <span style={{ color: "rgba(255,255,255,0.35)" }}>·</span>
+                <button
+                  onClick={handleRemoveAvatar}
+                  className="hover:text-white transition-colors"
+                >
+                  Remove
+                </button>
+              </>
+            )}
           </div>
           <p
             className="text-white font-medium"
@@ -94,6 +217,15 @@ function ProfilePage() {
           <p className="text-white/70 text-sm">{user?.email}</p>
         </div>
       </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
 
       {/* Settings form */}
       <div className="relative z-10 p-6 pb-20 flex flex-col gap-4" style={{ maxWidth: "480px", margin: "0 auto" }}>
@@ -173,6 +305,85 @@ function ProfilePage() {
           </button>
         </div>
       </div>
+
+      {/* Crop modal */}
+      {showCropModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+        >
+          <div
+            className="w-full max-w-sm mx-4 rounded-2xl overflow-hidden flex flex-col"
+            style={{ background: "white" }}
+          >
+            {imageSrc && !cropError ? (
+              <>
+                {/* Crop area */}
+                <div style={{ position: "relative", width: "100%", height: 300, background: "#1a1a2e" }}>
+                  <Cropper
+                    image={imageSrc}
+                    crop={crop}
+                    zoom={zoom}
+                    aspect={1}
+                    cropShape="round"
+                    showGrid={false}
+                    onCropChange={setCrop}
+                    onZoomChange={setZoom}
+                    onCropComplete={onCropComplete}
+                  />
+                </div>
+                <div className="p-5 flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <p className="text-xs font-medium" style={{ color: "#6B5F7A" }}>Zoom</p>
+                    <input
+                      type="range"
+                      min={1}
+                      max={3}
+                      step={0.01}
+                      value={zoom}
+                      onChange={(e) => setZoom(Number(e.target.value))}
+                      className="w-full"
+                      style={{ accentColor: "#7C6BAE" }}
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={closeCropModal}
+                      disabled={savingAvatar}
+                      className="flex-1 py-2 rounded-full text-sm transition-all duration-200"
+                      style={{ background: "#F0EBF8", color: "#6B5F7A" }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveAvatar}
+                      disabled={savingAvatar}
+                      className="flex-1 py-2 rounded-full text-sm text-white transition-all duration-200"
+                      style={{ background: "#7C6BAE", opacity: savingAvatar ? 0.7 : 1 }}
+                    >
+                      {savingAvatar ? "Saving…" : "Save photo"}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="p-6 flex flex-col gap-4">
+                <p className="font-medium" style={{ color: "#2D2540", fontFamily: "Playfair Display, Georgia, serif" }}>
+                  Photo error
+                </p>
+                <p className="text-sm" style={{ color: "#B07088" }}>{cropError}</p>
+                <button
+                  onClick={closeCropModal}
+                  className="w-full py-2 rounded-full text-sm transition-all duration-200"
+                  style={{ background: "#F0EBF8", color: "#6B5F7A" }}
+                >
+                  Close
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {showDeleteModal && (
         <div

@@ -8,6 +8,7 @@ import Navigation, { NavHamburger } from "../components/Navigation";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
 import { SymptomIcon } from "../components/SymptomIcon";
+import Avatar from "../components/Avatar";
 
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
 const COLORS_BETTER = [
@@ -149,26 +150,29 @@ function DashboardPage() {
           className="px-6 py-4 flex justify-between items-center"
           style={{ maxWidth: "1024px", margin: "0 auto" }}
         >
-          <div>
-            <h1
-              className="text-white font-medium text-lg"
-              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-            >
-              {(() => {
-                const hour = new Date().getHours();
-                if (hour < 12) return "Good morning,";
-                if (hour < 17) return "Good afternoon,";
-                return "Good evening,";
-              })()}{" "}
-              {user?.username}
-            </h1>
-            <p className="text-white/70 text-xs mt-1">
-              {todaysDone
-                ? `Next check-in at ${new Date(
-                    new Date(checkIns[0].createdAt).getTime() + 4 * 60 * 60 * 1000,
-                  ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                : "Ready to check in?"}
-            </p>
+          <div className="flex items-center gap-3">
+            <Avatar user={user} size={40} />
+            <div>
+              <h1
+                className="text-white font-medium text-lg"
+                style={{ fontFamily: "Playfair Display, Georgia, serif" }}
+              >
+                {(() => {
+                  const hour = new Date().getHours();
+                  if (hour < 12) return "Good morning,";
+                  if (hour < 17) return "Good afternoon,";
+                  return "Good evening,";
+                })()}{" "}
+                {user?.username}
+              </h1>
+              <p className="text-white/70 text-xs mt-1">
+                {todaysDone
+                  ? `Next check-in at ${new Date(
+                      new Date(checkIns[0].createdAt).getTime() + 4 * 60 * 60 * 1000,
+                    ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                  : "Ready to check in?"}
+              </p>
+            </div>
           </div>
           <NavHamburger />
         </div>

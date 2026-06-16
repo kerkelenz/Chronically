@@ -43,7 +43,7 @@ const updateProfile = async (req, res) => {
       return res.status(200).json({
         message: `A verification link has been sent to ${email}. Your email will update once confirmed.`,
         emailPending: true,
-        user: { id: user.id, username, email: user.email },
+        user: { id: user.id, username, email: user.email, avatar: user.avatar || null },
       });
     }
 
@@ -51,7 +51,7 @@ const updateProfile = async (req, res) => {
 
     res.status(200).json({
       message: "Profile updated successfully",
-      user: { id: user.id, username, email: user.email },
+      user: { id: user.id, username, email: user.email, avatar: user.avatar || null },
     });
   } catch (error) {
     console.error("Update profile error:", error);
@@ -72,4 +72,33 @@ const deleteAccount = async (req, res) => {
   }
 };
 
-module.exports = { updateProfile, deleteAccount };
+const MAX_AVATAR_LENGTH = 400000;
+
+const updateAvatar = async (req, res) => {
+  try {
+    const { image } = req.body;
+    if (!image || typeof image !== "string" || !image.startsWith("data:image/")) {
+      return res.status(400).json({ error: "Invalid image data" });
+    }
+    if (image.length > MAX_AVATAR_LENGTH) {
+      return res.status(400).json({ error: "Image is too large. Please try a smaller photo." });
+    }
+    await User.update({ avatar: image }, { where: { id: req.user.id } });
+    res.status(200).json({ avatar: image });
+  } catch (error) {
+    console.error("Update avatar error:", error);
+    res.status(500).json({ error: "Server error updating avatar" });
+  }
+};
+
+const deleteAvatar = async (req, res) => {
+  try {
+    await User.update({ avatar: null }, { where: { id: req.user.id } });
+    res.status(200).json({ message: "Avatar removed" });
+  } catch (error) {
+    console.error("Delete avatar error:", error);
+    res.status(500).json({ error: "Server error removing avatar" });
+  }
+};
+
+module.exports = { updateProfile, deleteAccount, updateAvatar, deleteAvatar };
