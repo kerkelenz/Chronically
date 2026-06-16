@@ -59,6 +59,10 @@ const User = sequelize.define("User", {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  celebratedMilestones: {
+    type: DataTypes.JSON,
+    defaultValue: [],
+  },
 });
 
 module.exports = User;

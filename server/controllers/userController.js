@@ -4,6 +4,8 @@ const User = require("../models/User");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const ALLOWED_MILESTONES = [3, 7, 14, 30, 60, 90, 100, 180, 365];
+
 const updateProfile = async (req, res) => {
   try {
     const { username, email } = req.body;
@@ -43,7 +45,7 @@ const updateProfile = async (req, res) => {
       return res.status(200).json({
         message: `A verification link has been sent to ${email}. Your email will update once confirmed.`,
         emailPending: true,
-        user: { id: user.id, username, email: user.email, avatar: user.avatar || null },
+        user: { id: user.id, username, email: user.email, avatar: user.avatar || null, celebratedMilestones: user.celebratedMilestones || [] },
       });
     }
 
@@ -51,7 +53,7 @@ const updateProfile = async (req, res) => {
 
     res.status(200).json({
       message: "Profile updated successfully",
-      user: { id: user.id, username, email: user.email, avatar: user.avatar || null },
+      user: { id: user.id, username, email: user.email, avatar: user.avatar || null, celebratedMilestones: user.celebratedMilestones || [] },
     });
   } catch (error) {
     console.error("Update profile error:", error);
@@ -101,4 +103,21 @@ const deleteAvatar = async (req, res) => {
   }
 };
 
-module.exports = { updateProfile, deleteAccount, updateAvatar, deleteAvatar };
+const updateMilestones = async (req, res) => {
+  try {
+    const { celebratedMilestones } = req.body;
+    if (
+      !Array.isArray(celebratedMilestones) ||
+      !celebratedMilestones.every((m) => ALLOWED_MILESTONES.includes(m))
+    ) {
+      return res.status(400).json({ error: "Invalid milestones" });
+    }
+    await User.update({ celebratedMilestones }, { where: { id: req.user.id } });
+    res.status(200).json({ celebratedMilestones });
+  } catch (error) {
+    console.error("Update milestones error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+module.exports = { updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones };

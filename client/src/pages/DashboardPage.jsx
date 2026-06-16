@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import CheckInModal from "../components/CheckInModal";
@@ -9,6 +9,9 @@ import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
 import { SymptomIcon } from "../components/SymptomIcon";
 import Avatar from "../components/Avatar";
+import MilestoneCelebration from "../components/MilestoneCelebration";
+import MilestoneBadges from "../components/MilestoneBadges";
+import { MILESTONES, totalCheckInDays } from "../utils/milestones";
 
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
 const COLORS_BETTER = [
@@ -39,7 +42,7 @@ function BarRating({ value, colors = COLORS_BETTER }) {
 }
 
 function DashboardPage() {
-  const { user, token } = useAuth();
+  const { user, token, updateUser } = useAuth();
 
   const [checkIns, setCheckIns] = useState([]);
   const [todaysDone, setTodaysDone] = useState(false);
@@ -50,6 +53,9 @@ function DashboardPage() {
   const [appointments, setAppointments] = useState([]);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState(false);
+
+  const [celebrationMilestone, setCelebrationMilestone] = useState(null);
+  const seededRef = useRef(false);
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this check-in?")) return;
@@ -114,6 +120,27 @@ function DashboardPage() {
     };
     if (token) fetchAppointments();
   }, [token]);
+
+  // Path A: silently seed already-achieved milestones for existing accounts (no confetti)
+  useEffect(() => {
+    if (!user || !token || loading || seededRef.current) return;
+    seededRef.current = true;
+    const total = totalCheckInDays(checkIns);
+    const already = MILESTONES.filter((m) => total >= m);
+    if (already.length === 0) return;
+    const current = user.celebratedMilestones || [];
+    const unsaved = already.filter((m) => !current.includes(m));
+    if (unsaved.length === 0) return;
+    const merged = [...current, ...unsaved];
+    axios
+      .put(
+        `${import.meta.env.VITE_API_URL}/api/users/milestones`,
+        { celebratedMilestones: merged },
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+      .then(() => updateUser({ ...user, celebratedMilestones: merged }))
+      .catch(() => {});
+  }, [user, token, loading]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -193,6 +220,8 @@ function DashboardPage() {
           </div>
         ) : (
           <>
+        {!loading && <MilestoneBadges total={totalCheckInDays(checkIns)} />}
+
         {(checkIns.length === 0 || !todaysDone) && (
           <div className="flex flex-col items-center justify-center py-10 gap-3">
             <p
@@ -683,7 +712,31 @@ function DashboardPage() {
               response.data.checkIns.length > 0 &&
               new Date(response.data.checkIns[0].createdAt).getTime() > fourHoursAgo;
             setTodaysDone(recentlyDone);
+
+            // Path B: celebrate genuinely new milestone crossings
+            const newTotal = totalCheckInDays(response.data.checkIns);
+            const current = user?.celebratedMilestones || [];
+            const newlyCrossed = MILESTONES.filter((m) => newTotal >= m && !current.includes(m));
+            if (newlyCrossed.length > 0) {
+              const updated = [...current, ...newlyCrossed];
+              try {
+                await axios.put(
+                  `${import.meta.env.VITE_API_URL}/api/users/milestones`,
+                  { celebratedMilestones: updated },
+                  { headers: { Authorization: `Bearer ${token}` } },
+                );
+                updateUser({ ...user, celebratedMilestones: updated });
+                setCelebrationMilestone(Math.max(...newlyCrossed));
+              } catch {}
+            }
           }}
+        />
+      )}
+
+      {celebrationMilestone && (
+        <MilestoneCelebration
+          milestone={celebrationMilestone}
+          onDismiss={() => setCelebrationMilestone(null)}
         />
       )}
 
