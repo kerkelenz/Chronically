@@ -10,7 +10,6 @@ import "react-circular-progressbar/dist/styles.css";
 import { SymptomIcon } from "../components/SymptomIcon";
 import Avatar from "../components/Avatar";
 import MilestoneCelebration from "../components/MilestoneCelebration";
-import MilestoneBadges from "../components/MilestoneBadges";
 import { MILESTONES, totalCheckInDays } from "../utils/milestones";
 
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
@@ -220,8 +219,6 @@ function DashboardPage() {
           </div>
         ) : (
           <>
-        {!loading && <MilestoneBadges total={totalCheckInDays(checkIns)} />}
-
         {(checkIns.length === 0 || !todaysDone) && (
           <div className="flex flex-col items-center justify-center py-10 gap-3">
             <p
@@ -289,7 +286,7 @@ function DashboardPage() {
                   </p>
                   <div className="flex flex-col gap-3">
                     {/* Circular progress dials */}
-                    <div className="flex justify-between items-center px-2 py-3">
+                    <div className="grid grid-cols-5 gap-2 sm:gap-3 items-start py-3">
                       {[
                         { label: "Pain",     value: avgPain,     color: "rgba(255,255,255,0.9)"   },
                         { label: "Mood",     value: avgMood,     color: "rgba(222,200,218,0.95)"  },
@@ -300,7 +297,7 @@ function DashboardPage() {
                         const percentage = value > 0 ? (value / 5) * 100 : 0;
                         return (
                           <div key={label} className="flex flex-col items-center gap-1">
-                            <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-[72px] md:h-[72px]">
+                            <div className="w-full max-w-[128px] aspect-square mx-auto">
                               <CircularProgressbar
                                 value={percentage}
                                 text={value > 0 ? value.toFixed(1) : "—"}

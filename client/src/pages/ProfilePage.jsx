@@ -5,6 +5,7 @@ import Cropper from "react-easy-crop";
 import { useAuth } from "../hooks/useAuth";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import Avatar from "../components/Avatar";
+import MilestoneBadges from "../components/MilestoneBadges";
 
 function getCroppedImg(imageSrc, croppedAreaPixels) {
   return new Promise((resolve, reject) => {
@@ -228,6 +229,18 @@ function ProfilePage() {
 
       {/* Settings form */}
       <div className="relative z-10 p-6 pb-20 flex flex-col gap-4" style={{ maxWidth: "480px", margin: "0 auto" }}>
+        {(user?.celebratedMilestones || []).length > 0 && (
+          <div
+            className="p-4 rounded-2xl"
+            style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
+          >
+            <p className="text-xs mb-3 uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>
+              Achievements
+            </p>
+            <MilestoneBadges milestones={user.celebratedMilestones} />
+          </div>
+        )}
+
         <form onSubmit={handleUpdate} className="flex flex-col gap-3">
           <div
             className="p-4 rounded-2xl"
