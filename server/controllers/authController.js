@@ -109,6 +109,7 @@ const login = async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
+        celebratedMilestones: user.celebratedMilestones || [],
       },
     });
   } catch (error) {
@@ -144,7 +145,12 @@ const verifyEmail = async (req, res) => {
     res.status(200).json({
       message: "Email verified successfully",
       token: jwtToken,
-      user: { id: user.id, username: user.username, email: user.email },
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        celebratedMilestones: user.celebratedMilestones || [],
+      },
     });
   } catch (error) {
     console.error("Verify email error:", error);
