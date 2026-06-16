@@ -43,7 +43,7 @@ const updateProfile = async (req, res) => {
       return res.status(200).json({
         message: `A verification link has been sent to ${email}. Your email will update once confirmed.`,
         emailPending: true,
-        user: { id: user.id, username, email: user.email, celebratedMilestones: user.celebratedMilestones || [] },
+        user: { id: user.id, username, email: user.email },
       });
     }
 
@@ -51,7 +51,7 @@ const updateProfile = async (req, res) => {
 
     res.status(200).json({
       message: "Profile updated successfully",
-      user: { id: user.id, username, email: user.email, celebratedMilestones: user.celebratedMilestones || [] },
+      user: { id: user.id, username, email: user.email },
     });
   } catch (error) {
     console.error("Update profile error:", error);
@@ -72,28 +72,4 @@ const deleteAccount = async (req, res) => {
   }
 };
 
-const VALID_MILESTONES = new Set([3, 7, 14, 30, 60, 90, 100]);
-
-const updateMilestones = async (req, res) => {
-  try {
-    const { celebratedMilestones } = req.body;
-    if (
-      !Array.isArray(celebratedMilestones) ||
-      celebratedMilestones.some((m) => !VALID_MILESTONES.has(m))
-    ) {
-      return res.status(400).json({ error: "Invalid celebratedMilestones" });
-    }
-
-    const user = await User.findOne({ where: { id: req.user.id } });
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    await User.update({ celebratedMilestones }, { where: { id: user.id } });
-
-    res.status(200).json({ celebratedMilestones });
-  } catch (error) {
-    console.error("Update milestones error:", error);
-    res.status(500).json({ error: "Server error updating milestones" });
-  }
-};
-
-module.exports = { updateProfile, deleteAccount, updateMilestones };
+module.exports = { updateProfile, deleteAccount };

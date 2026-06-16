@@ -1,10 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import CheckInModal from "../components/CheckInModal";
-import StreakCard from "../components/StreakCard";
-import MilestoneCelebration from "../components/MilestoneCelebration";
-import { computeStreakState, achievedMilestones, MILESTONES } from "../utils/streaks";
 import { FiEdit2, FiTrash2, FiRotateCcw, FiCalendar, FiFileText } from "react-icons/fi";
 import { exportDoctorReport } from "../utils/exportReport";
 import Navigation, { NavHamburger } from "../components/Navigation";
@@ -42,7 +39,7 @@ function BarRating({ value, colors = COLORS_BETTER }) {
 }
 
 function DashboardPage() {
-  const { user, token, updateUser } = useAuth();
+  const { user, token } = useAuth();
 
   const [checkIns, setCheckIns] = useState([]);
   const [todaysDone, setTodaysDone] = useState(false);
@@ -57,9 +54,6 @@ function DashboardPage() {
   const [appointments, setAppointments] = useState([]);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState(false);
-  const [celebrationMilestone, setCelebrationMilestone] = useState(null);
-  const [streakSavedNote, setStreakSavedNote] = useState(false);
-  const seedDoneRef = useRef(false);
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this check-in?")) return;
@@ -96,46 +90,12 @@ function DashboardPage() {
           `${import.meta.env.VITE_API_URL}/api/checkins`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
-        const fetchedCheckIns = response.data.checkIns;
-        setCheckIns(fetchedCheckIns);
+        setCheckIns(response.data.checkIns);
         const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
         const recentlyDone =
-          fetchedCheckIns.length > 0 &&
-          new Date(fetchedCheckIns[0].createdAt).getTime() > fourHoursAgo;
+          response.data.checkIns.length > 0 &&
+          new Date(response.data.checkIns[0].createdAt).getTime() > fourHoursAgo;
         setTodaysDone(recentlyDone);
-
-        // Path A: silent milestone seed (runs once per mount)
-        if (!seedDoneRef.current && fetchedCheckIns.length > 0) {
-          seedDoneRef.current = true;
-          const { longestStreak, savedDates } = computeStreakState(fetchedCheckIns);
-          const alreadyCelebrated = user?.celebratedMilestones || [];
-          const newlyAchieved = achievedMilestones(longestStreak).filter(
-            (m) => !alreadyCelebrated.includes(m),
-          );
-          if (newlyAchieved.length > 0) {
-            const merged = [...alreadyCelebrated, ...newlyAchieved];
-            try {
-              await axios.put(
-                `${import.meta.env.VITE_API_URL}/api/users/milestones`,
-                { celebratedMilestones: merged },
-                { headers: { Authorization: `Bearer ${token}` } },
-              );
-              updateUser({ ...user, celebratedMilestones: merged });
-            } catch (e) {
-              console.error("Failed to seed milestones:", e);
-            }
-          }
-          // Streak saved note: show if a save was used in the last 2 days
-          if (!sessionStorage.getItem("streakSavedShown") && savedDates.length > 0) {
-            const today = new Date().toLocaleDateString("en-CA");
-            const [ty, tm, td] = today.split("-").map(Number);
-            const twoDaysAgo = new Date(ty, tm - 1, td - 2).toLocaleDateString("en-CA");
-            if (savedDates.some((d) => d >= twoDaysAgo)) {
-              setStreakSavedNote(true);
-              sessionStorage.setItem("streakSavedShown", "1");
-            }
-          }
-        }
       } catch (error) {
         console.error("Error fetching check-ins:", error);
       } finally {
@@ -321,35 +281,6 @@ function DashboardPage() {
 
         {checkIns.length > 0 && (
           <div className="flex flex-col gap-4">
-            {streakSavedNote && (
-              <div
-                className="p-4 rounded-2xl flex items-start justify-between gap-3"
-                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
-              >
-                <div className="flex items-start gap-2.5 flex-1">
-                  <svg
-                    viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"
-                    style={{ color: "white", flexShrink: 0, marginTop: "1px" }}
-                  >
-                    <path d="M12 2l8 3v6c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V5l8-3z"/>
-                  </svg>
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: "white" }}>Your streak was saved</p>
-                    <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.7)" }}>
-                      A streak save covered a day you missed — your streak is still going.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setStreakSavedNote(false)}
-                  className="text-lg leading-none flex-shrink-0 transition-opacity hover:opacity-80"
-                  style={{ color: "rgba(255,255,255,0.6)" }}
-                >
-                  ×
-                </button>
-              </div>
-            )}
-            <StreakCard checkIns={checkIns} />
             {/* stat cards */}
             {(() => {
               const fourteenDaysAgo = new Date();
@@ -794,14 +725,6 @@ function DashboardPage() {
         )}
       </div>
 
-      {/* milestone celebration overlay */}
-      {celebrationMilestone !== null && (
-        <MilestoneCelebration
-          milestone={celebrationMilestone}
-          onDismiss={() => setCelebrationMilestone(null)}
-        />
-      )}
-
       {/* edit modal */}
       {editingCheckIn && (
         <div
@@ -984,35 +907,12 @@ function DashboardPage() {
               `${import.meta.env.VITE_API_URL}/api/checkins`,
               { headers: { Authorization: `Bearer ${token}` } },
             );
-            const fetchedCheckIns = response.data.checkIns;
-            setCheckIns(fetchedCheckIns);
+            setCheckIns(response.data.checkIns);
             const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
             const recentlyDone =
-              fetchedCheckIns.length > 0 &&
-              new Date(fetchedCheckIns[0].createdAt).getTime() > fourHoursAgo;
+              response.data.checkIns.length > 0 &&
+              new Date(response.data.checkIns[0].createdAt).getTime() > fourHoursAgo;
             setTodaysDone(recentlyDone);
-
-            // Path B: milestone celebration after check-in
-            const { currentStreak } = computeStreakState(fetchedCheckIns);
-            const alreadyCelebrated = user?.celebratedMilestones || [];
-            const newlyCrossed = MILESTONES.filter(
-              (m) => currentStreak >= m && !alreadyCelebrated.includes(m),
-            );
-            if (newlyCrossed.length > 0) {
-              const highest = Math.max(...newlyCrossed);
-              setCelebrationMilestone(highest);
-              const merged = [...alreadyCelebrated, ...newlyCrossed];
-              try {
-                await axios.put(
-                  `${import.meta.env.VITE_API_URL}/api/users/milestones`,
-                  { celebratedMilestones: merged },
-                  { headers: { Authorization: `Bearer ${token}` } },
-                );
-                updateUser({ ...user, celebratedMilestones: merged });
-              } catch (e) {
-                console.error("Failed to persist milestones:", e);
-              }
-            }
           }}
         />
       )}
