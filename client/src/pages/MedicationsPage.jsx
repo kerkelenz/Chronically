@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
-import { FiEdit2, FiTrash2, FiDownload } from "react-icons/fi";
+import { FiEdit2, FiTrash2, FiDownload, FiRotateCcw } from "react-icons/fi";
 import { exportDoctorReport } from "../utils/exportReport";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import {
   FREQUENCY_LABELS,
   FREQUENCY_TIME_COUNTS,
   formatTime,
+  isMedicationDueToday,
 } from "../utils/medicationHelpers";
 import { MedicationTypeIcon } from "../components/SymptomIcon";
 
@@ -224,7 +225,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
   );
 }
 
-function MedCard({ med, onEdit, onDelete, onLogDose }) {
+function MedCard({ med, onEdit, onDelete }) {
   const freqLabel = FREQUENCY_LABELS[med.frequency] || med.frequency;
   const times = med.scheduledTimes?.map(formatTime).filter(Boolean).join(" · ") || "";
 
@@ -251,15 +252,6 @@ function MedCard({ med, onEdit, onDelete, onLogDose }) {
           </div>
         </div>
         <div className="flex gap-0.5 flex-shrink-0">
-          {med.frequency === "as_needed" && med.active && (
-            <button
-              onClick={() => onLogDose(med)}
-              className="px-2 py-1 rounded-full text-[10px] mr-1 transition-all duration-200 hover:opacity-80"
-              style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
-            >
-              Log dose
-            </button>
-          )}
           <button
             onClick={() => onEdit(med)}
             className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
@@ -299,15 +291,23 @@ function MedicationsPage() {
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState(false);
+  const [todayLogs, setTodayLogs] = useState([]);
+  const [skippingDoseKey, setSkippingDoseKey] = useState(null);
 
   useEffect(() => {
     const fetchMedications = async () => {
       try {
-        const res = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/medications`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        setMedications(res.data.medications);
+        const today = new Date().toLocaleDateString("en-CA");
+        const [medsRes, logsRes] = await Promise.all([
+          axios.get(`${import.meta.env.VITE_API_URL}/api/medications`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          axios.get(`${import.meta.env.VITE_API_URL}/api/medications/logs?date=${today}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+        setMedications(medsRes.data.medications);
+        setTodayLogs(logsRes.data.logs);
       } catch (err) {
         console.error("Error fetching medications:", err);
       } finally {
@@ -390,22 +390,44 @@ function MedicationsPage() {
     }
   };
 
-  const handleLogDose = async (med) => {
+  const handleTake = async (med, scheduledTime) => {
     const today = new Date().toLocaleDateString("en-CA");
     try {
-      await axios.post(
+      const res = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/medications/logs`,
-        {
-          medicationId: med.id,
-          date: today,
-          scheduledTime: null,
-          takenAt: new Date().toISOString(),
-          status: "taken",
-        },
+        { medicationId: med.id, date: today, scheduledTime, takenAt: new Date().toISOString(), status: "taken" },
         { headers: { Authorization: `Bearer ${token}` } },
       );
+      setTodayLogs((prev) => [...prev, res.data.log]);
     } catch (err) {
-      console.error("Error logging dose:", err);
+      console.error("Error logging take:", err);
+    }
+  };
+
+  const handleUndoLog = async (logId) => {
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_API_URL}/api/medications/logs/${logId}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setTodayLogs((prev) => prev.filter((l) => l.id !== logId));
+    } catch (err) {
+      console.error("Error undoing log:", err);
+    }
+  };
+
+  const handleSkip = async (med, scheduledTime, reason) => {
+    const today = new Date().toLocaleDateString("en-CA");
+    try {
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/medications/logs`,
+        { medicationId: med.id, date: today, scheduledTime, status: "skipped", skipReason: reason },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setTodayLogs((prev) => [...prev, res.data.log]);
+      setSkippingDoseKey(null);
+    } catch (err) {
+      console.error("Error logging skip:", err);
     }
   };
 
@@ -501,6 +523,167 @@ function MedicationsPage() {
           </div>
         ) : (
           <>
+            {activeMeds.length > 0 && (() => {
+              const today = new Date().toLocaleDateString("en-CA");
+              const now = new Date();
+              const doses = [];
+
+              activeMeds.forEach((med) => {
+                if (!isMedicationDueToday(med, today)) return;
+                const times = med.scheduledTimes?.length > 0 ? med.scheduledTimes : [null];
+                times.forEach((scheduledTime) => {
+                  const doseKey = `${med.id}-${scheduledTime || "none"}`;
+                  const log = todayLogs.find(
+                    (l) => l.medicationId === med.id && l.scheduledTime === scheduledTime,
+                  );
+                  let status;
+                  if (log) {
+                    status = log.status;
+                  } else if (scheduledTime) {
+                    const [h, m] = scheduledTime.split(":").map(Number);
+                    const sched = new Date();
+                    sched.setHours(h, m, 0, 0);
+                    const minPast = (now - sched) / (1000 * 60);
+                    if (minPast > 60) status = "missed";
+                    else if (minPast > 0) status = "past-due";
+                    else status = "upcoming";
+                  } else {
+                    status = "upcoming";
+                  }
+                  doses.push({ med, scheduledTime, doseKey, status, log });
+                });
+              });
+
+              doses.sort((a, b) => {
+                const aTime = a.scheduledTime || "99:99";
+                const bTime = b.scheduledTime || "99:99";
+                return aTime.localeCompare(bTime);
+              });
+
+              const borderColor = {
+                taken: "#7FAF8A",
+                skipped: "rgba(255,255,255,0.3)",
+                missed: "#FF6B8A",
+                "past-due": "#C4A882",
+                upcoming: "transparent",
+              };
+
+              return (
+                <div className="flex flex-col gap-3">
+                  <p className="text-xs uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>
+                    Today's doses
+                  </p>
+                  <div className="p-4 rounded-2xl" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}>
+                    {doses.length === 0 ? (
+                      <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>
+                        No medications scheduled for today
+                      </p>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {doses.map(({ med, scheduledTime, doseKey, status, log }) => (
+                          <div
+                            key={doseKey}
+                            className="p-3 rounded-xl"
+                            style={{
+                              background: "rgba(255,255,255,0.08)",
+                              border: "1px solid rgba(255,255,255,0.15)",
+                              borderLeft: `3px solid ${borderColor[status] || "transparent"}`,
+                            }}
+                          >
+                            {skippingDoseKey === doseKey ? (
+                              <div className="flex flex-col gap-2">
+                                <p className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.8)" }}>
+                                  Why are you skipping?
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {SKIP_REASONS.map((r) => (
+                                    <button
+                                      key={r}
+                                      onClick={() => handleSkip(med, scheduledTime, r)}
+                                      className="px-2 py-1 rounded-full text-[10px] transition-all duration-200 hover:opacity-80"
+                                      style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
+                                    >
+                                      {r}
+                                    </button>
+                                  ))}
+                                </div>
+                                <button
+                                  onClick={() => setSkippingDoseKey(null)}
+                                  className="text-[10px] text-left hover:opacity-70"
+                                  style={{ color: "rgba(255,255,255,0.6)" }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <MedicationTypeIcon type={med.type} size={22} />
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium leading-tight" style={{ color: "white" }}>
+                                      {med.name}
+                                      {med.dosage && (
+                                        <span className="font-normal ml-1" style={{ color: "rgba(255,255,255,0.6)" }}>
+                                          {med.dosage}
+                                        </span>
+                                      )}
+                                    </p>
+                                    <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>
+                                      {status === "taken" && log?.takenAt
+                                        ? `Taken at ${new Date(log.takenAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                                        : status === "skipped"
+                                        ? `Skipped${log?.skipReason ? ` · ${log.skipReason}` : ""}`
+                                        : status === "missed"
+                                        ? "Missed"
+                                        : scheduledTime
+                                        ? formatTime(scheduledTime)
+                                        : FREQUENCY_LABELS[med.frequency] || ""}
+                                    </p>
+                                  </div>
+                                </div>
+                                {(status === "taken" || status === "skipped") && (
+                                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    {status === "taken" && (
+                                      <span className="text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>✓</span>
+                                    )}
+                                    <button
+                                      onClick={() => handleUndoLog(log.id)}
+                                      title="Undo"
+                                      className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
+                                      style={{ background: "rgba(255,255,255,0.25)" }}
+                                    >
+                                      <FiRotateCcw size={12} color="white" />
+                                    </button>
+                                  </div>
+                                )}
+                                {(status === "upcoming" || status === "past-due") && (
+                                  <div className="flex gap-1.5 flex-shrink-0">
+                                    <button
+                                      onClick={() => handleTake(med, scheduledTime)}
+                                      className="px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-200 hover:opacity-80"
+                                      style={{ background: "#7C6BAE", color: "white" }}
+                                    >
+                                      Take
+                                    </button>
+                                    <button
+                                      onClick={() => setSkippingDoseKey(doseKey)}
+                                      className="px-2.5 py-1 rounded-full text-[10px] transition-all duration-200 hover:opacity-80"
+                                      style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
+                                    >
+                                      Skip
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
             {activeMeds.length > 0 && (
               <div className="flex flex-col gap-3">
                 <p className="text-xs uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>
@@ -512,7 +695,6 @@ function MedicationsPage() {
                     med={med}
                     onEdit={openEdit}
                     onDelete={setDeleteConfirm}
-                    onLogDose={handleLogDose}
                   />
                 ))}
               </div>
@@ -528,7 +710,6 @@ function MedicationsPage() {
                     med={med}
                     onEdit={openEdit}
                     onDelete={setDeleteConfirm}
-                    onLogDose={handleLogDose}
                   />
                 ))}
               </div>
