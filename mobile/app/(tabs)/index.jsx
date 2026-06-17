@@ -1,11 +1,16 @@
 import { View, Text, StyleSheet } from "react-native";
 import ScreenBackground from "../../components/ScreenBackground";
+import { useAuth } from "../../context/AuthContext";
 
 export default function DashboardScreen() {
+  const { user } = useAuth();
+
   return (
     <ScreenBackground>
       <View style={styles.center}>
-        <Text style={styles.heading}>Dashboard</Text>
+        <Text style={styles.heading}>
+          Hi, {user?.username || "there"} 👋
+        </Text>
         <Text style={styles.sub}>Your health overview will live here.</Text>
       </View>
     </ScreenBackground>
