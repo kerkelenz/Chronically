@@ -6,6 +6,7 @@ import {
   getUser as loadUser,
   setUser as saveUser,
   clearAuth,
+  migrateUserFromSecureStore,
 } from "../lib/storage";
 
 const AuthContext = createContext(null);
@@ -17,33 +18,41 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUserState] = useState(null);
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   async function signOut() {
     await clearAuth();
     setToken(null);
-    setUser(null);
+    setUserState(null);
   }
 
   useEffect(() => {
-    // Register the 401 handler before any requests fire
     setOnUnauthorized(() => signOut());
 
     async function hydrate() {
-      try {
-        const storedToken = await loadToken();
-        const storedUser = await loadUser();
-        if (storedToken && storedUser) {
-          setToken(storedToken);
-          setUser(storedUser);
-          // Optimistic restore — verify in background; sign out if token is dead
-          api.get("/api/protected").catch(() => signOut());
-        }
-      } finally {
+      const storedToken = await loadToken();
+      if (!storedToken) {
         setIsLoading(false);
+        return;
       }
+
+      // User now lives in AsyncStorage; migrate from SecureStore on first boot after refactor
+      let u = await loadUser();
+      if (!u) u = await migrateUserFromSecureStore();
+      if (!u) {
+        // Token exists but no user record — require fresh login
+        await signOut();
+        setIsLoading(false);
+        return;
+      }
+
+      setToken(storedToken);
+      setUserState(u);
+      // Optimistic restore — validate token in background
+      api.get("/api/protected").catch(() => signOut());
+      setIsLoading(false);
     }
 
     hydrate();
@@ -54,9 +63,9 @@ export function AuthProvider({ children }) {
       const res = await api.post("/api/auth/login", { email, password });
       const { token: newToken, user: newUser } = res.data;
       await saveToken(newToken);
-      await saveUser(newUser);
+      await saveUser(newUser); // full user including avatar → AsyncStorage
       setToken(newToken);
-      setUser(newUser);
+      setUserState(newUser);
     } catch (err) {
       const msg =
         err.response?.data?.error || "Something went wrong. Please try again.";
@@ -79,9 +88,15 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // Used by Phase 7b (account editing) to update both state and the AsyncStorage cache
+  async function updateUser(next) {
+    setUserState(next);
+    await saveUser(next);
+  }
+
   return (
     <AuthContext.Provider
-      value={{ user, token, isLoading, signIn, signUp, signOut }}
+      value={{ user, token, isLoading, signIn, signUp, signOut, updateUser }}
     >
       {children}
     </AuthContext.Provider>

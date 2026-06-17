@@ -12,6 +12,7 @@ import {
 import { useFocusEffect, useRouter } from "expo-router";
 import ScreenBackground from "../../components/ScreenBackground";
 import CircularDial from "../../components/CircularDial";
+import Avatar from "../../components/Avatar";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
 import { METRICS, METRIC_LABELS } from "../../theme/metrics";
@@ -164,7 +165,10 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Greeting */}
-        <Text style={styles.greeting}>Hi, {user?.username || "there"} 👋</Text>
+        <View style={styles.greetingRow}>
+          <Avatar user={user} size={36} />
+          <Text style={styles.greeting}>Hi, {user?.username || "there"} 👋</Text>
+        </View>
 
         {/* Error */}
         {error && (
@@ -264,11 +268,17 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 32,
   },
+  greetingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 16,
+  },
   greeting: {
     fontFamily: "PlayfairDisplay_700Bold",
     fontSize: 28,
     color: "white",
-    marginBottom: 16,
+    flexShrink: 1,
   },
   card: {
     backgroundColor: "rgba(255,255,255,0.15)",
