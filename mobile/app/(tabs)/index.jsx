@@ -9,7 +9,7 @@ import {
   RefreshControl,
   useWindowDimensions,
 } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import ScreenBackground from "../../components/ScreenBackground";
 import CircularDial from "../../components/CircularDial";
 import { useAuth } from "../../context/AuthContext";
@@ -57,6 +57,7 @@ function CheckInRow({ checkIn }) {
 
 export default function DashboardScreen() {
   const { user } = useAuth();
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const [checkIns, setCheckIns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -181,6 +182,13 @@ export default function DashboardScreen() {
             <Text style={styles.emptyText}>
               No check-ins yet — they'll show up here once you start logging.
             </Text>
+            <TouchableOpacity
+              style={styles.checkInBtn}
+              onPress={() => router.push("/checkin")}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.checkInBtnText}>Log today's check-in</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -188,11 +196,20 @@ export default function DashboardScreen() {
           <>
             {/* Today's status */}
             <View style={styles.card}>
-              <Text style={styles.statusText}>
-                {todaysDone
-                  ? "Today's check-in is logged 💙"
-                  : "No check-in yet today"}
-              </Text>
+              {todaysDone ? (
+                <Text style={styles.statusText}>Today's check-in is logged 💙</Text>
+              ) : (
+                <>
+                  <Text style={styles.statusText}>No check-in yet today</Text>
+                  <TouchableOpacity
+                    style={styles.checkInBtn}
+                    onPress={() => router.push("/checkin")}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.checkInBtnText}>Log today's check-in</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
 
             {/* 14-day dials */}
@@ -298,6 +315,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "rgba(255,255,255,0.9)",
     textAlign: "center",
+    marginBottom: 12,
+  },
+  checkInBtn: {
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  checkInBtnText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 15,
+    color: "#7C6BAE",
+    letterSpacing: 0.3,
   },
   cardTitle: {
     fontFamily: "Lato_700Bold",
