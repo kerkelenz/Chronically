@@ -28,7 +28,8 @@ export async function getUser() {
 
 export async function setUser(obj) {
   try {
-    await SecureStore.setItemAsync(USER_KEY, JSON.stringify(obj));
+    const { avatar, ...slim } = obj || {}; // SecureStore ~2KB cap — never persist base64
+    await SecureStore.setItemAsync(USER_KEY, JSON.stringify(slim));
   } catch {}
 }
 
