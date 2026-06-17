@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../../components/ScreenBackground";
 import CircularDial from "../../components/CircularDial";
 import Avatar from "../../components/Avatar";
@@ -56,11 +57,22 @@ function CheckInRow({ checkIn }) {
   );
 }
 
+function formatApptLabel(dateStr) {
+  const appt = new Date(dateStr);
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const tomorrowStart = new Date(todayStart); tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+  const apptDay = new Date(appt); apptDay.setHours(0, 0, 0, 0);
+  if (apptDay.getTime() === todayStart.getTime()) return "Today";
+  if (apptDay.getTime() === tomorrowStart.getTime()) return "Tomorrow";
+  return appt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 export default function DashboardScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const [checkIns, setCheckIns] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -76,9 +88,13 @@ export default function DashboardScreen() {
 
       (async () => {
         try {
-          const res = await api.get("/api/checkins");
+          const [checkInsRes, apptRes] = await Promise.all([
+            api.get("/api/checkins"),
+            api.get("/api/appointments"),
+          ]);
           if (active) {
-            setCheckIns(res.data.checkIns || []);
+            setCheckIns(checkInsRes.data.checkIns || []);
+            setAppointments(apptRes.data.appointments || []);
             setError(null);
             isFirstLoadRef.current = false;
           }
@@ -91,17 +107,19 @@ export default function DashboardScreen() {
         }
       })();
 
-      return () => {
-        active = false;
-      };
+      return () => { active = false; };
     }, [])
   );
 
   async function onRefresh() {
     setRefreshing(true);
     try {
-      const res = await api.get("/api/checkins");
-      setCheckIns(res.data.checkIns || []);
+      const [checkInsRes, apptRes] = await Promise.all([
+        api.get("/api/checkins"),
+        api.get("/api/appointments"),
+      ]);
+      setCheckIns(checkInsRes.data.checkIns || []);
+      setAppointments(apptRes.data.appointments || []);
       setError(null);
     } catch {
       setError("Could not load your data. Pull down to try again.");
@@ -131,6 +149,12 @@ export default function DashboardScreen() {
   }
 
   const recentList = checkIns.slice(0, 10);
+
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const upcomingAppts = appointments
+    .filter((a) => a.status === "upcoming" && new Date(a.date) >= todayStart && new Date(a.date) <= sevenDaysFromNow)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   // ── Loading state (first launch only) ────────────────────────────────────
 
@@ -231,6 +255,34 @@ export default function DashboardScreen() {
                 ))}
               </View>
             </View>
+
+            {/* Upcoming appointments reminder (within 7 days) */}
+            {upcomingAppts.length > 0 && (
+              <View style={[styles.card, styles.apptReminderCard]}>
+                <Text style={styles.apptReminderTitle}>Upcoming appointments</Text>
+                {upcomingAppts.map((appt) => (
+                  <TouchableOpacity
+                    key={appt.id}
+                    style={styles.apptRow}
+                    onPress={() => router.push("/(tabs)/appointments")}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.apptIconCircle}>
+                      <Ionicons name="calendar-outline" size={13} color="white" />
+                    </View>
+                    <View style={styles.apptRowInfo}>
+                      <Text style={styles.apptDoctorText}>
+                        {appt.doctorName}{appt.specialty ? ` — ${appt.specialty}` : ""}
+                      </Text>
+                      <Text style={styles.apptTimeText}>
+                        {formatApptLabel(appt.date)} at{" "}
+                        {new Date(appt.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
             {/* Recent check-ins */}
             <Text style={styles.sectionHeading}>Recent</Text>
@@ -352,6 +404,49 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
+
+  // Appointments reminder
+  apptReminderCard: {
+    borderColor: "rgba(255,255,255,0.3)",
+    gap: 8,
+  },
+  apptReminderTitle: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 14,
+    color: "white",
+  },
+  apptRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    padding: 10,
+  },
+  apptIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  apptRowInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  apptDoctorText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 13,
+    color: "white",
+  },
+  apptTimeText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.6)",
+  },
+
   sectionHeading: {
     fontFamily: "PlayfairDisplay_700Bold",
     fontSize: 20,
