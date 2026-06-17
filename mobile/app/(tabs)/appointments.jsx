@@ -8,9 +8,14 @@ import {
   Pressable,
   TouchableOpacity,
   RefreshControl,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import ScreenBackground from "../../components/ScreenBackground";
 import api from "../../lib/api";
 import {
@@ -18,7 +23,20 @@ import {
   formatApptDate,
   formatApptTime,
   dotColor,
+  toDateTimeLocal,
+  toDateOnly,
 } from "../../theme/appointments";
+
+const EMPTY_FORM = {
+  doctorName: "", specialty: "", date: "", location: "",
+  reason: "", notesBefore: "", notesAfter: "", followUpDate: "", status: "upcoming",
+};
+
+const STATUS_OPTIONS = [
+  { value: "upcoming", label: "Upcoming" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+];
 
 export default function AppointmentsScreen() {
   const [appointments, setAppointments] = useState([]);
@@ -29,6 +47,27 @@ export default function AppointmentsScreen() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [popoverAppointment, setPopoverAppointment] = useState(null);
   const isFirstLoadRef = useRef(true);
+
+  // ── Modal / form state ────────────────────────────────────────────────────
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [cancelConfirmId, setCancelConfirmId] = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+  // ── iOS inline pickers ────────────────────────────────────────────────────
+  const [showDateTimePicker, setShowDateTimePicker] = useState(false);
+  const [tempDateTime, setTempDateTime] = useState(new Date());
+  const [showFollowUpPicker, setShowFollowUpPicker] = useState(false);
+  const [tempFollowUp, setTempFollowUp] = useState(new Date());
+
+  // ── Fetch ─────────────────────────────────────────────────────────────────
+
+  async function fetchAppointments() {
+    const res = await api.get("/api/appointments");
+    setAppointments(res.data.appointments || []);
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -57,8 +96,7 @@ export default function AppointmentsScreen() {
   async function onRefresh() {
     setRefreshing(true);
     try {
-      const res = await api.get("/api/appointments");
-      setAppointments(res.data.appointments || []);
+      await fetchAppointments();
       setError(null);
     } catch {
       setError("Could not load appointments. Pull down to try again.");
@@ -116,6 +154,135 @@ export default function AppointmentsScreen() {
     setPopoverAppointment(dayObj.appointments[0]);
   }
 
+  // ── Mutation handlers ─────────────────────────────────────────────────────
+
+  const openAdd = () => {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setShowDateTimePicker(false);
+    setShowFollowUpPicker(false);
+    setShowModal(true);
+  };
+
+  const openEdit = (appt) => {
+    setEditingId(appt.id);
+    setForm({
+      doctorName: appt.doctorName || "",
+      specialty: appt.specialty || "",
+      date: toDateTimeLocal(appt.date),
+      location: appt.location || "",
+      reason: appt.reason || "",
+      notesBefore: appt.notesBefore || "",
+      notesAfter: appt.notesAfter || "",
+      followUpDate: toDateOnly(appt.followUpDate),
+      status: appt.status || "upcoming",
+    });
+    setShowDateTimePicker(false);
+    setShowFollowUpPicker(false);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setShowDateTimePicker(false);
+    setShowFollowUpPicker(false);
+  };
+
+  const handleSave = async () => {
+    if (!form.doctorName.trim() || !form.date) return;
+    setSaving(true);
+    try {
+      const payload = {
+        ...form,
+        date: new Date(form.date).toISOString(),
+        followUpDate: form.followUpDate
+          ? new Date(form.followUpDate + "T12:00:00").toISOString()
+          : null,
+      };
+      if (editingId) await api.put(`/api/appointments/${editingId}`, payload);
+      else await api.post("/api/appointments", payload);
+      await fetchAppointments();
+      closeModal();
+    } catch (err) {
+      console.error("Failed to save appointment:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = async (id) => {
+    try {
+      const appt = appointments.find((a) => a.id === id);
+      await api.put(`/api/appointments/${id}`, { ...appt, status: "cancelled" });
+      await fetchAppointments();
+    } catch (err) {
+      console.error("Failed to cancel appointment:", err);
+    } finally {
+      setCancelConfirmId(null);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await api.delete(`/api/appointments/${id}`);
+      await fetchAppointments();
+      closeModal();
+    } catch (err) {
+      console.error("Failed to delete appointment:", err);
+    } finally {
+      setDeleteConfirmId(null);
+    }
+  };
+
+  // ── Date pickers ──────────────────────────────────────────────────────────
+
+  function openDateTimePickerFn() {
+    if (Platform.OS === "android") {
+      DateTimePickerAndroid.open({
+        value: form.date ? new Date(form.date) : new Date(),
+        mode: "date",
+        onChange: (e, d) => {
+          if (e.type !== "set" || !d) return;
+          DateTimePickerAndroid.open({
+            value: d,
+            mode: "time",
+            onChange: (e2, t) => {
+              if (e2.type !== "set" || !t) return;
+              const combined = new Date(d);
+              combined.setHours(t.getHours(), t.getMinutes(), 0, 0);
+              setForm((f) => ({ ...f, date: toDateTimeLocal(combined) }));
+            },
+          });
+        },
+      });
+    } else {
+      setTempDateTime(form.date ? new Date(form.date) : new Date());
+      setShowFollowUpPicker(false);
+      setShowDateTimePicker(true);
+    }
+  }
+
+  function openFollowUpPickerFn() {
+    if (Platform.OS === "android") {
+      DateTimePickerAndroid.open({
+        value: form.followUpDate ? new Date(form.followUpDate + "T12:00:00") : new Date(),
+        mode: "date",
+        onChange: (e, d) => {
+          if (e.type !== "set" || !d) return;
+          setForm((f) => ({ ...f, followUpDate: toDateOnly(d) }));
+        },
+      });
+    } else {
+      setTempFollowUp(form.followUpDate ? new Date(form.followUpDate + "T12:00:00") : new Date());
+      setShowDateTimePicker(false);
+      setShowFollowUpPicker(true);
+    }
+  }
+
+  // ── Derived ───────────────────────────────────────────────────────────────
+
   const todayStr = new Date().toLocaleDateString("en-CA");
   const calendarDays = loading ? [] : buildCalendarDays();
 
@@ -125,6 +292,8 @@ export default function AppointmentsScreen() {
   const past = appointments
     .filter((a) => a.status !== "upcoming")
     .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const saveDisabled = saving || !form.doctorName.trim() || !form.date;
 
   // ── Loading ───────────────────────────────────────────────────────────────
 
@@ -154,8 +323,18 @@ export default function AppointmentsScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>Appointments</Text>
+          <TouchableOpacity style={styles.addBtn} onPress={openAdd} activeOpacity={0.8}>
+            <Ionicons name="add" size={15} color="white" />
+            <Text style={styles.addBtnText}>Add</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Error */}
         {error && (
-          <View style={[styles.card, styles.errorCard]}>
+          <View style={styles.errorCard}>
             <Text style={styles.errorText}>{error}</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={onRefresh}>
               <Text style={styles.retryText}>Retry</Text>
@@ -165,7 +344,6 @@ export default function AppointmentsScreen() {
 
         {/* ── Calendar ─────────────────────────────────────────────────────── */}
         <View style={styles.card}>
-          {/* Month nav */}
           <View style={styles.monthNav}>
             <TouchableOpacity style={styles.chevronBtn} onPress={prevMonth} activeOpacity={0.7}>
               <Ionicons name="chevron-back" size={16} color="white" />
@@ -178,7 +356,6 @@ export default function AppointmentsScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Day headers */}
           <View style={styles.dayHeaderRow}>
             {DAY_HEADERS.map((d) => (
               <View key={d} style={styles.dayHeaderCell}>
@@ -187,7 +364,6 @@ export default function AppointmentsScreen() {
             ))}
           </View>
 
-          {/* Day grid */}
           <View style={styles.dayGrid}>
             {calendarDays.map((dayObj, idx) => {
               const isToday = dayObj.currentMonth && dayObj.date === todayStr;
@@ -199,11 +375,7 @@ export default function AppointmentsScreen() {
                   key={idx}
                   style={[
                     styles.dayCell,
-                    isSelected
-                      ? styles.dayCellSelected
-                      : isToday
-                      ? styles.dayCellToday
-                      : null,
+                    isSelected ? styles.dayCellSelected : isToday ? styles.dayCellToday : null,
                   ]}
                   onPress={() => handleDayClick(dayObj)}
                 >
@@ -266,7 +438,6 @@ export default function AppointmentsScreen() {
               <Text style={styles.popoverDate}>
                 {formatApptDate(popoverAppointment.date)} at {formatApptTime(popoverAppointment.date)}
               </Text>
-
               {!!popoverAppointment.location && (
                 <View style={styles.popoverRow}>
                   <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.6)" />
@@ -303,9 +474,7 @@ export default function AppointmentsScreen() {
                       popoverAppointment.status.slice(1)}
                   </Text>
                 </View>
-                {extra > 0 && (
-                  <Text style={styles.extraText}>and {extra} more</Text>
-                )}
+                {extra > 0 && <Text style={styles.extraText}>and {extra} more</Text>}
               </View>
             </View>
           );
@@ -321,6 +490,9 @@ export default function AppointmentsScreen() {
             <Text style={styles.emptySubtitle}>
               Track your doctor visits and upcoming appointments
             </Text>
+            <TouchableOpacity style={styles.emptyAddBtn} onPress={openAdd} activeOpacity={0.8}>
+              <Text style={styles.emptyAddBtnText}>Add your first appointment</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <>
@@ -329,25 +501,70 @@ export default function AppointmentsScreen() {
                 <Text style={styles.sectionLabel}>Upcoming</Text>
                 {upcoming.map((appt) => (
                   <View key={appt.id} style={styles.apptCard}>
-                    <View style={styles.apptRow}>
-                      <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.7)" />
-                      <Text style={styles.apptDateText}>{formatApptDate(appt.date)}</Text>
-                      <Text style={styles.apptTimeText}>at {formatApptTime(appt.date)}</Text>
-                    </View>
-                    <Text style={styles.apptDoctor}>
-                      {appt.doctorName}{appt.specialty ? ` — ${appt.specialty}` : ""}
-                    </Text>
-                    {!!appt.location && (
-                      <View style={styles.apptRow}>
-                        <Ionicons name="location-outline" size={11} color="rgba(255,255,255,0.5)" />
-                        <Text style={styles.apptMeta}>{appt.location}</Text>
+                    <View style={styles.cardBodyRow}>
+                      <View style={styles.cardBodyContent}>
+                        <View style={styles.apptRow}>
+                          <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.7)" />
+                          <Text style={styles.apptDateText}>{formatApptDate(appt.date)}</Text>
+                          <Text style={styles.apptTimeText}>at {formatApptTime(appt.date)}</Text>
+                        </View>
+                        <Text style={styles.apptDoctor}>
+                          {appt.doctorName}{appt.specialty ? ` — ${appt.specialty}` : ""}
+                        </Text>
+                        {!!appt.location && (
+                          <View style={styles.apptRow}>
+                            <Ionicons name="location-outline" size={11} color="rgba(255,255,255,0.5)" />
+                            <Text style={styles.apptMeta}>{appt.location}</Text>
+                          </View>
+                        )}
+                        {!!appt.reason && (
+                          <Text style={styles.apptMeta}>Reason: {appt.reason}</Text>
+                        )}
+                        {!!appt.notesBefore && (
+                          <Text style={styles.apptMeta}>Notes: {appt.notesBefore}</Text>
+                        )}
                       </View>
-                    )}
-                    {!!appt.reason && (
-                      <Text style={styles.apptMeta}>Reason: {appt.reason}</Text>
-                    )}
-                    {!!appt.notesBefore && (
-                      <Text style={styles.apptMeta}>Notes: {appt.notesBefore}</Text>
+                      <View style={styles.cardActions}>
+                        <TouchableOpacity
+                          style={styles.iconBtn}
+                          onPress={() => openEdit(appt)}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="pencil-outline" size={13} color="white" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.iconBtn, styles.iconBtnDanger]}
+                          onPress={() => setCancelConfirmId(appt.id)}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="close" size={13} color="white" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    {/* Inline cancel confirm */}
+                    {cancelConfirmId === appt.id && (
+                      <View style={styles.cancelConfirm}>
+                        <Text style={styles.cancelConfirmText}>
+                          Mark this appointment as cancelled?
+                        </Text>
+                        <View style={styles.cancelConfirmBtns}>
+                          <TouchableOpacity
+                            style={styles.keepBtn}
+                            onPress={() => setCancelConfirmId(null)}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.keepBtnText}>Keep</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.cancelItBtn}
+                            onPress={() => handleCancel(appt.id)}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.cancelItBtnText}>Cancel it</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
                     )}
                   </View>
                 ))}
@@ -370,47 +587,58 @@ export default function AppointmentsScreen() {
                         isCancelled && styles.apptCardFaded,
                       ]}
                     >
-                      <View style={styles.pastPillRow}>
-                        {isCompleted && (
-                          <View style={styles.completedPill}>
-                            <Text style={styles.completedPillText}>COMPLETED</Text>
+                      <View style={styles.cardBodyRow}>
+                        <View style={styles.cardBodyContent}>
+                          <View style={styles.pastPillRow}>
+                            {isCompleted && (
+                              <View style={styles.completedPill}>
+                                <Text style={styles.completedPillText}>COMPLETED</Text>
+                              </View>
+                            )}
+                            {isCancelled && (
+                              <View style={styles.cancelledPill}>
+                                <Text style={styles.cancelledPillText}>CANCELLED</Text>
+                              </View>
+                            )}
                           </View>
-                        )}
-                        {isCancelled && (
-                          <View style={styles.cancelledPill}>
-                            <Text style={styles.cancelledPillText}>CANCELLED</Text>
+                          <View style={styles.apptRow}>
+                            <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.5)" />
+                            <Text style={styles.apptDateFaded}>
+                              {formatApptDate(appt.date)} at {formatApptTime(appt.date)}
+                            </Text>
                           </View>
-                        )}
-                      </View>
-                      <View style={styles.apptRow}>
-                        <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.5)" />
-                        <Text style={styles.apptDateFaded}>
-                          {formatApptDate(appt.date)} at {formatApptTime(appt.date)}
-                        </Text>
-                      </View>
-                      <Text style={styles.apptDoctorFaded}>
-                        {appt.doctorName}{appt.specialty ? ` — ${appt.specialty}` : ""}
-                      </Text>
-                      {!!appt.location && (
-                        <View style={styles.apptRow}>
-                          <Ionicons name="location-outline" size={11} color="rgba(255,255,255,0.4)" />
-                          <Text style={styles.apptMetaFaded}>{appt.location}</Text>
-                        </View>
-                      )}
-                      {!!appt.reason && (
-                        <Text style={styles.apptMetaFaded}>Reason: {appt.reason}</Text>
-                      )}
-                      {isCompleted && !!appt.notesAfter && (
-                        <Text style={styles.apptMetaFaded}>Notes after: {appt.notesAfter}</Text>
-                      )}
-                      {isCompleted && !!appt.followUpDate && (
-                        <View style={styles.apptRow}>
-                          <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.4)" />
-                          <Text style={styles.apptMetaFaded}>
-                            Follow-up: {formatApptDate(appt.followUpDate)}
+                          <Text style={styles.apptDoctorFaded}>
+                            {appt.doctorName}{appt.specialty ? ` — ${appt.specialty}` : ""}
                           </Text>
+                          {!!appt.location && (
+                            <View style={styles.apptRow}>
+                              <Ionicons name="location-outline" size={11} color="rgba(255,255,255,0.4)" />
+                              <Text style={styles.apptMetaFaded}>{appt.location}</Text>
+                            </View>
+                          )}
+                          {!!appt.reason && (
+                            <Text style={styles.apptMetaFaded}>Reason: {appt.reason}</Text>
+                          )}
+                          {isCompleted && !!appt.notesAfter && (
+                            <Text style={styles.apptMetaFaded}>Notes after: {appt.notesAfter}</Text>
+                          )}
+                          {isCompleted && !!appt.followUpDate && (
+                            <View style={styles.apptRow}>
+                              <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.4)" />
+                              <Text style={styles.apptMetaFaded}>
+                                Follow-up: {formatApptDate(appt.followUpDate)}
+                              </Text>
+                            </View>
+                          )}
                         </View>
-                      )}
+                        <TouchableOpacity
+                          style={styles.iconBtn}
+                          onPress={() => openEdit(appt)}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="pencil-outline" size={13} color="white" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   );
                 })}
@@ -425,6 +653,277 @@ export default function AppointmentsScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* ── Add / Edit modal ─────────────────────────────────────────────────── */}
+      <Modal
+        animationType="fade"
+        transparent
+        visible={showModal}
+        onRequestClose={closeModal}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalScrim}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <View style={styles.modalCard}>
+            {/* Modal header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingId ? "Edit Appointment" : "Add Appointment"}
+              </Text>
+              <TouchableOpacity style={styles.modalCloseBtn} onPress={closeModal} hitSlop={8}>
+                <Ionicons name="close" size={15} color="white" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Scrollable form */}
+            <ScrollView
+              contentContainerStyle={styles.formContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Doctor name */}
+              <Text style={styles.fieldLabel}>Doctor name *</Text>
+              <TextInput
+                style={styles.input}
+                value={form.doctorName}
+                onChangeText={(v) => setForm((f) => ({ ...f, doctorName: v }))}
+                placeholder="Dr. Smith"
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                autoCapitalize="words"
+                returnKeyType="next"
+              />
+
+              {/* Specialty */}
+              <Text style={styles.fieldLabel}>Specialty</Text>
+              <TextInput
+                style={styles.input}
+                value={form.specialty}
+                onChangeText={(v) => setForm((f) => ({ ...f, specialty: v }))}
+                placeholder="Neurology"
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                autoCapitalize="words"
+                returnKeyType="next"
+              />
+
+              {/* Date & time */}
+              <Text style={styles.fieldLabel}>Date & time *</Text>
+              <TouchableOpacity
+                style={[styles.input, styles.pickerField]}
+                onPress={openDateTimePickerFn}
+                activeOpacity={0.8}
+              >
+                <Text style={form.date ? styles.pickerFieldText : styles.pickerFieldPlaceholder}>
+                  {form.date
+                    ? `${formatApptDate(form.date)} at ${formatApptTime(form.date)}`
+                    : "Select date & time"}
+                </Text>
+                <Ionicons name="calendar-outline" size={16} color="rgba(255,255,255,0.5)" />
+              </TouchableOpacity>
+              {showDateTimePicker && Platform.OS === "ios" && (
+                <View style={styles.inlinePicker}>
+                  <DateTimePicker
+                    value={tempDateTime}
+                    mode="datetime"
+                    display="spinner"
+                    textColor="white"
+                    onChange={(e, d) => { if (d) setTempDateTime(d); }}
+                    style={{ width: "100%" }}
+                  />
+                  <TouchableOpacity
+                    style={styles.pickerDoneBtn}
+                    onPress={() => {
+                      setForm((f) => ({ ...f, date: toDateTimeLocal(tempDateTime) }));
+                      setShowDateTimePicker(false);
+                    }}
+                  >
+                    <Text style={styles.pickerDoneText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Location */}
+              <Text style={styles.fieldLabel}>Location</Text>
+              <TextInput
+                style={styles.input}
+                value={form.location}
+                onChangeText={(v) => setForm((f) => ({ ...f, location: v }))}
+                placeholder="Hospital or clinic name"
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                autoCapitalize="words"
+                returnKeyType="next"
+              />
+
+              {/* Reason */}
+              <Text style={styles.fieldLabel}>Reason for visit</Text>
+              <TextInput
+                style={styles.input}
+                value={form.reason}
+                onChangeText={(v) => setForm((f) => ({ ...f, reason: v }))}
+                placeholder="Annual checkup, follow-up, etc."
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                autoCapitalize="sentences"
+                returnKeyType="next"
+              />
+
+              {/* Notes before */}
+              <Text style={styles.fieldLabel}>Notes before</Text>
+              <TextInput
+                style={[styles.input, styles.inputMultiline]}
+                value={form.notesBefore}
+                onChangeText={(v) => setForm((f) => ({ ...f, notesBefore: v }))}
+                placeholder="Questions to ask, things to mention..."
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                multiline
+                numberOfLines={2}
+                autoCapitalize="sentences"
+                textAlignVertical="top"
+              />
+
+              {/* Status segmented */}
+              <Text style={styles.fieldLabel}>Status</Text>
+              <View style={styles.segmented}>
+                {STATUS_OPTIONS.map(({ value, label }) => (
+                  <TouchableOpacity
+                    key={value}
+                    style={[
+                      styles.segmentedBtn,
+                      form.status === value && styles.segmentedBtnActive,
+                    ]}
+                    onPress={() => setForm((f) => ({ ...f, status: value }))}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.segmentedBtnText,
+                        form.status === value && styles.segmentedBtnTextActive,
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Completed-only fields */}
+              {form.status === "completed" && (
+                <>
+                  <Text style={styles.fieldLabel}>Notes after</Text>
+                  <TextInput
+                    style={[styles.input, styles.inputMultiline]}
+                    value={form.notesAfter}
+                    onChangeText={(v) => setForm((f) => ({ ...f, notesAfter: v }))}
+                    placeholder="What was discussed, next steps..."
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    multiline
+                    numberOfLines={2}
+                    autoCapitalize="sentences"
+                    textAlignVertical="top"
+                  />
+
+                  <Text style={styles.fieldLabel}>Follow-up date</Text>
+                  <TouchableOpacity
+                    style={[styles.input, styles.pickerField]}
+                    onPress={openFollowUpPickerFn}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={form.followUpDate ? styles.pickerFieldText : styles.pickerFieldPlaceholder}
+                    >
+                      {form.followUpDate ? formatApptDate(form.followUpDate) : "Select date"}
+                    </Text>
+                    <Ionicons name="calendar-outline" size={16} color="rgba(255,255,255,0.5)" />
+                  </TouchableOpacity>
+                  {showFollowUpPicker && Platform.OS === "ios" && (
+                    <View style={styles.inlinePicker}>
+                      <DateTimePicker
+                        value={tempFollowUp}
+                        mode="date"
+                        display="spinner"
+                        textColor="white"
+                        onChange={(e, d) => { if (d) setTempFollowUp(d); }}
+                        style={{ width: "100%" }}
+                      />
+                      <TouchableOpacity
+                        style={styles.pickerDoneBtn}
+                        onPress={() => {
+                          setForm((f) => ({ ...f, followUpDate: toDateOnly(tempFollowUp) }));
+                          setShowFollowUpPicker(false);
+                        }}
+                      >
+                        <Text style={styles.pickerDoneText}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </>
+              )}
+
+              {/* Button row */}
+              <View style={styles.modalBtnRow}>
+                {editingId && (
+                  <TouchableOpacity
+                    style={styles.trashBtn}
+                    onPress={() => setDeleteConfirmId(editingId)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="white" />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={styles.modalCancelBtn}
+                  onPress={closeModal}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalSaveBtn, saveDisabled && styles.modalSaveBtnDisabled]}
+                  onPress={handleSave}
+                  disabled={saveDisabled}
+                  activeOpacity={0.85}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="#7C6BAE" size="small" />
+                  ) : (
+                    <Text style={styles.modalSaveText}>Save</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ── Delete confirm modal ──────────────────────────────────────────────── */}
+      <Modal
+        animationType="fade"
+        transparent
+        visible={!!deleteConfirmId}
+        onRequestClose={() => setDeleteConfirmId(null)}
+      >
+        <View style={styles.deleteScrim}>
+          <View style={styles.deleteCard}>
+            <Text style={styles.deleteTitle}>Delete appointment?</Text>
+            <Text style={styles.deleteBody}>This cannot be undone.</Text>
+            <View style={styles.deleteFooter}>
+              <TouchableOpacity
+                style={styles.keepBtnWhite}
+                onPress={() => setDeleteConfirmId(null)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.keepBtnWhiteText}>Keep</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteConfirmBtn}
+                onPress={() => handleDelete(deleteConfirmId)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.deleteConfirmText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenBackground>
   );
 }
@@ -442,6 +941,34 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 40,
     gap: 12,
+  },
+
+  // Header
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerTitle: {
+    fontFamily: "PlayfairDisplay_700Bold",
+    fontSize: 24,
+    color: "white",
+  },
+  addBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+  },
+  addBtnText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 13,
+    color: "white",
   },
 
   // Error
@@ -536,21 +1063,10 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_400Regular",
     fontSize: 12,
   },
-  dayNumCurrent: {
-    color: "white",
-    fontWeight: "400",
-  },
-  dayNumOther: {
-    color: "rgba(255,255,255,0.25)",
-    fontWeight: "400",
-  },
-  dayNumSelected: {
-    color: "#7C6BAE",
-    fontWeight: "600",
-  },
-  dayNumBold: {
-    fontWeight: "600",
-  },
+  dayNumCurrent: { color: "white", fontWeight: "400" },
+  dayNumOther: { color: "rgba(255,255,255,0.25)", fontWeight: "400" },
+  dayNumSelected: { color: "#7C6BAE", fontWeight: "600" },
+  dayNumBold: { fontWeight: "600" },
   dotRow: {
     flexDirection: "row",
     gap: 2,
@@ -562,7 +1078,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
 
-  // Popover / selected-day panel
+  // Popover
   popoverCard: {
     backgroundColor: "rgba(255,255,255,0.2)",
     borderRadius: 16,
@@ -592,9 +1108,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "rgba(255,255,255,0.7)",
   },
-  popoverClose: {
-    padding: 4,
-  },
+  popoverClose: { padding: 4 },
   popoverDate: {
     fontFamily: "Lato_400Regular",
     fontSize: 12,
@@ -664,11 +1178,23 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 16,
   },
+  emptyAddBtn: {
+    marginTop: 4,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+  },
+  emptyAddBtnText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 13,
+    color: "white",
+  },
 
   // Sections
-  section: {
-    gap: 8,
-  },
+  section: { gap: 8 },
   sectionLabel: {
     fontFamily: "Lato_700Bold",
     fontSize: 11,
@@ -684,7 +1210,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.3)",
     padding: 14,
-    gap: 6,
+    gap: 8,
   },
   apptCardCompleted: {
     borderLeftWidth: 3,
@@ -694,8 +1220,31 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: "rgba(255,255,255,0.2)",
   },
-  apptCardFaded: {
-    opacity: 0.6,
+  apptCardFaded: { opacity: 0.6 },
+  cardBodyRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  cardBodyContent: {
+    flex: 1,
+    gap: 6,
+  },
+  cardActions: {
+    flexShrink: 0,
+    gap: 6,
+    alignSelf: "flex-start",
+    paddingTop: 1,
+  },
+  iconBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconBtnDanger: {
+    backgroundColor: "rgba(255,100,100,0.4)",
   },
   apptRow: {
     flexDirection: "row",
@@ -773,5 +1322,276 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_400Regular",
     fontSize: 14,
     color: "rgba(255,255,255,0.6)",
+  },
+
+  // Cancel inline confirm
+  cancelConfirm: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    padding: 12,
+    gap: 8,
+  },
+  cancelConfirmText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.8)",
+  },
+  cancelConfirmBtns: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  keepBtn: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 10,
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+  keepBtnText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "white",
+  },
+  cancelItBtn: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 10,
+    alignItems: "center",
+    backgroundColor: "rgba(255,100,100,0.5)",
+  },
+  cancelItBtnText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 13,
+    color: "white",
+  },
+
+  // Add / Edit modal
+  modalScrim: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  modalCard: {
+    width: "100%",
+    maxHeight: "90%",
+    backgroundColor: "rgba(90,75,130,0.97)",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+    overflow: "hidden",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.15)",
+  },
+  modalTitle: {
+    fontFamily: "PlayfairDisplay_700Bold",
+    fontSize: 18,
+    color: "white",
+  },
+  modalCloseBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  formContent: {
+    padding: 20,
+    paddingBottom: 8,
+  },
+  fieldLabel: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.7)",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  input: {
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "white",
+  },
+  inputMultiline: {
+    minHeight: 66,
+    paddingTop: 11,
+  },
+  pickerField: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  pickerFieldText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "white",
+    flex: 1,
+  },
+  pickerFieldPlaceholder: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.3)",
+    flex: 1,
+  },
+  inlinePicker: {
+    marginTop: 6,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+    overflow: "hidden",
+    alignItems: "center",
+  },
+  pickerDoneBtn: {
+    alignSelf: "stretch",
+    alignItems: "flex-end",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  pickerDoneText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 14,
+    color: "white",
+  },
+  segmented: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  segmentedBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 10,
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  segmentedBtnActive: {
+    backgroundColor: "white",
+    borderColor: "white",
+  },
+  segmentedBtnText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.7)",
+  },
+  segmentedBtnTextActive: {
+    fontFamily: "Lato_700Bold",
+    color: "#7C6BAE",
+  },
+  modalBtnRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  trashBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,100,100,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 16,
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+  modalCancelText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 15,
+    color: "white",
+  },
+  modalSaveBtn: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 16,
+    alignItems: "center",
+    backgroundColor: "white",
+  },
+  modalSaveBtnDisabled: { opacity: 0.5 },
+  modalSaveText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 15,
+    color: "#7C6BAE",
+  },
+
+  // Delete confirm modal
+  deleteScrim: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  deleteCard: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    gap: 10,
+  },
+  deleteTitle: {
+    fontFamily: "PlayfairDisplay_700Bold",
+    fontSize: 18,
+    color: "#2D2540",
+    textAlign: "center",
+  },
+  deleteBody: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "#6B5F7A",
+    textAlign: "center",
+  },
+  deleteFooter: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 4,
+  },
+  keepBtnWhite: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 20,
+    alignItems: "center",
+    backgroundColor: "#F0EBF8",
+  },
+  keepBtnWhiteText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "#6B5F7A",
+  },
+  deleteConfirmBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 20,
+    alignItems: "center",
+    backgroundColor: "#B07088",
+  },
+  deleteConfirmText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 14,
+    color: "white",
   },
 });

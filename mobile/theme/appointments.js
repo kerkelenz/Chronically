@@ -15,3 +15,17 @@ export const dotColor = (status) => {
   if (status === "cancelled") return "rgba(255,255,255,0.3)";
   return "white";
 };
+
+const pad = (n) => String(n).padStart(2, "0");
+
+export const toDateTimeLocal = (val) => {
+  if (!val) return "";
+  const d = new Date(val);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+export const toDateOnly = (val) => {
+  if (!val) return "";
+  const d = new Date(val);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
