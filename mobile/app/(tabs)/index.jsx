@@ -11,11 +11,15 @@ import {
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import ScreenBackground from "../../components/ScreenBackground";
 import CircularDial from "../../components/CircularDial";
 import Avatar from "../../components/Avatar";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
+import { computeReportData } from "../../lib/reportData";
+import { buildReportHtml } from "../../lib/reportHtml";
 import { METRICS, METRIC_LABELS } from "../../theme/metrics";
 
 function formatDate(dateStr) {
@@ -76,6 +80,8 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(null);
   const isFirstLoadRef = useRef(true);
 
   // 5 dials across, 24px side padding each, 8px between each dial (4 gaps)
@@ -127,6 +133,43 @@ export default function DashboardScreen() {
       setRefreshing(false);
     }
   }
+
+  // ── Export report ─────────────────────────────────────────────────────────
+
+  const handleExport = async () => {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const today = new Date().toLocaleDateString("en-CA");
+      const start = new Date();
+      start.setDate(start.getDate() - 30);
+      const startDate = start.toLocaleDateString("en-CA");
+
+      const [checkInsRes, medsRes, logsRes, apptsRes] = await Promise.all([
+        api.get("/api/checkins"),
+        api.get("/api/medications"),
+        api.get(`/api/medications/logs?startDate=${startDate}&endDate=${today}`),
+        api.get("/api/appointments"),
+      ]);
+
+      const data = computeReportData(
+        checkInsRes.data.checkIns,
+        medsRes.data.medications,
+        logsRes.data.logs,
+        apptsRes.data.appointments,
+      );
+      const html = buildReportHtml(data, user?.username || "Patient");
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: "application/pdf", UTI: "com.adobe.pdf" });
+      }
+    } catch (err) {
+      console.error("Export failed:", err);
+      setExportError("Could not generate report. Please try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // ── Derived values ────────────────────────────────────────────────────────
 
@@ -291,6 +334,26 @@ export default function DashboardScreen() {
             ))}
           </>
         )}
+        {/* Export report */}
+        <TouchableOpacity
+          style={[styles.exportBtn, exporting && styles.exportBtnDisabled]}
+          onPress={handleExport}
+          disabled={exporting}
+          activeOpacity={0.85}
+        >
+          {exporting ? (
+            <>
+              <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" />
+              <Text style={styles.exportBtnText}>Generating…</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="document-text-outline" size={16} color="rgba(255,255,255,0.85)" />
+              <Text style={styles.exportBtnText}>Export doctor report</Text>
+            </>
+          )}
+        </TouchableOpacity>
+        {exportError && <Text style={styles.exportError}>{exportError}</Text>}
       </ScrollView>
     </ScreenBackground>
   );
@@ -489,5 +552,33 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_400Regular",
     fontSize: 12,
     color: "rgba(255,255,255,0.85)",
+  },
+
+  // Export
+  exportBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  exportBtnDisabled: { opacity: 0.6 },
+  exportBtnText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.85)",
+  },
+  exportError: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,160,160,0.9)",
+    textAlign: "center",
+    marginBottom: 12,
   },
 });
