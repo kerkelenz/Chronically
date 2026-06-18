@@ -50,7 +50,7 @@ function CheckInRow({ checkIn }) {
         {symptoms.length > 0 && (
           <View style={styles.symptomIconRow}>
             {symptoms.map((s) => (
-              <SymptomIcon key={s} symptom={s} size={16} color="rgba(155,175,196,0.9)" />
+              <SymptomIcon key={s} symptom={s} size={18} color="white" />
             ))}
           </View>
         )}
@@ -168,16 +168,25 @@ export default function DashboardScreen() {
     .filter((a) => a.status === "upcoming" && new Date(a.date) >= todayStart && new Date(a.date) <= sevenDaysFromNow)
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-  const symptomCounts = {};
-  recentCheckIns.forEach((c) => {
-    (c.symptoms || []).forEach((s) => {
-      symptomCounts[s] = (symptomCounts[s] || 0) + 1;
+  const uniqueSymptomDays = [
+    ...new Set(
+      recent.filter((c) => c.symptoms && c.symptoms.length > 0).map((c) => c.date),
+    ),
+  ].length;
+  const symptomDayCounts = {};
+  recent
+    .filter((c) => c.symptoms && c.symptoms.length > 0)
+    .forEach((c) => {
+      c.symptoms.forEach((s) => {
+        if (!symptomDayCounts[s]) symptomDayCounts[s] = new Set();
+        symptomDayCounts[s].add(c.date);
+      });
     });
-  });
-  const topSymptoms = Object.entries(symptomCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([s]) => s);
+  const topSymptoms = Object.entries(symptomDayCounts)
+    .map(([s, dates]) => ({ s, n: dates.size }))
+    .filter(({ n }) => n >= uniqueSymptomDays * 0.3)
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 3);
 
   // ── Loading state (first launch only) ────────────────────────────────────
 
@@ -265,20 +274,23 @@ export default function DashboardScreen() {
               </View>
             </View>
 
-            {/* Common symptoms (last 24 hours) */}
-            {topSymptoms.length > 0 && (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Symptoms — last 24 hours</Text>
-                <View style={styles.symptomsGrid}>
-                  {topSymptoms.map((s) => (
-                    <View key={s} style={styles.symptomItem}>
-                      <SymptomIcon symptom={s} size={22} color="rgba(155,175,196,0.9)" />
-                      <Text style={styles.symptomLabel}>{s}</Text>
+            {/* Common symptoms (last 14 days) */}
+            <View style={styles.commonCard}>
+              <Text style={styles.commonHeader}>Common symptoms</Text>
+              {topSymptoms.length > 0 ? (
+                <View style={styles.commonGrid}>
+                  {topSymptoms.map(({ s, n }) => (
+                    <View key={s} style={styles.commonItem}>
+                      <SymptomIcon symptom={s} size={36} color="white" />
+                      <Text style={styles.commonName}>{s}</Text>
+                      <Text style={styles.commonCount}>{n}d</Text>
                     </View>
                   ))}
                 </View>
-              </View>
-            )}
+              ) : (
+                <Text style={styles.commonEmpty}>No symptoms logged recently</Text>
+              )}
+            </View>
 
             {/* Upcoming appointments reminder (within 7 days) */}
             {upcomingAppts.length > 0 && (
@@ -544,21 +556,16 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 4,
   },
-  symptomsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
+  commonCard: {
+    paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.15)", borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)", marginBottom: 20,
   },
-  symptomItem: {
-    alignItems: "center",
-    gap: 4,
-    width: 56,
-  },
-  symptomLabel: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 10,
-    color: "rgba(255,255,255,0.65)",
-    textAlign: "center",
-  },
+  commonHeader: { fontFamily: "Lato_400Regular", fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 12 },
+  commonGrid: { flexDirection: "row", justifyContent: "space-around" },
+  commonItem: { flex: 1, alignItems: "center", gap: 2 },
+  commonName: { fontFamily: "Lato_400Regular", fontSize: 11, color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 14 },
+  commonCount: { fontFamily: "Lato_400Regular", fontSize: 11, color: "rgba(255,255,255,0.6)" },
+  commonEmpty: { fontFamily: "Lato_400Regular", fontSize: 12, color: "rgba(255,255,255,0.6)" },
 
 });
