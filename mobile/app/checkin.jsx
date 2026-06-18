@@ -529,6 +529,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.9)",
     borderRadius: 14,
     paddingVertical: 16,
+    paddingHorizontal: 32,
     alignItems: "center",
   },
   primaryBtnDisabled: {

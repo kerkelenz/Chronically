@@ -1019,7 +1019,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: "PlayfairDisplay_500Medium",
-    fontSize: 24,
+    fontSize: 28,
     color: "white",
   },
   addBtn: {
