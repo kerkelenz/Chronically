@@ -309,6 +309,58 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
   const periodEndShort   = today.toLocaleDateString("en-US",          { month: "short", day: "numeric", year: "numeric" });
   const generatedDate    = today.toLocaleDateString("en-US",          { year: "numeric", month: "long", day: "numeric" });
 
+  // Current medication list rows (verbatim from web medListBody)
+  const medListHasNotes = medications.some((m) => m.notes && m.notes.trim());
+  const medListRows = medications.map((med) => {
+    const times = med.frequency === "as_needed"
+      ? "As needed"
+      : (med.scheduledTimes || []).map(formatTime).join(", ") || "—";
+    const row = [
+      med.name,
+      med.type || "—",
+      med.dosage || "—",
+      FREQUENCY_LABELS[med.frequency] || med.frequency,
+      times,
+      med.active ? "Active" : "Inactive",
+    ];
+    if (medListHasNotes) {
+      const n = med.notes || "";
+      row.push(n.length > 40 ? n.slice(0, 40) + "..." : n || "—");
+    }
+    return row;
+  });
+
+  // Adherence table rows (verbatim from web adherenceBody)
+  const adherenceRows = medsWithActivity.map((med) => {
+    const logs = logsByMed[med.id] || { taken: 0, skipped: 0 };
+    if (med.frequency === "as_needed") return [med.name, "N/A", logs.taken, "N/A", "N/A", "N/A"];
+    const scheduled = countScheduledDoses(med, thirtyDaysAgoStr, todayStr) || 0;
+    const missed    = Math.max(0, scheduled - logs.taken - logs.skipped);
+    const adherence = scheduled > 0 ? `${Math.round((logs.taken / scheduled) * 100)}%` : "N/A";
+    return [med.name, scheduled, logs.taken, logs.skipped, missed, adherence];
+  });
+
+  // Daily medication log rows sorted by date then scheduledTime (verbatim from web medLogBody)
+  const medMap = {};
+  medications.forEach((m) => { medMap[m.id] = m; });
+  const medLogRows = [...medicationLogs]
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.scheduledTime || "99:99").localeCompare(b.scheduledTime || "99:99"))
+    .map((log) => {
+      const med       = medMap[log.medicationId];
+      const d         = new Date(log.date + "T12:00:00");
+      const shortDate = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const timeTaken = log.takenAt ? new Date(log.takenAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
+      return [
+        shortDate,
+        med?.name ?? "Unknown",
+        med?.type ?? "—",
+        log.scheduledTime ? formatTime(log.scheduledTime) : "As needed",
+        log.status.charAt(0).toUpperCase() + log.status.slice(1),
+        timeTaken,
+        log.skipReason || "—",
+      ];
+    });
+
   return {
     // Raw (for 9b tables)
     medications, medicationLogs, appointments,
@@ -330,5 +382,6 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
     // Content
     notableLines, dailyRows, adherenceByDay, skipReasonRows,
     recentAppts, upcomingAppts,
+    medListHasNotes, medListRows, adherenceRows, medLogRows,
   };
 }
