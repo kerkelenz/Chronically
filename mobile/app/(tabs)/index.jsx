@@ -193,8 +193,10 @@ export default function DashboardScreen() {
 
   // ── Derived values ────────────────────────────────────────────────────────
 
-  const today = new Date().toLocaleDateString("en-CA");
-  const todaysDone = checkIns.some((c) => c.date === today);
+  const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
+  const todaysDone = checkIns[0]
+    ? new Date(checkIns[0].createdAt).getTime() > fourHoursAgo
+    : false;
 
   const hour = new Date().getHours();
   const timeGreeting = hour < 12 ? "Good morning," : hour < 17 ? "Good afternoon," : "Good evening,";
