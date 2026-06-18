@@ -18,9 +18,16 @@ import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
 import { openCheckIn } from "../../lib/checkinNav";
 import { METRICS } from "../../theme/metrics";
-
-const BAR_HEIGHTS = [8, 10, 12, 14, 16];
 import { SymptomIcon } from "../../components/SymptomIcon";
+
+const BAR_HEIGHTS = [12, 16, 20, 24, 28];
+const BAR_COLORS = {
+  painLevel:     "rgba(255,255,255,0.95)",
+  moodLevel:     "#CE8FB6",
+  energyLevel:   "#7FB096",
+  anxietyLevel:  "#8AA6D4",
+  appetiteLevel: "#CBA862",
+};
 
 function formatDate(dateStr) {
   const [, m, d] = dateStr.split("-").map(Number);
@@ -37,7 +44,7 @@ function CheckInRow({ checkIn }) {
     <View style={styles.row}>
       <Text style={styles.rowDate}>{formatDate(checkIn.date)}</Text>
       <View style={styles.metricList}>
-        {METRICS.map(({ key, label, color }) => {
+        {METRICS.map(({ key, label }) => {
           const val = checkIn[key];
           if (val == null) return null;
           return (
@@ -49,7 +56,7 @@ function CheckInRow({ checkIn }) {
                     key={i}
                     style={[
                       styles.bar,
-                      { height: h, backgroundColor: i < val ? color : "rgba(255,255,255,0.18)" },
+                      { height: h, backgroundColor: i < val ? BAR_COLORS[key] : "rgba(255,255,255,0.16)" },
                     ]}
                   />
                 ))}
@@ -61,7 +68,7 @@ function CheckInRow({ checkIn }) {
       {symptoms.length > 0 && (
         <View style={styles.symptomIconRow}>
           {symptoms.map((s) => (
-            <SymptomIcon key={s} symptom={s} size={18} color="white" />
+            <SymptomIcon key={s} symptom={s} size={24} color="white" />
           ))}
         </View>
       )}
@@ -542,16 +549,16 @@ const styles = StyleSheet.create({
     color: "white",
     marginBottom: 6,
   },
-  metricList: { marginTop: 6, gap: 3 },
-  metricRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  metricLabel: { width: 60, fontSize: 11, fontFamily: "Lato_400Regular", color: "rgba(255,255,255,0.82)" },
-  barGroup: { flexDirection: "row", alignItems: "flex-end", gap: 2 },
-  bar: { width: 4, borderRadius: 1 },
+  metricList: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginTop: 6, rowGap: 10 },
+  metricRow: { flexDirection: "row", alignItems: "center", gap: 8, width: "47%" },
+  metricLabel: { width: 52, fontSize: 11, fontFamily: "Lato_400Regular", color: "rgba(255,255,255,0.82)" },
+  barGroup: { flexDirection: "row", alignItems: "flex-end", gap: 3 },
+  bar: { width: 8, borderRadius: 1.5 },
   symptomIconRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
-    marginTop: 4,
+    gap: 8,
+    marginTop: 10,
   },
   commonCard: {
     paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16,
