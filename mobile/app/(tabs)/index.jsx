@@ -191,7 +191,8 @@ export default function DashboardScreen() {
       vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
   }
 
-  const recentList = checkIns.slice(0, 10);
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  const recentCheckIns = checkIns.filter((c) => new Date(c.createdAt) >= cutoff);
 
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -284,7 +285,7 @@ export default function DashboardScreen() {
             </View>
 
             {/* 14-day dials */}
-            <View style={styles.card}>
+            <View style={styles.dialsSection}>
               <Text style={styles.cardTitle}>Last 14 days</Text>
               <View style={styles.dialsRow}>
                 {METRICS.map((m) => (
@@ -324,36 +325,43 @@ export default function DashboardScreen() {
                     </View>
                   </TouchableOpacity>
                 ))}
+                <TouchableOpacity
+                  style={[styles.reportBtn, exporting && styles.reportBtnDisabled]}
+                  onPress={handleExport}
+                  disabled={exporting}
+                  activeOpacity={0.8}
+                >
+                  {exporting ? (
+                    <>
+                      <ActivityIndicator size="small" color="white" />
+                      <Text style={styles.reportBtnText}>Preparing…</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Ionicons name="document-text-outline" size={14} color="white" />
+                      <Text style={styles.reportBtnText}>Prepare doctor report</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                {exportError && (
+                  <Text style={styles.exportErrorInline}>Failed to prepare report. Please try again.</Text>
+                )}
               </View>
             )}
 
-            {/* Recent check-ins */}
-            <Text style={styles.sectionHeading}>Recent</Text>
-            {recentList.map((c) => (
-              <CheckInRow key={c.id} checkIn={c} />
-            ))}
+            {/* Last 24 hours */}
+            <View style={styles.card}>
+              <Text style={styles.sectionHeading}>Last 24 hours</Text>
+              {recentCheckIns.length === 0 ? (
+                <Text style={styles.emptyRecentText}>No check-ins in the last 24 hours</Text>
+              ) : (
+                recentCheckIns.map((c) => (
+                  <CheckInRow key={c.id} checkIn={c} />
+                ))
+              )}
+            </View>
           </>
         )}
-        {/* Export report */}
-        <TouchableOpacity
-          style={[styles.exportBtn, exporting && styles.exportBtnDisabled]}
-          onPress={handleExport}
-          disabled={exporting}
-          activeOpacity={0.85}
-        >
-          {exporting ? (
-            <>
-              <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" />
-              <Text style={styles.exportBtnText}>Generating…</Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="document-text-outline" size={16} color="rgba(255,255,255,0.85)" />
-              <Text style={styles.exportBtnText}>Export doctor report</Text>
-            </>
-          )}
-        </TouchableOpacity>
-        {exportError && <Text style={styles.exportError}>{exportError}</Text>}
       </ScrollView>
     </ScreenBackground>
   );
@@ -462,6 +470,9 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 14,
   },
+  dialsSection: {
+    marginBottom: 12,
+  },
   dialsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -517,6 +528,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginTop: 4,
   },
+  emptyRecentText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.5)",
+    marginTop: 4,
+  },
   row: {
     backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 12,
@@ -554,31 +571,30 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.85)",
   },
 
-  // Export
-  exportBtn: {
+  // Report button (inside appointments card)
+  reportBtn: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 14,
+    alignSelf: "flex-start",
+    gap: 6,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
-    paddingVertical: 13,
+    borderColor: "rgba(255,255,255,0.4)",
+    paddingVertical: 8,
     paddingHorizontal: 16,
-    marginBottom: 12,
+    marginTop: 8,
   },
-  exportBtnDisabled: { opacity: 0.6 },
-  exportBtnText: {
+  reportBtnDisabled: { opacity: 0.6 },
+  reportBtnText: {
     fontFamily: "Lato_700Bold",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.85)",
-  },
-  exportError: {
-    fontFamily: "Lato_400Regular",
     fontSize: 12,
+    color: "white",
+  },
+  exportErrorInline: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 11,
     color: "rgba(255,160,160,0.9)",
-    textAlign: "center",
-    marginBottom: 12,
+    marginTop: 4,
   },
 });
