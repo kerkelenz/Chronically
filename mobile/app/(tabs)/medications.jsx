@@ -18,8 +18,8 @@ import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../../components/ScreenBackground";
 import api from "../../lib/api";
+import { MedicationTypeIcon } from "../../components/SymptomIcon";
 import {
-  TYPE_ICONS,
   FREQUENCY_LABELS,
   FREQUENCY_TIME_COUNTS,
   SKIP_REASONS,
@@ -243,7 +243,7 @@ function MedCard({ med, onEdit, onDeleteRequest }) {
 
   return (
     <View style={styles.medCard}>
-      <Text style={styles.medCardIcon}>{TYPE_ICONS[med.type] || "💊"}</Text>
+      <MedicationTypeIcon type={med.type} size={22} color="rgba(255,255,255,0.9)" />
       <View style={styles.medCardInfo}>
         <Text style={styles.medCardName}>{med.name}</Text>
         <Text style={styles.medCardSub}>
@@ -362,7 +362,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
                   onPress={() => setForm({ ...form, type: t })}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.typeBtnIcon}>{TYPE_ICONS[t]}</Text>
+                  <MedicationTypeIcon type={t} size={18} color={form.type === t ? "white" : "rgba(255,255,255,0.7)"} />
                   <Text
                     style={[
                       styles.typeBtnLabel,
@@ -1195,7 +1195,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.18)",
     gap: 12,
   },
-  medCardIcon: { fontSize: 22 },
   medCardInfo: { flex: 1 },
   medCardName: {
     fontFamily: "Lato_700Bold",
@@ -1291,7 +1290,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#7C6BAE",
     borderColor: "#7C6BAE",
   },
-  typeBtnIcon: { fontSize: 18 },
   typeBtnLabel: {
     fontFamily: "Lato_400Regular",
     fontSize: 10,

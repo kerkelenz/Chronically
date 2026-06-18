@@ -18,6 +18,7 @@ import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
 import { openCheckIn } from "../../lib/checkinNav";
 import { METRICS, METRIC_LABELS } from "../../theme/metrics";
+import { SymptomIcon } from "../../components/SymptomIcon";
 
 function formatDate(dateStr) {
   const [, m, d] = dateStr.split("-").map(Number);
@@ -47,10 +48,10 @@ function CheckInRow({ checkIn }) {
           );
         })}
         {symptoms.length > 0 && (
-          <View style={[styles.chip, styles.symptomChip]}>
-            <Text style={styles.chipText}>
-              {symptoms.length} symptom{symptoms.length !== 1 ? "s" : ""}
-            </Text>
+          <View style={styles.symptomIconRow}>
+            {symptoms.map((s) => (
+              <SymptomIcon key={s} symptom={s} size={16} color="rgba(155,175,196,0.9)" />
+            ))}
           </View>
         )}
       </View>
@@ -167,6 +168,17 @@ export default function DashboardScreen() {
     .filter((a) => a.status === "upcoming" && new Date(a.date) >= todayStart && new Date(a.date) <= sevenDaysFromNow)
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
+  const symptomCounts = {};
+  recentCheckIns.forEach((c) => {
+    (c.symptoms || []).forEach((s) => {
+      symptomCounts[s] = (symptomCounts[s] || 0) + 1;
+    });
+  });
+  const topSymptoms = Object.entries(symptomCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([s]) => s);
+
   // ── Loading state (first launch only) ────────────────────────────────────
 
   if (loading) {
@@ -252,6 +264,21 @@ export default function DashboardScreen() {
                 ))}
               </View>
             </View>
+
+            {/* Common symptoms (last 24 hours) */}
+            {topSymptoms.length > 0 && (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Symptoms — last 24 hours</Text>
+                <View style={styles.symptomsGrid}>
+                  {topSymptoms.map((s) => (
+                    <View key={s} style={styles.symptomItem}>
+                      <SymptomIcon symptom={s} size={22} color="rgba(155,175,196,0.9)" />
+                      <Text style={styles.symptomLabel}>{s}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
 
             {/* Upcoming appointments reminder (within 7 days) */}
             {upcomingAppts.length > 0 && (
@@ -506,14 +533,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.2)",
   },
-  symptomChip: {
-    backgroundColor: "rgba(155,175,196,0.2)",
-    borderColor: "rgba(155,175,196,0.35)",
-  },
   chipText: {
     fontFamily: "Lato_400Regular",
     fontSize: 12,
     color: "rgba(255,255,255,0.85)",
+  },
+  symptomIconRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 4,
+  },
+  symptomsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  symptomItem: {
+    alignItems: "center",
+    gap: 4,
+    width: 56,
+  },
+  symptomLabel: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 10,
+    color: "rgba(255,255,255,0.65)",
+    textAlign: "center",
   },
 
 });
