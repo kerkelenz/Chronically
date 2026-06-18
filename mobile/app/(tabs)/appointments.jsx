@@ -331,11 +331,13 @@ export default function AppointmentsScreen() {
   const todayStr = new Date().toLocaleDateString("en-CA");
   const calendarDays = loading ? [] : buildCalendarDays();
 
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
   const upcoming = appointments
-    .filter((a) => a.status === "upcoming")
+    .filter((a) => a.status === "upcoming" && new Date(a.date) >= todayStart)
     .sort((a, b) => new Date(a.date) - new Date(b.date));
   const past = appointments
-    .filter((a) => a.status !== "upcoming")
+    .filter((a) => a.status !== "upcoming" || new Date(a.date) < todayStart)
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const saveDisabled = saving || !form.doctorName.trim() || !form.date;

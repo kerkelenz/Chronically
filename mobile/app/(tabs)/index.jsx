@@ -17,7 +17,9 @@ import Avatar from "../../components/Avatar";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
 import { openCheckIn } from "../../lib/checkinNav";
-import { METRICS, METRIC_LABELS } from "../../theme/metrics";
+import { METRICS } from "../../theme/metrics";
+
+const BAR_HEIGHTS = [8, 10, 12, 14, 16];
 import { SymptomIcon } from "../../components/SymptomIcon";
 
 function formatDate(dateStr) {
@@ -34,27 +36,35 @@ function CheckInRow({ checkIn }) {
   return (
     <View style={styles.row}>
       <Text style={styles.rowDate}>{formatDate(checkIn.date)}</Text>
-      <View style={styles.chips}>
-        {METRICS.map(({ key, label }) => {
+      <View style={styles.metricList}>
+        {METRICS.map(({ key, label, color }) => {
           const val = checkIn[key];
           if (val == null) return null;
-          const name = key.replace("Level", "");
           return (
-            <View key={key} style={styles.chip}>
-              <Text style={styles.chipText}>
-                {label} · {METRIC_LABELS[name][val]}
-              </Text>
+            <View key={key} style={styles.metricRow}>
+              <Text style={styles.metricLabel}>{label}</Text>
+              <View style={styles.barGroup}>
+                {BAR_HEIGHTS.map((h, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.bar,
+                      { height: h, backgroundColor: i < val ? color : "rgba(255,255,255,0.18)" },
+                    ]}
+                  />
+                ))}
+              </View>
             </View>
           );
         })}
-        {symptoms.length > 0 && (
-          <View style={styles.symptomIconRow}>
-            {symptoms.map((s) => (
-              <SymptomIcon key={s} symptom={s} size={18} color="white" />
-            ))}
-          </View>
-        )}
       </View>
+      {symptoms.length > 0 && (
+        <View style={styles.symptomIconRow}>
+          {symptoms.map((s) => (
+            <SymptomIcon key={s} symptom={s} size={18} color="white" />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -532,24 +542,11 @@ const styles = StyleSheet.create({
     color: "white",
     marginBottom: 6,
   },
-  chips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 4,
-  },
-  chip: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
-  chipText: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 12,
-    color: "rgba(255,255,255,0.85)",
-  },
+  metricList: { marginTop: 6, gap: 3 },
+  metricRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  metricLabel: { width: 60, fontSize: 11, fontFamily: "Lato_400Regular", color: "rgba(255,255,255,0.82)" },
+  barGroup: { flexDirection: "row", alignItems: "flex-end", gap: 2 },
+  bar: { width: 4, borderRadius: 1 },
   symptomIconRow: {
     flexDirection: "row",
     flexWrap: "wrap",
