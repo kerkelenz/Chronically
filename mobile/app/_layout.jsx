@@ -34,6 +34,10 @@ function AuthGate() {
   return null;
 }
 
+export const unstable_settings = {
+  initialRouteName: "(tabs)",
+};
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     PlayfairDisplay_400Regular,
