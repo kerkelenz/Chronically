@@ -118,6 +118,7 @@ function DoseRow({
   onTake,
   onSkipOpen,
   onSkipReason,
+  onSkipCancel,
   onUndo,
   actionLoading,
   actionError,
@@ -226,6 +227,13 @@ function DoseRow({
               </TouchableOpacity>
             ))}
           </View>
+          <TouchableOpacity
+            style={styles.skipCancelBtn}
+            onPress={onSkipCancel}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.skipCancelText}>Cancel</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -710,6 +718,10 @@ export default function MedicationsScreen() {
     }
   }
 
+  function handleSkipCancel() {
+    setSkippingDoseKey(null);
+  }
+
   function handleSkipOpen(doseKey) {
     setSkippingDoseKey(doseKey);
     setActionError(null);
@@ -900,6 +912,7 @@ export default function MedicationsScreen() {
                 onTake={handleTake}
                 onSkipOpen={handleSkipOpen}
                 onSkipReason={handleSkipReason}
+                onSkipCancel={handleSkipCancel}
                 onUndo={handleUndo}
                 actionLoading={actionLoading}
                 actionError={actionError}
@@ -1176,6 +1189,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "white",
   },
+  skipCancelBtn: { marginTop: 10, alignSelf: "flex-start", paddingVertical: 4 },
+  skipCancelText: { fontFamily: "Lato_400Regular", fontSize: 13, color: "rgba(255,255,255,0.7)" },
 
   // ── Med cards (editable) ───────────────────────────────────────────────────
 
