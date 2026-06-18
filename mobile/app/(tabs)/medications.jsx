@@ -867,7 +867,7 @@ export default function MedicationsScreen() {
             onPress={openAdd}
             activeOpacity={0.8}
           >
-            <Ionicons name="add" size={20} color="white" />
+            <Ionicons name="add" size={15} color="white" />
             <Text style={styles.addBtnText}>Add</Text>
           </TouchableOpacity>
         </View>
@@ -1002,15 +1002,17 @@ const styles = StyleSheet.create({
   addBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: "#7C6BAE",
+    gap: 5,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
   },
   addBtnText: {
     fontFamily: "Lato_700Bold",
-    fontSize: 14,
+    fontSize: 13,
     color: "white",
   },
 

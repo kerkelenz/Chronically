@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   RefreshControl,
   useWindowDimensions,
+  Modal,
+  Alert,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,32 +19,37 @@ import Avatar from "../../components/Avatar";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
 import { openCheckIn } from "../../lib/checkinNav";
-import { METRICS } from "../../theme/metrics";
+import { METRICS, METRIC_LABELS, SYMPTOM_LIST } from "../../theme/metrics";
 import { SymptomIcon } from "../../components/SymptomIcon";
 
 const BAR_HEIGHTS = [12, 16, 20, 24, 28];
 const BAR_COLORS = {
   painLevel:     "rgba(255,255,255,0.95)",
-  moodLevel:     "#CE8FB6",
-  energyLevel:   "#7FB096",
-  anxietyLevel:  "#8AA6D4",
-  appetiteLevel: "#CBA862",
+  moodLevel:     "#D87AB0",
+  energyLevel:   "#4FB882",
+  anxietyLevel:  "#6E9DE0",
+  appetiteLevel: "#DDA53F",
 };
 
-function formatDate(dateStr) {
-  const [, m, d] = dateStr.split("-").map(Number);
-  const months = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-  ];
-  return `${months[m - 1]} ${d}`;
-}
 
-function CheckInRow({ checkIn }) {
+function CheckInRow({ checkIn, onEdit, onDelete, isLatest }) {
   const symptoms = Array.isArray(checkIn.symptoms) ? checkIn.symptoms : [];
+  const time = new Date(checkIn.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   return (
     <View style={styles.row}>
-      <Text style={styles.rowDate}>{formatDate(checkIn.date)}</Text>
+      <View style={styles.rowHeader}>
+        <Text style={styles.rowTime}>{time}</Text>
+        <View style={styles.rowActions}>
+          <TouchableOpacity style={styles.rowBtn} onPress={() => onEdit(checkIn)} activeOpacity={0.8}>
+            <Ionicons name="pencil" size={13} color="white" />
+          </TouchableOpacity>
+          {isLatest && (
+            <TouchableOpacity style={[styles.rowBtn, styles.rowBtnDelete]} onPress={() => onDelete(checkIn.id)} activeOpacity={0.8}>
+              <Ionicons name="trash-outline" size={13} color="white" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
       <View style={styles.metricList}>
         {METRICS.map(({ key, label }) => {
           const val = checkIn[key];
@@ -95,6 +102,7 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [editingCheckIn, setEditingCheckIn] = useState(null);
   const isFirstLoadRef = useRef(true);
 
   // 5 dials across, 24px side padding each, 8px between each dial (4 gaps)
@@ -146,6 +154,42 @@ export default function DashboardScreen() {
       setRefreshing(false);
     }
   }
+
+  const handleDeleteCheckIn = (id) => {
+    Alert.alert("Delete check-in?", "This can't be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await api.delete(`/api/checkins/${id}`);
+            setCheckIns((prev) => prev.filter((c) => c.id !== id));
+          } catch (e) {
+            console.error("Delete check-in failed:", e);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleUpdateCheckIn = async () => {
+    if (!editingCheckIn) return;
+    try {
+      const res = await api.put(`/api/checkins/${editingCheckIn.id}`, {
+        painLevel:     editingCheckIn.painLevel,
+        moodLevel:     editingCheckIn.moodLevel,
+        energyLevel:   editingCheckIn.energyLevel,
+        anxietyLevel:  editingCheckIn.anxietyLevel,
+        appetiteLevel: editingCheckIn.appetiteLevel,
+        symptoms:      editingCheckIn.symptoms?.length > 0 ? editingCheckIn.symptoms : null,
+      });
+      setCheckIns((prev) => prev.map((c) => (c.id === editingCheckIn.id ? res.data.checkIn : c)));
+      setEditingCheckIn(null);
+    } catch (e) {
+      console.error("Update check-in failed:", e);
+    }
+  };
 
   // ── Derived values ────────────────────────────────────────────────────────
 
@@ -343,14 +387,84 @@ export default function DashboardScreen() {
               {recentCheckIns.length === 0 ? (
                 <Text style={styles.emptyRecentText}>No check-ins in the last 24 hours</Text>
               ) : (
-                recentCheckIns.map((c) => (
-                  <CheckInRow key={c.id} checkIn={c} />
+                recentCheckIns.map((c, i) => (
+                  <CheckInRow
+                    key={c.id}
+                    checkIn={c}
+                    onEdit={setEditingCheckIn}
+                    onDelete={handleDeleteCheckIn}
+                    isLatest={i === 0}
+                  />
                 ))
               )}
             </View>
           </>
         )}
       </ScrollView>
+
+      <Modal visible={!!editingCheckIn} transparent animationType="fade" onRequestClose={() => setEditingCheckIn(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.editModalCard}>
+            <ScrollView contentContainerStyle={{ gap: 14, padding: 20 }} showsVerticalScrollIndicator={false}>
+              <Text style={styles.editTitle}>Edit Check-in</Text>
+              {METRICS.map(({ key, label }) => {
+                const name = key.replace("Level", "");
+                return (
+                  <View key={key}>
+                    <Text style={styles.editLabel}>{label} level</Text>
+                    <View style={styles.levelRow}>
+                      {[5, 4, 3, 2, 1].map((level) => {
+                        const selected = editingCheckIn?.[key] === level;
+                        return (
+                          <TouchableOpacity
+                            key={level}
+                            style={[styles.levelBtn, selected && styles.levelBtnSelected]}
+                            onPress={() => setEditingCheckIn((prev) => ({ ...prev, [key]: level }))}
+                            activeOpacity={0.8}
+                          >
+                            <Text style={styles.levelBtnText}>{METRIC_LABELS[name][level]}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                );
+              })}
+              <View>
+                <Text style={styles.editLabel}>Symptoms</Text>
+                <View style={styles.symptomChipWrap}>
+                  {SYMPTOM_LIST.map((s) => {
+                    const active = (editingCheckIn?.symptoms || []).includes(s);
+                    return (
+                      <TouchableOpacity
+                        key={s}
+                        style={[styles.symptomChipBtn, active && styles.symptomChipActive]}
+                        onPress={() =>
+                          setEditingCheckIn((prev) => {
+                            const cur = prev.symptoms || [];
+                            return { ...prev, symptoms: active ? cur.filter((x) => x !== s) : [...cur, s] };
+                          })
+                        }
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.symptomChipText}>{s}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+              <View style={styles.editActions}>
+                <TouchableOpacity style={styles.editCancelBtn} onPress={() => setEditingCheckIn(null)} activeOpacity={0.8}>
+                  <Text style={styles.editCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.editSaveBtn} onPress={handleUpdateCheckIn} activeOpacity={0.8}>
+                  <Text style={styles.editSaveText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </ScreenBackground>
   );
 }
@@ -543,12 +657,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.18)",
   },
-  rowDate: {
-    fontFamily: "Lato_700Bold",
-    fontSize: 13,
-    color: "white",
-    marginBottom: 6,
-  },
+  rowHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 2 },
+  rowTime: { fontFamily: "Lato_400Regular", fontSize: 12, color: "rgba(255,255,255,0.7)" },
+  rowActions: { flexDirection: "row", gap: 8 },
+  rowBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.25)", alignItems: "center", justifyContent: "center" },
+  rowBtnDelete: { backgroundColor: "rgba(225,90,90,0.45)" },
   metricList: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginTop: 6, rowGap: 10 },
   metricRow: { flexDirection: "row", alignItems: "center", gap: 8, width: "47%" },
   metricLabel: { width: 52, fontSize: 11, fontFamily: "Lato_400Regular", color: "rgba(255,255,255,0.82)" },
@@ -571,5 +684,23 @@ const styles = StyleSheet.create({
   commonName: { fontFamily: "Lato_400Regular", fontSize: 11, color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 14 },
   commonCount: { fontFamily: "Lato_400Regular", fontSize: 11, color: "rgba(255,255,255,0.6)" },
   commonEmpty: { fontFamily: "Lato_400Regular", fontSize: 12, color: "rgba(255,255,255,0.6)" },
+
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 16 },
+  editModalCard: { width: "100%", maxWidth: 380, maxHeight: "88%", backgroundColor: "rgba(90,75,130,0.97)", borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.25)", overflow: "hidden" },
+  editTitle: { fontFamily: "PlayfairDisplay_500Medium", fontSize: 20, color: "white" },
+  editLabel: { fontFamily: "Lato_400Regular", fontSize: 12, color: "rgba(255,255,255,0.8)", marginBottom: 8 },
+  levelRow: { flexDirection: "row", gap: 6 },
+  levelBtn: { flex: 1, paddingVertical: 8, paddingHorizontal: 2, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
+  levelBtnSelected: { backgroundColor: "#7C6BAE" },
+  levelBtnText: { fontFamily: "Lato_400Regular", fontSize: 10, lineHeight: 12, color: "white", textAlign: "center" },
+  symptomChipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  symptomChipBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.15)" },
+  symptomChipActive: { backgroundColor: "#7C6BAE" },
+  symptomChipText: { fontFamily: "Lato_400Regular", fontSize: 12, color: "white" },
+  editActions: { flexDirection: "row", gap: 12, marginTop: 4 },
+  editCancelBtn: { flex: 1, paddingVertical: 10, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center" },
+  editCancelText: { fontFamily: "Lato_400Regular", fontSize: 14, color: "rgba(255,255,255,0.85)" },
+  editSaveBtn: { flex: 1, paddingVertical: 10, borderRadius: 20, backgroundColor: "#7C6BAE", alignItems: "center" },
+  editSaveText: { fontFamily: "Lato_700Bold", fontSize: 14, color: "white" },
 
 });
