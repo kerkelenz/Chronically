@@ -16,8 +16,13 @@ import {
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import ScreenBackground from "../../components/ScreenBackground";
 import api from "../../lib/api";
+import { computeReportData } from "../../lib/reportData";
+import { buildReportHtml } from "../../lib/reportHtml";
+import { useAuth } from "../../context/AuthContext";
 import {
   DAY_HEADERS,
   formatApptDate,
@@ -39,10 +44,13 @@ const STATUS_OPTIONS = [
 ];
 
 export default function AppointmentsScreen() {
+  const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(null);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [popoverAppointment, setPopoverAppointment] = useState(null);
@@ -104,6 +112,43 @@ export default function AppointmentsScreen() {
       setRefreshing(false);
     }
   }
+
+  // ── Export report ─────────────────────────────────────────────────────────
+
+  const handleExport = async () => {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const today = new Date().toLocaleDateString("en-CA");
+      const start = new Date();
+      start.setDate(start.getDate() - 30);
+      const startDate = start.toLocaleDateString("en-CA");
+
+      const [checkInsRes, medsRes, logsRes, apptsRes] = await Promise.all([
+        api.get("/api/checkins"),
+        api.get("/api/medications"),
+        api.get(`/api/medications/logs?startDate=${startDate}&endDate=${today}`),
+        api.get("/api/appointments"),
+      ]);
+
+      const data = computeReportData(
+        checkInsRes.data.checkIns,
+        medsRes.data.medications,
+        logsRes.data.logs,
+        apptsRes.data.appointments,
+      );
+      const html = buildReportHtml(data, user?.username || "Patient");
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: "application/pdf", UTI: "com.adobe.pdf" });
+      }
+    } catch (err) {
+      console.error("Export failed:", err);
+      setExportError("Could not generate report. Please try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // ── Calendar helpers ──────────────────────────────────────────────────────
 
@@ -299,7 +344,7 @@ export default function AppointmentsScreen() {
 
   if (loading) {
     return (
-      <ScreenBackground>
+      <ScreenBackground edges={["top", "left", "right"]}>
         <View style={styles.loadingCenter}>
           <ActivityIndicator size="large" color="rgba(255,255,255,0.8)" />
         </View>
@@ -310,7 +355,7 @@ export default function AppointmentsScreen() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <ScreenBackground>
+    <ScreenBackground edges={["top", "left", "right"]}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={styles.scroll}
@@ -410,6 +455,27 @@ export default function AppointmentsScreen() {
             })}
           </View>
         </View>
+
+        {/* ── Doctor report button ──────────────────────────────────────────── */}
+        <TouchableOpacity
+          style={[styles.reportBtn, exporting && styles.reportBtnDisabled]}
+          onPress={handleExport}
+          disabled={exporting}
+          activeOpacity={0.8}
+        >
+          {exporting ? (
+            <>
+              <ActivityIndicator size="small" color="white" />
+              <Text style={styles.reportBtnText}>Preparing…</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="document-text-outline" size={14} color="white" />
+              <Text style={styles.reportBtnText}>Prepare doctor report</Text>
+            </>
+          )}
+        </TouchableOpacity>
+        {exportError && <Text style={styles.reportError}>{exportError}</Text>}
 
         {/* ── Selected-day panel ────────────────────────────────────────────── */}
         {popoverAppointment && selectedDate && (() => {
@@ -1536,6 +1602,33 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_700Bold",
     fontSize: 15,
     color: "#7C6BAE",
+  },
+
+  // Doctor report button
+  reportBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+  },
+  reportBtnDisabled: { opacity: 0.6 },
+  reportBtnText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 12,
+    color: "white",
+  },
+  reportError: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "white",
+    marginBottom: 16,
   },
 
   // Delete confirm modal

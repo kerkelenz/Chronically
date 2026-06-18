@@ -11,15 +11,11 @@ import {
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import * as Print from "expo-print";
-import * as Sharing from "expo-sharing";
 import ScreenBackground from "../../components/ScreenBackground";
 import CircularDial from "../../components/CircularDial";
 import Avatar from "../../components/Avatar";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
-import { computeReportData } from "../../lib/reportData";
-import { buildReportHtml } from "../../lib/reportHtml";
 import { openCheckIn } from "../../lib/checkinNav";
 import { METRICS, METRIC_LABELS } from "../../theme/metrics";
 
@@ -81,8 +77,6 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [exportError, setExportError] = useState(null);
   const isFirstLoadRef = useRef(true);
 
   // 5 dials across, 24px side padding each, 8px between each dial (4 gaps)
@@ -135,43 +129,6 @@ export default function DashboardScreen() {
     }
   }
 
-  // ── Export report ─────────────────────────────────────────────────────────
-
-  const handleExport = async () => {
-    setExporting(true);
-    setExportError(null);
-    try {
-      const today = new Date().toLocaleDateString("en-CA");
-      const start = new Date();
-      start.setDate(start.getDate() - 30);
-      const startDate = start.toLocaleDateString("en-CA");
-
-      const [checkInsRes, medsRes, logsRes, apptsRes] = await Promise.all([
-        api.get("/api/checkins"),
-        api.get("/api/medications"),
-        api.get(`/api/medications/logs?startDate=${startDate}&endDate=${today}`),
-        api.get("/api/appointments"),
-      ]);
-
-      const data = computeReportData(
-        checkInsRes.data.checkIns,
-        medsRes.data.medications,
-        logsRes.data.logs,
-        apptsRes.data.appointments,
-      );
-      const html = buildReportHtml(data, user?.username || "Patient");
-      const { uri } = await Print.printToFileAsync({ html });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, { mimeType: "application/pdf", UTI: "com.adobe.pdf" });
-      }
-    } catch (err) {
-      console.error("Export failed:", err);
-      setExportError("Could not generate report. Please try again.");
-    } finally {
-      setExporting(false);
-    }
-  };
-
   // ── Derived values ────────────────────────────────────────────────────────
 
   const today = new Date().toLocaleDateString("en-CA");
@@ -214,7 +171,7 @@ export default function DashboardScreen() {
 
   if (loading) {
     return (
-      <ScreenBackground>
+      <ScreenBackground edges={["top", "left", "right"]}>
         <View style={styles.loadingCenter}>
           <ActivityIndicator size="large" color="rgba(255,255,255,0.8)" />
           <Text style={styles.loadingText}>Loading your data…</Text>
@@ -229,7 +186,7 @@ export default function DashboardScreen() {
   // ── Main screen ───────────────────────────────────────────────────────────
 
   return (
-    <ScreenBackground>
+    <ScreenBackground edges={["top", "left", "right"]}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={styles.scroll}
@@ -321,27 +278,6 @@ export default function DashboardScreen() {
                     </View>
                   </TouchableOpacity>
                 ))}
-                <TouchableOpacity
-                  style={[styles.reportBtn, exporting && styles.reportBtnDisabled]}
-                  onPress={handleExport}
-                  disabled={exporting}
-                  activeOpacity={0.8}
-                >
-                  {exporting ? (
-                    <>
-                      <ActivityIndicator size="small" color="white" />
-                      <Text style={styles.reportBtnText}>Preparing…</Text>
-                    </>
-                  ) : (
-                    <>
-                      <Ionicons name="document-text-outline" size={14} color="white" />
-                      <Text style={styles.reportBtnText}>Prepare doctor report</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-                {exportError && (
-                  <Text style={styles.exportErrorInline}>Failed to prepare report. Please try again.</Text>
-                )}
               </View>
             )}
 
@@ -580,30 +516,4 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.85)",
   },
 
-  // Report button (inside appointments card)
-  reportBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 6,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginTop: 8,
-  },
-  reportBtnDisabled: { opacity: 0.6 },
-  reportBtnText: {
-    fontFamily: "Lato_700Bold",
-    fontSize: 12,
-    color: "white",
-  },
-  exportErrorInline: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 11,
-    color: "rgba(255,160,160,0.9)",
-    marginTop: 4,
-  },
 });

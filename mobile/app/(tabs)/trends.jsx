@@ -189,7 +189,7 @@ export default function TrendsScreen() {
 
   if (loading) {
     return (
-      <ScreenBackground>
+      <ScreenBackground edges={["top", "left", "right"]}>
         <View style={styles.loadingCenter}>
           <ActivityIndicator size="large" color="rgba(255,255,255,0.8)" />
           <Text style={styles.loadingText}>Loading your trends…</Text>
@@ -204,7 +204,7 @@ export default function TrendsScreen() {
   // ── Main ──────────────────────────────────────────────────────────────────
 
   return (
-    <ScreenBackground>
+    <ScreenBackground edges={["top", "left", "right"]}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={styles.scroll}

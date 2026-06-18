@@ -133,7 +133,7 @@ export default function ProfileScreen() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <ScreenBackground>
+    <ScreenBackground edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}

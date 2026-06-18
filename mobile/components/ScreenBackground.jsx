@@ -2,7 +2,7 @@ import { StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function ScreenBackground({ children, style }) {
+export default function ScreenBackground({ children, style, edges = ["top", "left", "right", "bottom"] }) {
   return (
     <LinearGradient
       colors={["#7C6BAE", "#9B8EC4", "#C4A8C0"]}
@@ -11,7 +11,7 @@ export default function ScreenBackground({ children, style }) {
       end={{ x: 0.7, y: 1 }}
       style={StyleSheet.absoluteFill}
     >
-      <SafeAreaView style={[styles.safe, style]}>
+      <SafeAreaView edges={edges} style={[styles.safe, style]}>
         {children}
       </SafeAreaView>
     </LinearGradient>
