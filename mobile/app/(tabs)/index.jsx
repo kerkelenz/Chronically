@@ -176,6 +176,15 @@ export default function DashboardScreen() {
   const today = new Date().toLocaleDateString("en-CA");
   const todaysDone = checkIns.some((c) => c.date === today);
 
+  const hour = new Date().getHours();
+  const timeGreeting = hour < 12 ? "Good morning," : hour < 17 ? "Good afternoon," : "Good evening,";
+
+  const nextCheckIn =
+    todaysDone && checkIns[0]
+      ? new Date(new Date(checkIns[0].createdAt).getTime() + 4 * 60 * 60 * 1000)
+          .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      : null;
+
   const fourteenDaysAgo = new Date();
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
   // Use noon to avoid timezone-edge-case shifts
@@ -235,7 +244,12 @@ export default function DashboardScreen() {
         {/* Greeting */}
         <View style={styles.greetingRow}>
           <Avatar user={user} size={36} />
-          <Text style={styles.greeting}>Hi, {user?.username || "there"} 👋</Text>
+          <View style={styles.greetingCol}>
+            <Text style={styles.greeting}>{timeGreeting} {user?.username || "there"}</Text>
+            <Text style={styles.greetingSubtext}>
+              {todaysDone && nextCheckIn ? `Next check-in at ${nextCheckIn}` : "Ready to check in?"}
+            </Text>
+          </View>
         </View>
 
         {/* Error */}
@@ -248,42 +262,23 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* Empty state */}
-        {!error && checkIns.length === 0 && (
-          <View style={styles.card}>
-            <Text style={styles.emptyText}>
-              No check-ins yet — they'll show up here once you start logging.
-            </Text>
+        {/* Check-in prompt */}
+        {!error && (checkIns.length === 0 || !todaysDone) && (
+          <View style={styles.checkInPrompt}>
+            <Text style={styles.checkInPromptTitle}>How are you feeling right now?</Text>
+            <Text style={styles.checkInPromptSub}>It only takes a moment.</Text>
             <TouchableOpacity
-              style={styles.checkInBtn}
+              style={styles.checkInPromptBtn}
               onPress={() => router.push("/checkin")}
               activeOpacity={0.85}
             >
-              <Text style={styles.checkInBtnText}>Log today's check-in</Text>
+              <Text style={styles.checkInPromptBtnText}>Start Check-in</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {checkIns.length > 0 && (
           <>
-            {/* Today's status */}
-            <View style={styles.card}>
-              {todaysDone ? (
-                <Text style={styles.statusText}>Today's check-in is logged 💙</Text>
-              ) : (
-                <>
-                  <Text style={styles.statusText}>No check-in yet today</Text>
-                  <TouchableOpacity
-                    style={styles.checkInBtn}
-                    onPress={() => router.push("/checkin")}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.checkInBtnText}>Log today's check-in</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
-
             {/* 14-day dials */}
             <View style={styles.dialsSection}>
               <Text style={styles.cardTitle}>Last 14 days</Text>
@@ -397,11 +392,20 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 16,
   },
+  greetingCol: {
+    flex: 1,
+    gap: 2,
+  },
   greeting: {
     fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 28,
     color: "white",
     flexShrink: 1,
+  },
+  greetingSubtext: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.7)",
   },
   card: {
     backgroundColor: "rgba(255,255,255,0.15)",
@@ -436,31 +440,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "white",
   },
-  emptyText: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 15,
-    color: "rgba(255,255,255,0.75)",
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  statusText: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 15,
-    color: "rgba(255,255,255,0.9)",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  checkInBtn: {
-    backgroundColor: "rgba(255,255,255,0.9)",
-    borderRadius: 14,
-    paddingVertical: 14,
+  checkInPrompt: {
     alignItems: "center",
+    paddingVertical: 40,
+    gap: 12,
   },
-  checkInBtnText: {
+  checkInPromptTitle: {
+    fontFamily: "PlayfairDisplay_500Medium",
+    fontSize: 23,
+    color: "white",
+    textAlign: "center",
+  },
+  checkInPromptSub: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.7)",
+    textAlign: "center",
+  },
+  checkInPromptBtn: {
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+  },
+  checkInPromptBtnText: {
     fontFamily: "Lato_700Bold",
     fontSize: 15,
-    color: "#7C6BAE",
-    letterSpacing: 0.3,
+    color: "white",
   },
   cardTitle: {
     fontFamily: "Lato_700Bold",
