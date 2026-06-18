@@ -1005,9 +1005,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   scroll: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 40,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 32,
     gap: 12,
   },
 

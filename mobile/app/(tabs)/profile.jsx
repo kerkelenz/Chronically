@@ -316,8 +316,8 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 40,
+    paddingTop: 8,
+    paddingBottom: 32,
     gap: 16,
   },
 
