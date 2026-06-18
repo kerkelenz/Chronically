@@ -38,7 +38,11 @@ function ReviewRow({ label, value, labelMap, onEdit }) {
         activeOpacity={0.7}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Ionicons name="create-outline" size={16} color="rgba(255,255,255,0.5)" />
+        <Ionicons
+          name="create-outline"
+          size={16}
+          color="rgba(255,255,255,0.5)"
+        />
       </TouchableOpacity>
     </View>
   );
@@ -48,6 +52,11 @@ function ReviewRow({ label, value, labelMap, onEdit }) {
 
 export default function CheckInScreen() {
   const router = useRouter();
+
+  function dismiss() {
+    if (router.canGoBack()) router.back();
+    else router.replace("/(tabs)");
+  }
 
   const [step, setStep] = useState(1);
   const [painLevel, setPainLevel] = useState(null);
@@ -61,7 +70,7 @@ export default function CheckInScreen() {
   const [toastMessage, setToastMessage] = useState("");
 
   const [affirmation] = useState(
-    () => AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)]
+    () => AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)],
   );
 
   const toastOpacity = useRef(new Animated.Value(0)).current;
@@ -98,7 +107,7 @@ export default function CheckInScreen() {
 
   function toggleSymptom(s) {
     setSymptoms((prev) =>
-      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
     );
   }
 
@@ -119,7 +128,7 @@ export default function CheckInScreen() {
       setStep(8);
     } catch (err) {
       setError(
-        err.response?.data?.error || "Something went wrong. Please try again."
+        err.response?.data?.error || "Something went wrong. Please try again.",
       );
     } finally {
       setSubmitting(false);
@@ -130,9 +139,6 @@ export default function CheckInScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{ presentation: "fullScreenModal", headerShown: false }}
-      />
       <ScreenBackground>
         {/* Toast overlay — hides step content while showing */}
         {toastMessage ? (
@@ -149,7 +155,6 @@ export default function CheckInScreen() {
             <View style={styles.outerWrap}>
               {/* ── Step content ───────────────────────────────────────── */}
               <View style={styles.stepWrap}>
-
                 {/* Step 1 — Pain */}
                 {step === 1 && (
                   <>
@@ -205,9 +210,7 @@ export default function CheckInScreen() {
                         setAnxietyLevel(null);
                         setAppetiteLevel(null);
                         setSymptoms([]);
-                        showToast(
-                          getIndividualToast(getTier(level), "energy")
-                        );
+                        showToast(getIndividualToast(getTier(level), "energy"));
                         setStep(4);
                       }}
                     />
@@ -228,7 +231,7 @@ export default function CheckInScreen() {
                         setAppetiteLevel(null);
                         setSymptoms([]);
                         showToast(
-                          getIndividualToast(getTier(level), "anxiety")
+                          getIndividualToast(getTier(level), "anxiety"),
                         );
                         setStep(5);
                       }}
@@ -249,7 +252,7 @@ export default function CheckInScreen() {
                         setAppetiteLevel(level);
                         setSymptoms([]);
                         showToast(
-                          getIndividualToast(getTier(level), "appetite")
+                          getIndividualToast(getTier(level), "appetite"),
                         );
                         setStep(6);
                       }}
@@ -294,7 +297,7 @@ export default function CheckInScreen() {
                           moodLevel,
                           energyLevel,
                           anxietyLevel,
-                          appetiteLevel
+                          appetiteLevel,
                         );
                         if (combo) showToast(combo);
                         setStep(7);
@@ -426,9 +429,7 @@ export default function CheckInScreen() {
                       )}
                     </TouchableOpacity>
 
-                    {!!error && (
-                      <Text style={styles.errorText}>{error}</Text>
-                    )}
+                    {!!error && <Text style={styles.errorText}>{error}</Text>}
                   </>
                 )}
 
@@ -443,7 +444,7 @@ export default function CheckInScreen() {
                     </Text>
                     <TouchableOpacity
                       style={styles.primaryBtn}
-                      onPress={() => router.back()}
+                      onPress={dismiss}
                       activeOpacity={0.85}
                     >
                       <Text style={styles.primaryBtnText}>
@@ -462,7 +463,7 @@ export default function CheckInScreen() {
                       <Text style={styles.navLink}>back</Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity onPress={() => router.back()}>
+                  <TouchableOpacity onPress={dismiss}>
                     <Text style={styles.navLink}>cancel</Text>
                   </TouchableOpacity>
                 </View>
@@ -509,7 +510,7 @@ const styles = StyleSheet.create({
 
   // Heading
   heading: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 28,
     color: "white",
     textAlign: "center",
@@ -645,7 +646,7 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   celebrationTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 34,
     color: "white",
     textAlign: "center",

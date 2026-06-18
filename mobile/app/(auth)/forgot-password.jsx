@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   appName: {
-    fontFamily: "PlayfairDisplay_400Regular",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 16,
     color: "rgba(255,255,255,0.65)",
     letterSpacing: 3,
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   title: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 38,
     color: "white",
     textAlign: "center",
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   successTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 28,
     color: "white",
     textAlign: "center",

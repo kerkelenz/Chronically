@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   deleteTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 20,
     color: "white",
     textAlign: "center",

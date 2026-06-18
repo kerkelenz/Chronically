@@ -950,7 +950,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   headerTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 24,
     color: "white",
   },
@@ -1167,7 +1167,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   emptyTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 18,
     color: "white",
   },
@@ -1394,7 +1394,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(255,255,255,0.15)",
   },
   modalTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 18,
     color: "white",
   },
@@ -1554,7 +1554,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   deleteTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 18,
     color: "#2D2540",
     textAlign: "center",

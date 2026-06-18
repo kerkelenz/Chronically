@@ -995,7 +995,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   pageTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 28,
     color: "white",
   },
@@ -1178,7 +1178,7 @@ const styles = StyleSheet.create({
   // ── Med cards (editable) ───────────────────────────────────────────────────
 
   regimenTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 20,
     color: "white",
     marginBottom: 10,
@@ -1238,7 +1238,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   modalTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 22,
     color: "white",
   },
@@ -1452,7 +1452,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   deleteTitle: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 20,
     color: "white",
     textAlign: "center",

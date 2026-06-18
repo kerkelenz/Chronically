@@ -5,12 +5,11 @@ import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import {
   PlayfairDisplay_400Regular,
+  PlayfairDisplay_500Medium,
+  PlayfairDisplay_600SemiBold,
   PlayfairDisplay_700Bold,
 } from "@expo-google-fonts/playfair-display";
-import {
-  Lato_400Regular,
-  Lato_700Bold,
-} from "@expo-google-fonts/lato";
+import { Lato_300Light, Lato_400Regular, Lato_700Bold } from "@expo-google-fonts/lato";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 
@@ -38,7 +37,10 @@ function AuthGate() {
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     PlayfairDisplay_400Regular,
+    PlayfairDisplay_500Medium,
+    PlayfairDisplay_600SemiBold,
     PlayfairDisplay_700Bold,
+    Lato_300Light,
     Lato_400Regular,
     Lato_700Bold,
   });
@@ -55,7 +57,12 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthProvider>
         <AuthGate />
-        <Stack screenOptions={{ headerShown: false }} />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen
+            name="checkin"
+            options={{ presentation: "fullScreenModal", gestureEnabled: false }}
+          />
+        </Stack>
       </AuthProvider>
     </SafeAreaProvider>
   );

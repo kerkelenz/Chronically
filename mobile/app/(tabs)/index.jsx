@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   greeting: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 28,
     color: "white",
     flexShrink: 1,
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   },
 
   sectionHeading: {
-    fontFamily: "PlayfairDisplay_700Bold",
+    fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 20,
     color: "white",
     marginBottom: 10,
