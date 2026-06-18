@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../components/ScreenBackground";
 import LevelButtons from "../components/LevelButtons";
 import api from "../lib/api";
+import { consumeDeliberateOpen } from "../lib/checkinNav";
 import { METRIC_LABELS, SYMPTOM_LIST } from "../theme/metrics";
 import {
   AFFIRMATIONS,
@@ -76,6 +77,12 @@ export default function CheckInScreen() {
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const toastTimerRef = useRef(null);
   const toastAnimRef = useRef(null);
+
+  useEffect(() => {
+    if (!consumeDeliberateOpen()) {
+      router.replace("/(tabs)");
+    }
+  }, []);
 
   useEffect(() => {
     return () => {

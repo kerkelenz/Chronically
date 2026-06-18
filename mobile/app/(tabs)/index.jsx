@@ -20,6 +20,7 @@ import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
 import { computeReportData } from "../../lib/reportData";
 import { buildReportHtml } from "../../lib/reportHtml";
+import { openCheckIn } from "../../lib/checkinNav";
 import { METRICS, METRIC_LABELS } from "../../theme/metrics";
 
 function formatDate(dateStr) {
@@ -269,7 +270,7 @@ export default function DashboardScreen() {
             <Text style={styles.checkInPromptSub}>It only takes a moment.</Text>
             <TouchableOpacity
               style={styles.checkInPromptBtn}
-              onPress={() => router.push("/checkin")}
+              onPress={openCheckIn}
               activeOpacity={0.85}
             >
               <Text style={styles.checkInPromptBtnText}>Start Check-in</Text>
