@@ -12,11 +12,13 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import * as Print from "expo-print";
+import * as FileSystem from "expo-file-system/legacy";
 import ScreenBackground from "../../components/ScreenBackground";
 import api from "../../lib/api";
 import { computeReportData } from "../../lib/reportData";
@@ -137,7 +139,37 @@ export default function AppointmentsScreen() {
         apptsRes.data.appointments,
       );
       const html = buildReportHtml(data, user?.username || "Patient");
-      await Print.printAsync({ html });
+      const { uri } = await Print.printToFileAsync({ html });
+      const stamp = new Date().toLocaleDateString("en-CA");
+      const fileName = `Chronically-Doctor-Report-${stamp}`;
+
+      if (Platform.OS === "android") {
+        const perm =
+          await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        if (!perm.granted) return; // user cancelled the folder picker — not an error
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        const destUri = await FileSystem.StorageAccessFramework.createFileAsync(
+          perm.directoryUri,
+          fileName,
+          "application/pdf",
+        );
+        await FileSystem.writeAsStringAsync(destUri, base64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        Alert.alert(
+          "Report saved",
+          "Your doctor report PDF was saved to the folder you selected.",
+        );
+      } else {
+        const dest = `${FileSystem.documentDirectory}${fileName}.pdf`;
+        await FileSystem.copyAsync({ from: uri, to: dest });
+        Alert.alert(
+          "Report saved",
+          "Saved to the Files app under On My iPhone › Chronically.",
+        );
+      }
     } catch (err) {
       console.error("Export failed:", err);
       setExportError("Could not generate report. Please try again.");
