@@ -13,6 +13,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -285,6 +286,7 @@ function MedCard({ med, onEdit, onDeleteRequest }) {
 function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError }) {
   const [showFreqPicker, setShowFreqPicker] = useState(false);
   const [editingTimeIndex, setEditingTimeIndex] = useState(null);
+  const insets = useSafeAreaInsets();
 
   const timeCount = FREQUENCY_TIME_COUNTS[form.frequency] ?? 1;
 
@@ -342,7 +344,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
 
           <ScrollView
             style={{ flexShrink: 1 }}
-            contentContainerStyle={styles.modalBody}
+            contentContainerStyle={[styles.modalBody, { paddingBottom: insets.bottom + 32 }]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
