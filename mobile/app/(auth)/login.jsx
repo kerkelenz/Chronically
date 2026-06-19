@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import ScreenBackground from "../../components/ScreenBackground";
+import FloatingPetals from "../../components/FloatingPetals";
 import { useAuth } from "../../context/AuthContext";
 
 export default function LoginScreen() {
@@ -45,6 +46,7 @@ export default function LoginScreen() {
 
   return (
     <ScreenBackground>
+      <FloatingPetals />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}

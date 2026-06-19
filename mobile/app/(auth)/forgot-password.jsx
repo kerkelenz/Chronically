@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import ScreenBackground from "../../components/ScreenBackground";
+import FloatingPetals from "../../components/FloatingPetals";
 import api from "../../lib/api";
 
 export default function ForgotPasswordScreen() {
@@ -44,6 +45,7 @@ export default function ForgotPasswordScreen() {
   if (submitted) {
     return (
       <ScreenBackground>
+        <FloatingPetals />
         <View style={styles.centeredFull}>
           <View style={styles.card}>
             <Text style={styles.successTitle}>Check your inbox</Text>
@@ -65,6 +67,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <ScreenBackground>
+      <FloatingPetals />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}

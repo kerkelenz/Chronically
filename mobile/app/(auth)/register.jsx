@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import ScreenBackground from "../../components/ScreenBackground";
+import FloatingPetals from "../../components/FloatingPetals";
 import { useAuth } from "../../context/AuthContext";
 
 export default function RegisterScreen() {
@@ -55,6 +56,7 @@ export default function RegisterScreen() {
   if (successMessage) {
     return (
       <ScreenBackground>
+        <FloatingPetals />
         <View style={styles.centeredFull}>
           <View style={styles.card}>
             <Text style={styles.successTitle}>Almost there!</Text>
@@ -74,6 +76,7 @@ export default function RegisterScreen() {
 
   return (
     <ScreenBackground>
+      <FloatingPetals />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
