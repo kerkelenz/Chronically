@@ -88,10 +88,13 @@ export default function RegisterScreen() {
         >
           <View style={styles.header}>
             <Text style={styles.appName}>Chronically</Text>
-            <Text style={styles.title}>Create account</Text>
+            <Text style={styles.tagline}>
+              your daily companion for the chronic life.
+            </Text>
           </View>
 
           <View style={styles.card}>
+            <Text style={styles.cardTitle}>Create account</Text>
             <TextInput
               style={styles.input}
               value={username}
@@ -187,17 +190,22 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontFamily: "PlayfairDisplay_500Medium",
-    fontSize: 16,
-    color: "rgba(255,255,255,0.65)",
-    letterSpacing: 3,
-    textTransform: "uppercase",
-    marginBottom: 10,
-  },
-  title: {
-    fontFamily: "PlayfairDisplay_500Medium",
-    fontSize: 38,
+    fontSize: 30,
     color: "white",
     textAlign: "center",
+  },
+  tagline: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.7)",
+    textAlign: "center",
+    marginTop: 6,
+  },
+  cardTitle: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 15,
+    color: "white",
+    marginBottom: 14,
   },
   card: {
     backgroundColor: "rgba(255,255,255,0.15)",

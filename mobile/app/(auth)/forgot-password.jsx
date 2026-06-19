@@ -79,13 +79,16 @@ export default function ForgotPasswordScreen() {
         >
           <View style={styles.header}>
             <Text style={styles.appName}>Chronically</Text>
-            <Text style={styles.title}>Forgot password?</Text>
-            <Text style={styles.subtitle}>
-              Enter your email and we'll send you a reset link.
+            <Text style={styles.tagline}>
+              your daily companion for the chronic life.
             </Text>
           </View>
 
           <View style={styles.card}>
+            <Text style={styles.cardTitle}>Forgot password?</Text>
+            <Text style={styles.cardSubtitle}>
+              Enter your email and we'll send you a reset link.
+            </Text>
             <TextInput
               style={styles.input}
               value={email}
@@ -148,25 +151,28 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontFamily: "PlayfairDisplay_500Medium",
-    fontSize: 16,
-    color: "rgba(255,255,255,0.65)",
-    letterSpacing: 3,
-    textTransform: "uppercase",
-    marginBottom: 10,
-  },
-  title: {
-    fontFamily: "PlayfairDisplay_500Medium",
-    fontSize: 38,
+    fontSize: 30,
     color: "white",
     textAlign: "center",
-    marginBottom: 12,
   },
-  subtitle: {
+  tagline: {
     fontFamily: "Lato_400Regular",
-    fontSize: 15,
-    color: "rgba(255,255,255,0.75)",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.7)",
     textAlign: "center",
-    lineHeight: 22,
+    marginTop: 6,
+  },
+  cardTitle: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 15,
+    color: "white",
+    marginBottom: 6,
+  },
+  cardSubtitle: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.7)",
+    marginBottom: 14,
   },
   card: {
     backgroundColor: "rgba(255,255,255,0.15)",
