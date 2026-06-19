@@ -341,7 +341,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
           </View>
 
           <ScrollView
-            style={{ flex: 1 }}
+            style={{ flexShrink: 1 }}
             contentContainerStyle={styles.modalBody}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
