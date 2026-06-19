@@ -81,7 +81,7 @@ export default function RegisterScreen() {
   }
 
   return (
-    <ScreenBackground>
+    <ScreenBackground blobVariant="auth">
       <FloatingPetals />
       <KeyboardAvoidingView
         style={{ flex: 1 }}

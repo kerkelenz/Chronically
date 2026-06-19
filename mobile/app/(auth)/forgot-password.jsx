@@ -72,7 +72,7 @@ export default function ForgotPasswordScreen() {
   }
 
   return (
-    <ScreenBackground>
+    <ScreenBackground blobVariant="auth">
       <FloatingPetals />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
