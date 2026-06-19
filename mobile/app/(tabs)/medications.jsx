@@ -322,6 +322,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
     <Modal
       animationType="slide"
       transparent
+      statusBarTranslucent
       visible={visible}
       onRequestClose={onCancel}
     >
@@ -330,11 +331,11 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <TouchableOpacity
-          style={styles.modalScrim}
+          style={[styles.modalScrim, { height: insets.top + 8 }]}
           activeOpacity={1}
           onPress={onCancel}
         />
-        <View style={styles.modalCard}>
+        <View style={[styles.modalCard, { flex: 1 }]}>
           {/* Header */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>
@@ -344,7 +345,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
 
           <ScrollView
             style={{ flexShrink: 1 }}
-            contentContainerStyle={[styles.modalBody, { paddingBottom: insets.bottom + 32 }]}
+            contentContainerStyle={styles.modalBody}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -550,38 +551,41 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
               />
             </View>
 
-            {saveError ? (
-              <Text style={styles.saveError}>{saveError}</Text>
-            ) : null}
-
-            {/* ── Footer ── */}
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={onCancel}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.saveBtn,
-                  (!form.name.trim() || saving) && styles.saveBtnDisabled,
-                ]}
-                onPress={onSave}
-                disabled={!form.name.trim() || saving}
-                activeOpacity={0.85}
-              >
-                {saving ? (
-                  <ActivityIndicator color="white" size="small" />
-                ) : (
-                  <Text style={styles.saveBtnText}>
-                    {saving ? "Saving…" : "Save"}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
           </ScrollView>
+
+          {saveError ? (
+            <Text style={[styles.saveError, { paddingHorizontal: 20 }]}>
+              {saveError}
+            </Text>
+          ) : null}
+
+          {/* ── Footer (pinned) ── */}
+          <View style={[styles.modalFooter, { paddingBottom: insets.bottom + 12 }]}>
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={onCancel}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.saveBtn,
+                (!form.name.trim() || saving) && styles.saveBtnDisabled,
+              ]}
+              onPress={onSave}
+              disabled={!form.name.trim() || saving}
+              activeOpacity={0.85}
+            >
+              {saving ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Text style={styles.saveBtnText}>
+                  {saving ? "Saving…" : "Save"}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -1239,14 +1243,12 @@ const styles = StyleSheet.create({
   // ── MedModal ───────────────────────────────────────────────────────────────
 
   modalScrim: {
-    flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
   },
   modalCard: {
     backgroundColor: "rgba(52,38,86,0.98)",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: "90%",
     borderTopWidth: 1,
     borderColor: "rgba(255,255,255,0.15)",
   },
@@ -1420,7 +1422,10 @@ const styles = StyleSheet.create({
   modalFooter: {
     flexDirection: "row",
     gap: 10,
-    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
   },
   cancelBtn: {
     flex: 1,
