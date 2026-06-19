@@ -44,9 +44,15 @@ export default function ForgotPasswordScreen() {
 
   if (submitted) {
     return (
-      <ScreenBackground>
+      <ScreenBackground blobVariant="auth">
         <FloatingPetals />
         <View style={styles.centeredFull}>
+          <View style={styles.header}>
+            <Text style={styles.appName}>Chronically</Text>
+            <Text style={styles.tagline}>
+              your daily companion for the chronic life.
+            </Text>
+          </View>
           <View style={styles.card}>
             <Text style={styles.successTitle}>Check your inbox</Text>
             <Text style={styles.successBody}>

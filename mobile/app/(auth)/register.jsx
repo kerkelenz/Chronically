@@ -55,9 +55,15 @@ export default function RegisterScreen() {
 
   if (successMessage) {
     return (
-      <ScreenBackground>
+      <ScreenBackground blobVariant="auth">
         <FloatingPetals />
         <View style={styles.centeredFull}>
+          <View style={styles.header}>
+            <Text style={styles.appName}>Chronically</Text>
+            <Text style={styles.tagline}>
+              your daily companion for the chronic life.
+            </Text>
+          </View>
           <View style={styles.card}>
             <Text style={styles.successTitle}>Almost there!</Text>
             <Text style={styles.successBody}>{successMessage}</Text>
