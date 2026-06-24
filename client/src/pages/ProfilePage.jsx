@@ -300,6 +300,22 @@ function ProfilePage() {
           style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
         >
           <button
+            onClick={() => navigate("/privacy")}
+            className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
+            style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.2)" }}
+          >
+            Privacy Policy
+            <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
+          </button>
+          <button
+            onClick={() => navigate("/terms")}
+            className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
+            style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.2)" }}
+          >
+            Terms of Service
+            <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
+          </button>
+          <button
             onClick={() => { logout(); navigate("/"); }}
             className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
             style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.2)" }}

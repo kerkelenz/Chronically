@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
   FiCalendar, FiPlus, FiEdit2, FiTrash2, FiX, FiMapPin, FiClock,
-  FiChevronLeft, FiChevronRight,
+  FiChevronLeft, FiChevronRight, FiDownload,
 } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
+import { exportDoctorReport } from "../utils/exportReport";
 import Navigation, { NavHamburger } from "../components/Navigation";
 
 const EMPTY_FORM = {
@@ -61,7 +62,7 @@ const inputStyle = {
 const DAY_HEADERS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 function AppointmentsPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +72,8 @@ function AppointmentsPage() {
   const [saving, setSaving] = useState(false);
   const [cancelConfirmId, setCancelConfirmId] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(false);
 
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -217,6 +220,20 @@ function AppointmentsPage() {
       console.error("Failed to delete appointment:", err);
     } finally {
       setDeleteConfirmId(null);
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    setExportError(false);
+    try {
+      await exportDoctorReport({ token, username: user?.username });
+    } catch (err) {
+      console.error("Export failed:", err);
+      setExportError(true);
+      setTimeout(() => setExportError(false), 5000);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -668,6 +685,32 @@ function AppointmentsPage() {
               </>
             )}
           </>
+        )}
+
+        {!loading && (
+          <div
+            className="rounded-2xl p-5 flex flex-col gap-2"
+            style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
+          >
+            <p className="text-white font-medium text-sm">Doctor Report</p>
+            <p className="text-white/70 text-xs leading-relaxed">
+              Export a 30-day PDF summary of health metrics, medications, adherence,
+              and appointments — designed to bring to your next visit.
+            </p>
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="mt-1 px-4 py-2 rounded-full bg-white text-sm font-medium self-start flex items-center gap-2 hover:scale-105 transition-all duration-200"
+              style={{ color: "#7C6BAE" }}
+            >
+              {exporting ? "Preparing..." : <><FiDownload size={14} /> Export PDF Report</>}
+            </button>
+            {exportError && (
+              <p className="text-[11px]" style={{ color: "rgba(255,120,120,0.9)" }}>
+                Failed to prepare report. Please try again.
+              </p>
+            )}
+          </div>
         )}
       </div>
 
