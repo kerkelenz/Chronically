@@ -29,7 +29,11 @@ export default function TabLayout() {
         options={{
           title: "Dashboard",
           tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon name={focused ? "home" : "home-outline"} color={color} size={size} />
+            <TabIcon
+              name={focused ? "home" : "home-outline"}
+              color={color}
+              size={size}
+            />
           ),
         }}
       />
@@ -38,25 +42,37 @@ export default function TabLayout() {
         options={{
           title: "Trends",
           tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon name={focused ? "trending-up" : "trending-up-outline"} color={color} size={size} />
+            <TabIcon
+              name={focused ? "trending-up" : "trending-up-outline"}
+              color={color}
+              size={size}
+            />
           ),
         }}
       />
       <Tabs.Screen
         name="medications"
         options={{
-          title: "Medications",
+          title: "Meds",
           tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon name={focused ? "medical" : "medical-outline"} color={color} size={size} />
+            <TabIcon
+              name={focused ? "medical" : "medical-outline"}
+              color={color}
+              size={size}
+            />
           ),
         }}
       />
       <Tabs.Screen
         name="appointments"
         options={{
-          title: "Appointments",
+          title: "Appts",
           tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon name={focused ? "calendar" : "calendar-outline"} color={color} size={size} />
+            <TabIcon
+              name={focused ? "calendar" : "calendar-outline"}
+              color={color}
+              size={size}
+            />
           ),
         }}
       />
@@ -65,7 +81,11 @@ export default function TabLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon name={focused ? "person" : "person-outline"} color={color} size={size} />
+            <TabIcon
+              name={focused ? "person" : "person-outline"}
+              color={color}
+              size={size}
+            />
           ),
         }}
       />

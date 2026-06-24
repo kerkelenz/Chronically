@@ -21,7 +21,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.anonymous.chronicallymobile"
+      "package": "com.chronically.chronicallymobile"
     },
     "web": {
       "bundler": "metro",
@@ -33,6 +33,12 @@
       "expo-splash-screen",
       "expo-secure-store",
       "@react-native-community/datetimepicker"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "9362e50f-8877-448a-99f9-de8eeff0a432"
+      }
+    }
   }
 }
