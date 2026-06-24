@@ -34,7 +34,8 @@
       "expo-font",
       "expo-splash-screen",
       "expo-secure-store",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      ["react-native-edge-to-edge", { "android": { "enforceNavigationBarContrast": false } }]
     ],
     "extra": {
       "router": {},
