@@ -10,6 +10,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -239,6 +240,21 @@ export default function ProfileScreen() {
             <Text style={styles.sectionLabel}>Account</Text>
 
             <TouchableOpacity
+              style={styles.legalRow}
+              onPress={() => Linking.openURL("https://mychronically.app/privacy")}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.legalText}>Privacy Policy</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.legalRow}
+              onPress={() => Linking.openURL("https://mychronically.app/terms")}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.legalText}>Terms of Service</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={styles.signOutBtn}
               onPress={signOut}
               activeOpacity={0.75}
@@ -434,6 +450,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "white",
     letterSpacing: 0.3,
+  },
+
+  legalRow: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  legalText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 15,
+    color: "rgba(255,255,255,0.9)",
   },
 
   // Account section

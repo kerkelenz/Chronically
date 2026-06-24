@@ -212,6 +212,11 @@ function LoginPage() {
             Forgot your password?
           </span>
         </p>
+        <p className="text-white/70 text-xs mt-4">
+          <a href="/privacy" className="hover:underline">Privacy Policy</a>
+          <span className="mx-2">·</span>
+          <a href="/terms" className="hover:underline">Terms of Service</a>
+        </p>
       </div>
     </div>
   );

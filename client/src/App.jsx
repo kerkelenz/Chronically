@@ -11,12 +11,16 @@ import ProfilePage from "./pages/ProfilePage";
 import TrendsPage from "./pages/TrendsPage";
 import MedicationsPage from "./pages/MedicationsPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsPage from "./pages/TermsPage";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

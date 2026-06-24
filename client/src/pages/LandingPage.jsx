@@ -140,6 +140,11 @@ function LandingPage() {
           </button>
         </div>
       </div>
+      <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-white/70 z-10">
+        <a href="/privacy" className="hover:underline">Privacy Policy</a>
+        <span className="mx-2">·</span>
+        <a href="/terms" className="hover:underline">Terms of Service</a>
+      </div>
     </div>
   );
 }

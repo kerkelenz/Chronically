@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import { useRouter } from "expo-router";
 import ScreenBackground from "../../components/ScreenBackground";
@@ -165,6 +166,23 @@ export default function RegisterScreen() {
                 <Text style={styles.buttonText}>Create Account</Text>
               )}
             </TouchableOpacity>
+            <Text style={styles.agreementText}>
+              By creating an account, you agree to our{" "}
+              <Text
+                style={styles.agreementLink}
+                onPress={() => Linking.openURL("https://mychronically.app/terms")}
+              >
+                Terms of Service
+              </Text>{" "}
+              and{" "}
+              <Text
+                style={styles.agreementLink}
+                onPress={() => Linking.openURL("https://mychronically.app/privacy")}
+              >
+                Privacy Policy
+              </Text>
+              .
+            </Text>
           </View>
 
           <View style={styles.footer}>
@@ -288,6 +306,19 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_400Regular",
     fontSize: 14,
     color: "rgba(255,255,255,0.8)",
+    textDecorationLine: "underline",
+  },
+  agreementText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.7)",
+    textAlign: "center",
+    marginTop: 16,
+    lineHeight: 17,
+  },
+  agreementLink: {
+    fontFamily: "Lato_700Bold",
+    color: "white",
     textDecorationLine: "underline",
   },
 });
