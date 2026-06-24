@@ -18,6 +18,7 @@ import ScreenBackground from "../../components/ScreenBackground";
 import Avatar from "../../components/Avatar";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
+import MilestoneBadges from "../../components/MilestoneBadges";
 
 export default function ProfileScreen() {
   const { user, signOut, updateUser } = useAuth();
@@ -183,6 +184,14 @@ export default function ProfileScreen() {
               <Text style={styles.avatarError}>{avatarError}</Text>
             )}
           </View>
+
+          {/* ── Achievements ──────────────────────────────────────────────── */}
+          {(user?.celebratedMilestones || []).length > 0 && (
+            <View style={styles.card}>
+              <Text style={styles.sectionLabel}>Achievements</Text>
+              <MilestoneBadges milestones={user.celebratedMilestones} />
+            </View>
+          )}
 
           {/* ── Username / Email form ─────────────────────────────────────── */}
           <View style={styles.card}>

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -21,6 +21,8 @@ import api from "../../lib/api";
 import { openCheckIn } from "../../lib/checkinNav";
 import { METRICS, METRIC_LABELS, SYMPTOM_LIST } from "../../theme/metrics";
 import { SymptomIcon } from "../../components/SymptomIcon";
+import MilestoneCelebration from "../../components/MilestoneCelebration";
+import { MILESTONES, totalCheckInDays } from "../../lib/milestones";
 
 const BAR_HEIGHTS = [12, 16, 20, 24, 28];
 const BAR_COLORS = {
@@ -94,7 +96,7 @@ function formatApptLabel(dateStr) {
 }
 
 export default function DashboardScreen() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const [checkIns, setCheckIns] = useState([]);
@@ -103,7 +105,9 @@ export default function DashboardScreen() {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [editingCheckIn, setEditingCheckIn] = useState(null);
+  const [celebration, setCelebration] = useState(null);
   const isFirstLoadRef = useRef(true);
+  const seededRef = useRef(false);
 
   // 5 dials across, 24px side padding each, 8px between each dial (4 gaps)
   const DIAL_SIZE = Math.max(50, Math.floor((width - 48 - 32) / 5));
@@ -137,6 +141,28 @@ export default function DashboardScreen() {
       return () => { active = false; };
     }, [])
   );
+
+  useEffect(() => {
+    if (!user || loading) return;
+    const total = totalCheckInDays(checkIns);
+    const achieved = MILESTONES.filter((m) => total >= m);
+    const current = user.celebratedMilestones || [];
+    const newly = achieved.filter((m) => !current.includes(m));
+    if (newly.length === 0) {
+      seededRef.current = true;
+      return;
+    }
+    const merged = [...current, ...newly];
+    const wasSeeded = seededRef.current;
+    seededRef.current = true;
+    api
+      .put("/api/users/milestones", { celebratedMilestones: merged })
+      .then(() => updateUser({ ...user, celebratedMilestones: merged }))
+      .then(() => {
+        if (wasSeeded) setCelebration(Math.max(...newly));
+      })
+      .catch(() => {});
+  }, [checkIns, user, loading]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -467,6 +493,13 @@ export default function DashboardScreen() {
           </View>
         </View>
       </Modal>
+
+      {celebration && (
+        <MilestoneCelebration
+          milestone={celebration}
+          onDismiss={() => setCelebration(null)}
+        />
+      )}
     </ScreenBackground>
   );
 }
