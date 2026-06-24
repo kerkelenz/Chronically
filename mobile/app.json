@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "Chronically",
     "slug": "chronically-mobile",
     "scheme": "chronically",
     "version": "1.0.0",
@@ -8,10 +8,12 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
+      "bundleIdentifier": "com.chronically.chronicallymobile",
       "supportsTablet": true,
       "infoPlist": {
         "UIFileSharingEnabled": true,
-        "LSSupportsOpeningDocumentsInPlace": true
+        "LSSupportsOpeningDocumentsInPlace": true,
+        "NSPhotoLibraryUsageDescription": "Chronically uses your photo library so you can choose a profile picture."
       }
     },
     "android": {
