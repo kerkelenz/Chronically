@@ -26,27 +26,37 @@ import { MILESTONES, totalCheckInDays } from "../../lib/milestones";
 
 const BAR_HEIGHTS = [12, 16, 20, 24, 28];
 const BAR_COLORS = {
-  painLevel:     "rgba(255,255,255,0.95)",
-  moodLevel:     "#D87AB0",
-  energyLevel:   "#4FB882",
-  anxietyLevel:  "#6E9DE0",
+  painLevel: "rgba(255,255,255,0.95)",
+  moodLevel: "#D87AB0",
+  energyLevel: "#4FB882",
+  anxietyLevel: "#6E9DE0",
   appetiteLevel: "#DDA53F",
 };
 
-
 function CheckInRow({ checkIn, onEdit, onDelete, isLatest }) {
   const symptoms = Array.isArray(checkIn.symptoms) ? checkIn.symptoms : [];
-  const time = new Date(checkIn.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const time = new Date(checkIn.createdAt).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   return (
     <View style={styles.row}>
       <View style={styles.rowHeader}>
         <Text style={styles.rowTime}>{time}</Text>
         <View style={styles.rowActions}>
-          <TouchableOpacity style={styles.rowBtn} onPress={() => onEdit(checkIn)} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.rowBtn}
+            onPress={() => onEdit(checkIn)}
+            activeOpacity={0.8}
+          >
             <Ionicons name="pencil" size={13} color="white" />
           </TouchableOpacity>
           {isLatest && (
-            <TouchableOpacity style={[styles.rowBtn, styles.rowBtnDelete]} onPress={() => onDelete(checkIn.id)} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={[styles.rowBtn, styles.rowBtnDelete]}
+              onPress={() => onDelete(checkIn.id)}
+              activeOpacity={0.8}
+            >
               <Ionicons name="trash-outline" size={13} color="white" />
             </TouchableOpacity>
           )}
@@ -65,7 +75,11 @@ function CheckInRow({ checkIn, onEdit, onDelete, isLatest }) {
                     key={i}
                     style={[
                       styles.bar,
-                      { height: h, backgroundColor: i < val ? BAR_COLORS[key] : "rgba(255,255,255,0.16)" },
+                      {
+                        height: h,
+                        backgroundColor:
+                          i < val ? BAR_COLORS[key] : "rgba(255,255,255,0.16)",
+                      },
                     ]}
                   />
                 ))}
@@ -87,9 +101,12 @@ function CheckInRow({ checkIn, onEdit, onDelete, isLatest }) {
 
 function formatApptLabel(dateStr) {
   const appt = new Date(dateStr);
-  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-  const tomorrowStart = new Date(todayStart); tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-  const apptDay = new Date(appt); apptDay.setHours(0, 0, 0, 0);
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+  const apptDay = new Date(appt);
+  apptDay.setHours(0, 0, 0, 0);
   if (apptDay.getTime() === todayStart.getTime()) return "Today";
   if (apptDay.getTime() === tomorrowStart.getTime()) return "Tomorrow";
   return appt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -138,8 +155,10 @@ export default function DashboardScreen() {
         }
       })();
 
-      return () => { active = false; };
-    }, [])
+      return () => {
+        active = false;
+      };
+    }, []),
   );
 
   useEffect(() => {
@@ -203,14 +222,17 @@ export default function DashboardScreen() {
     if (!editingCheckIn) return;
     try {
       const res = await api.put(`/api/checkins/${editingCheckIn.id}`, {
-        painLevel:     editingCheckIn.painLevel,
-        moodLevel:     editingCheckIn.moodLevel,
-        energyLevel:   editingCheckIn.energyLevel,
-        anxietyLevel:  editingCheckIn.anxietyLevel,
+        painLevel: editingCheckIn.painLevel,
+        moodLevel: editingCheckIn.moodLevel,
+        energyLevel: editingCheckIn.energyLevel,
+        anxietyLevel: editingCheckIn.anxietyLevel,
         appetiteLevel: editingCheckIn.appetiteLevel,
-        symptoms:      editingCheckIn.symptoms?.length > 0 ? editingCheckIn.symptoms : null,
+        symptoms:
+          editingCheckIn.symptoms?.length > 0 ? editingCheckIn.symptoms : null,
       });
-      setCheckIns((prev) => prev.map((c) => (c.id === editingCheckIn.id ? res.data.checkIn : c)));
+      setCheckIns((prev) =>
+        prev.map((c) => (c.id === editingCheckIn.id ? res.data.checkIn : c)),
+      );
       setEditingCheckIn(null);
     } catch (e) {
       console.error("Update check-in failed:", e);
@@ -225,19 +247,25 @@ export default function DashboardScreen() {
     : false;
 
   const hour = new Date().getHours();
-  const timeGreeting = hour < 12 ? "Good morning," : hour < 17 ? "Good afternoon," : "Good evening,";
+  const timeGreeting =
+    hour < 12
+      ? "Good morning,"
+      : hour < 17
+        ? "Good afternoon,"
+        : "Good evening,";
 
   const nextCheckIn =
     todaysDone && checkIns[0]
-      ? new Date(new Date(checkIns[0].createdAt).getTime() + 4 * 60 * 60 * 1000)
-          .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      ? new Date(
+          new Date(checkIns[0].createdAt).getTime() + 4 * 60 * 60 * 1000,
+        ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
       : null;
 
   const fourteenDaysAgo = new Date();
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
   // Use noon to avoid timezone-edge-case shifts
   const recent = checkIns.filter(
-    (c) => new Date(c.date + "T12:00:00") >= fourteenDaysAgo
+    (c) => new Date(c.date + "T12:00:00") >= fourteenDaysAgo,
   );
 
   // Per-metric 14-day average; for optional metrics, divide only by non-null count
@@ -249,17 +277,27 @@ export default function DashboardScreen() {
   }
 
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-  const recentCheckIns = checkIns.filter((c) => new Date(c.createdAt) >= cutoff);
+  const recentCheckIns = checkIns.filter(
+    (c) => new Date(c.createdAt) >= cutoff,
+  );
 
-  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
   const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const upcomingAppts = appointments
-    .filter((a) => a.status === "upcoming" && new Date(a.date) >= todayStart && new Date(a.date) <= sevenDaysFromNow)
+    .filter(
+      (a) =>
+        a.status === "upcoming" &&
+        new Date(a.date) >= todayStart &&
+        new Date(a.date) <= sevenDaysFromNow,
+    )
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   const uniqueSymptomDays = [
     ...new Set(
-      recent.filter((c) => c.symptoms && c.symptoms.length > 0).map((c) => c.date),
+      recent
+        .filter((c) => c.symptoms && c.symptoms.length > 0)
+        .map((c) => c.date),
     ),
   ].length;
   const symptomDayCounts = {};
@@ -313,9 +351,13 @@ export default function DashboardScreen() {
         <View style={styles.greetingRow}>
           <Avatar user={user} size={36} />
           <View style={styles.greetingCol}>
-            <Text style={styles.greeting}>{timeGreeting} {user?.username || "there"}</Text>
+            <Text style={styles.greeting}>
+              {timeGreeting} {user?.username || "there"}
+            </Text>
             <Text style={styles.greetingSubtext}>
-              {todaysDone && nextCheckIn ? `Next check-in at ${nextCheckIn}` : "Ready to check in?"}
+              {todaysDone && nextCheckIn
+                ? `Next check-in at ${nextCheckIn}`
+                : "Ready to check in?"}
             </Text>
           </View>
         </View>
@@ -333,7 +375,9 @@ export default function DashboardScreen() {
         {/* Check-in prompt */}
         {!error && (checkIns.length === 0 || !todaysDone) && (
           <View style={styles.checkInPrompt}>
-            <Text style={styles.checkInPromptTitle}>How are you feeling right now?</Text>
+            <Text style={styles.checkInPromptTitle}>
+              How are you feeling right now?
+            </Text>
             <Text style={styles.checkInPromptSub}>It only takes a moment.</Text>
             <TouchableOpacity
               style={styles.checkInPromptBtn}
@@ -377,14 +421,18 @@ export default function DashboardScreen() {
                   ))}
                 </View>
               ) : (
-                <Text style={styles.commonEmpty}>No symptoms logged recently</Text>
+                <Text style={styles.commonEmpty}>
+                  No symptoms logged recently
+                </Text>
               )}
             </View>
 
             {/* Upcoming appointments reminder (within 7 days) */}
             {upcomingAppts.length > 0 && (
               <View style={[styles.card, styles.apptReminderCard]}>
-                <Text style={styles.apptReminderTitle}>Upcoming appointments</Text>
+                <Text style={styles.apptReminderTitle}>
+                  Upcoming appointments
+                </Text>
                 {upcomingAppts.map((appt) => (
                   <TouchableOpacity
                     key={appt.id}
@@ -393,15 +441,23 @@ export default function DashboardScreen() {
                     activeOpacity={0.8}
                   >
                     <View style={styles.apptIconCircle}>
-                      <Ionicons name="calendar-outline" size={13} color="white" />
+                      <Ionicons
+                        name="calendar-outline"
+                        size={13}
+                        color="white"
+                      />
                     </View>
                     <View style={styles.apptRowInfo}>
                       <Text style={styles.apptDoctorText}>
-                        {appt.doctorName}{appt.specialty ? ` — ${appt.specialty}` : ""}
+                        {appt.doctorName}
+                        {appt.specialty ? ` — ${appt.specialty}` : ""}
                       </Text>
                       <Text style={styles.apptTimeText}>
                         {formatApptLabel(appt.date)} at{" "}
-                        {new Date(appt.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {new Date(appt.date).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -413,7 +469,9 @@ export default function DashboardScreen() {
             <View style={styles.card}>
               <Text style={styles.sectionHeading}>Last 24 hours</Text>
               {recentCheckIns.length === 0 ? (
-                <Text style={styles.emptyRecentText}>No check-ins in the last 24 hours</Text>
+                <Text style={styles.emptyRecentText}>
+                  No check-ins in the last 24 hours
+                </Text>
               ) : (
                 recentCheckIns.map((c, i) => (
                   <CheckInRow
@@ -430,10 +488,18 @@ export default function DashboardScreen() {
         )}
       </ScrollView>
 
-      <Modal visible={!!editingCheckIn} transparent animationType="fade" onRequestClose={() => setEditingCheckIn(null)}>
+      <Modal
+        visible={!!editingCheckIn}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditingCheckIn(null)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.editModalCard}>
-            <ScrollView contentContainerStyle={{ gap: 14, padding: 20 }} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              contentContainerStyle={{ gap: 14, padding: 20 }}
+              showsVerticalScrollIndicator={false}
+            >
               <Text style={styles.editTitle}>Edit Check-in</Text>
               {METRICS.map(({ key, label }) => {
                 const name = key.replace("Level", "");
@@ -446,11 +512,21 @@ export default function DashboardScreen() {
                         return (
                           <TouchableOpacity
                             key={level}
-                            style={[styles.levelBtn, selected && styles.levelBtnSelected]}
-                            onPress={() => setEditingCheckIn((prev) => ({ ...prev, [key]: level }))}
+                            style={[
+                              styles.levelBtn,
+                              selected && styles.levelBtnSelected,
+                            ]}
+                            onPress={() =>
+                              setEditingCheckIn((prev) => ({
+                                ...prev,
+                                [key]: level,
+                              }))
+                            }
                             activeOpacity={0.8}
                           >
-                            <Text style={styles.levelBtnText}>{METRIC_LABELS[name][level]}</Text>
+                            <Text style={styles.levelBtnText}>
+                              {METRIC_LABELS[name][level]}
+                            </Text>
                           </TouchableOpacity>
                         );
                       })}
@@ -466,11 +542,19 @@ export default function DashboardScreen() {
                     return (
                       <TouchableOpacity
                         key={s}
-                        style={[styles.symptomChipBtn, active && styles.symptomChipActive]}
+                        style={[
+                          styles.symptomChipBtn,
+                          active && styles.symptomChipActive,
+                        ]}
                         onPress={() =>
                           setEditingCheckIn((prev) => {
                             const cur = prev.symptoms || [];
-                            return { ...prev, symptoms: active ? cur.filter((x) => x !== s) : [...cur, s] };
+                            return {
+                              ...prev,
+                              symptoms: active
+                                ? cur.filter((x) => x !== s)
+                                : [...cur, s],
+                            };
                           })
                         }
                         activeOpacity={0.8}
@@ -482,10 +566,18 @@ export default function DashboardScreen() {
                 </View>
               </View>
               <View style={styles.editActions}>
-                <TouchableOpacity style={styles.editCancelBtn} onPress={() => setEditingCheckIn(null)} activeOpacity={0.8}>
+                <TouchableOpacity
+                  style={styles.editCancelBtn}
+                  onPress={() => setEditingCheckIn(null)}
+                  activeOpacity={0.8}
+                >
                   <Text style={styles.editCancelText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.editSaveBtn} onPress={handleUpdateCheckIn} activeOpacity={0.8}>
+                <TouchableOpacity
+                  style={styles.editSaveBtn}
+                  onPress={handleUpdateCheckIn}
+                  activeOpacity={0.8}
+                >
                   <Text style={styles.editSaveText}>Save</Text>
                 </TouchableOpacity>
               </View>
@@ -692,14 +784,46 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.18)",
   },
-  rowHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 2 },
-  rowTime: { fontFamily: "Lato_400Regular", fontSize: 12, color: "rgba(255,255,255,0.7)" },
+  rowHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  rowTime: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.7)",
+  },
   rowActions: { flexDirection: "row", gap: 8 },
-  rowBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.25)", alignItems: "center", justifyContent: "center" },
+  rowBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   rowBtnDelete: { backgroundColor: "rgba(225,90,90,0.45)" },
-  metricList: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginTop: 6, rowGap: 10 },
-  metricRow: { flexDirection: "row", alignItems: "center", gap: 8, width: "47%" },
-  metricLabel: { width: 52, fontSize: 11, fontFamily: "Lato_400Regular", color: "rgba(255,255,255,0.82)" },
+  metricList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginTop: 6,
+    rowGap: 10,
+  },
+  metricRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    width: "47%",
+  },
+  metricLabel: {
+    width: 52,
+    fontSize: 11,
+    fontFamily: "Lato_400Regular",
+    color: "rgba(255,255,255,0.82)",
+  },
   barGroup: { flexDirection: "row", alignItems: "flex-end", gap: 3 },
   bar: { width: 8, borderRadius: 1.5 },
   symptomIconRow: {
@@ -709,33 +833,118 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   commonCard: {
-    paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.15)", borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)", marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    marginBottom: 20,
   },
-  commonHeader: { fontFamily: "Lato_400Regular", fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 12 },
+  commonHeader: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.7)",
+    marginBottom: 12,
+  },
   commonGrid: { flexDirection: "row", justifyContent: "space-around" },
   commonItem: { flex: 1, alignItems: "center", gap: 2 },
-  commonName: { fontFamily: "Lato_400Regular", fontSize: 11, color: "rgba(255,255,255,0.8)", textAlign: "center", lineHeight: 14 },
-  commonCount: { fontFamily: "Lato_400Regular", fontSize: 11, color: "rgba(255,255,255,0.6)" },
-  commonEmpty: { fontFamily: "Lato_400Regular", fontSize: 12, color: "rgba(255,255,255,0.6)" },
+  commonName: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.8)",
+    textAlign: "center",
+    lineHeight: 14,
+  },
+  commonCount: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.6)",
+  },
+  commonEmpty: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.6)",
+  },
 
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 16 },
-  editModalCard: { width: "100%", maxWidth: 380, maxHeight: "88%", backgroundColor: "rgba(90,75,130,0.97)", borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.25)", overflow: "hidden" },
-  editTitle: { fontFamily: "PlayfairDisplay_500Medium", fontSize: 20, color: "white" },
-  editLabel: { fontFamily: "Lato_400Regular", fontSize: 12, color: "rgba(255,255,255,0.8)", marginBottom: 8 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  editModalCard: {
+    width: "100%",
+    maxWidth: 380,
+    maxHeight: "88%",
+    backgroundColor: "rgba(90,75,130,0.97)",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+    overflow: "hidden",
+  },
+  editTitle: {
+    fontFamily: "PlayfairDisplay_500Medium",
+    fontSize: 20,
+    color: "white",
+  },
+  editLabel: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.8)",
+    marginBottom: 8,
+  },
   levelRow: { flexDirection: "row", gap: 6 },
-  levelBtn: { flex: 1, paddingVertical: 8, paddingHorizontal: 2, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
+  levelBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   levelBtnSelected: { backgroundColor: "#7C6BAE" },
-  levelBtnText: { fontFamily: "Lato_400Regular", fontSize: 10, lineHeight: 12, color: "white", textAlign: "center" },
+  levelBtnText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 10,
+    lineHeight: 12,
+    color: "white",
+    textAlign: "center",
+  },
   symptomChipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  symptomChipBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.15)" },
+  symptomChipBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
   symptomChipActive: { backgroundColor: "#7C6BAE" },
-  symptomChipText: { fontFamily: "Lato_400Regular", fontSize: 12, color: "white" },
+  symptomChipText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "white",
+  },
   editActions: { flexDirection: "row", gap: 12, marginTop: 4 },
-  editCancelBtn: { flex: 1, paddingVertical: 10, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center" },
-  editCancelText: { fontFamily: "Lato_400Regular", fontSize: 14, color: "rgba(255,255,255,0.85)" },
-  editSaveBtn: { flex: 1, paddingVertical: 10, borderRadius: 20, backgroundColor: "#7C6BAE", alignItems: "center" },
+  editCancelBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+  },
+  editCancelText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.85)",
+  },
+  editSaveBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: "#7C6BAE",
+    alignItems: "center",
+  },
   editSaveText: { fontFamily: "Lato_700Bold", fontSize: 14, color: "white" },
-
 });
