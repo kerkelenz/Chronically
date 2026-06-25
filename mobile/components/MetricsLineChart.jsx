@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import Svg, { Path, Circle, Line, Text as SvgText } from "react-native-svg";
-import { line, curveMonotoneX } from "d3-shape";
+import { monotonePath } from "../lib/curve";
 
 const SERIES = [
   { key: "energy",   color: "#8FAF9B" },
@@ -94,18 +94,23 @@ export default function MetricsLineChart({ data, width }) {
 
         {/* Series: path with gaps at null values; single-point dot */}
         {SERIES.map(({ key, color }) => {
-          const lineGen = line()
-            .defined((pt) => pt[key] !== null && pt[key] !== undefined)
-            .x((pt, i) => xFn(i))
-            .y((pt) => yFn(pt[key]))
-            .curve(curveMonotoneX);
-          const trimmed = (lineGen(data) || "").trim();
-          const nonNullPoints = data.filter((pt) => pt[key] !== null && pt[key] !== undefined);
-          const nonNullCount = nonNullPoints.length;
-          const lastPt = nonNullPoints[nonNullCount - 1];
-          const lastIdx = lastPt ? data.indexOf(lastPt) : 0;
-          const lastX = lastPt ? xFn(lastIdx) : 0;
-          const lastY = lastPt ? yFn(lastPt[key]) : 0;
+          const runs = [];
+          let run = [];
+          data.forEach((pt, i) => {
+            const v = pt[key];
+            if (v === null || v === undefined) {
+              if (run.length) { runs.push(run); run = []; }
+            } else {
+              run.push({ x: xFn(i), y: yFn(v) });
+            }
+          });
+          if (run.length) runs.push(run);
+          const trimmed = runs.map((r) => monotonePath(r)).join(" ").trim();
+          const nonNullCount = runs.reduce((s, r) => s + r.length, 0);
+          const lastRun = runs[runs.length - 1] || [];
+          const lastPt = lastRun[lastRun.length - 1] || { x: 0, y: 0 };
+          const lastX = lastPt.x;
+          const lastY = lastPt.y;
           return (
             <React.Fragment key={key}>
               {trimmed && nonNullCount > 1 && (

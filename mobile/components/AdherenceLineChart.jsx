@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, { Path, Circle, Line, Text as SvgText } from "react-native-svg";
-import { line, curveMonotoneX } from "d3-shape";
+import { monotonePath } from "../lib/curve";
 
 const CHART_HEIGHT = 200;
 const PAD = { left: 38, right: 10, top: 14, bottom: 22 };
@@ -43,11 +43,8 @@ export default function AdherenceLineChart({ data, width }) {
   const labelIndices = getXLabelIndices(n);
 
   // Build the path — no nulls in adherence data, always continuous
-  const lineGen = line()
-    .x((pt, i) => xFn(i))
-    .y((pt) => yFn(pt.percentage))
-    .curve(curveMonotoneX);
-  const pathD = lineGen(data) || "";
+  const points = data.map((pt, i) => ({ x: xFn(i), y: yFn(pt.percentage) }));
+  const pathD = monotonePath(points);
 
   return (
     <View>
