@@ -492,14 +492,14 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     borderRadius: 12,
     alignItems: "center",
-    backgroundColor: "rgba(220,50,80,0.2)",
+    backgroundColor: "rgba(220,50,80,0.18)",
     borderWidth: 1,
     borderColor: "rgba(220,50,80,0.35)",
   },
   deleteBtnText: {
     fontFamily: "Lato_700Bold",
     fontSize: 15,
-    color: "rgba(255,130,130,0.9)",
+    color: "rgba(255,150,150,0.9)",
     letterSpacing: 0.3,
   },
 
