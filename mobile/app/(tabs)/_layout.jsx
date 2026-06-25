@@ -38,6 +38,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="spoons"
+        options={{
+          title: "Spoons",
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon
+              name={focused ? "battery-half" : "battery-half-outline"}
+              color={color}
+              size={size}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="trends"
         options={{
           title: "Trends",
