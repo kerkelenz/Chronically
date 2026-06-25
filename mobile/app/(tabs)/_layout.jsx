@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
 function TabIcon({ name, color, size }) {
   return <Ionicons name={name} size={size} color={color} />;
@@ -41,12 +41,8 @@ export default function TabLayout() {
         name="spoons"
         options={{
           title: "Spoons",
-          tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon
-              name={focused ? "battery-half" : "battery-half-outline"}
-              color={color}
-              size={size}
-            />
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="silverware-spoon" size={size} color={color} />
           ),
         }}
       />

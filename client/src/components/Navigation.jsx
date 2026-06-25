@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  FiHome, FiTrendingUp, FiPackage, FiUser, FiCalendar, FiMenu, FiX, FiBattery,
+  FiHome, FiTrendingUp, FiPackage, FiUser, FiCalendar, FiMenu, FiX,
 } from "react-icons/fi";
+import { GiSpoon } from "react-icons/gi";
 import { useAuth } from "../hooks/useAuth";
 
 const NAV_ITEMS = [
   { label: "Dashboard",    mobileLabel: "Home",    path: "/dashboard",    Icon: FiHome },
-  { label: "Spoon Center", mobileLabel: "Spoons",  path: "/spoons",       Icon: FiBattery },
+  { label: "Spoon Center", mobileLabel: "Spoons",  path: "/spoons",       Icon: GiSpoon },
   { label: "Trends",       mobileLabel: "Trends",  path: "/trends",       Icon: FiTrendingUp },
   { label: "Medications",  mobileLabel: "Meds",    path: "/medications",  Icon: FiPackage },
   { label: "Appointments", mobileLabel: "Appts",   path: "/appointments", Icon: FiCalendar },

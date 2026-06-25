@@ -529,7 +529,7 @@ export default function SpoonCenterScreen() {
             </View>
 
             <ScrollView
-              style={{ flex: 1 }}
+              contentContainerStyle={{ paddingBottom: insets.bottom + 12 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
