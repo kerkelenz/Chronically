@@ -12,15 +12,14 @@ export default function Badge({ days, earned, size = 64 }) {
 
   const renderShape = (sh, i) => {
     const common = {
-      key: i,
       fill: sh.fill ? color(sh.fill) : "none",
       stroke: sh.stroke ? color(sh.stroke) : "none",
       strokeWidth: sh.sw || 0,
       strokeLinecap: "round",
       strokeLinejoin: "round",
     };
-    if (sh.t === "path") return <Path d={sh.d} {...common} />;
-    if (sh.t === "circle") return <Circle cx={sh.cx} cy={sh.cy} r={sh.r} {...common} />;
+    if (sh.t === "path") return <Path key={i} d={sh.d} {...common} />;
+    if (sh.t === "circle") return <Circle key={i} cx={sh.cx} cy={sh.cy} r={sh.r} {...common} />;
     return null;
   };
 
