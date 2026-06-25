@@ -4,13 +4,16 @@ import Badge from "./Badge";
 
 export default function MilestoneBadges({ milestones }) {
   const earnedSet = new Set(milestones || []);
+  const firstSix = MILESTONES.slice(0, 6);
+  const allSixEarned = firstSix.every((m) => earnedSet.has(m));
+  const visible = allSixEarned ? MILESTONES : firstSix;
   return (
     <View>
       <Text style={styles.count}>
         {earnedSet.size} of {MILESTONES.length} earned
       </Text>
       <View style={styles.grid}>
-        {MILESTONES.map((m) => {
+        {visible.map((m) => {
           const got = earnedSet.has(m);
           return (
             <View key={m} style={styles.cell}>

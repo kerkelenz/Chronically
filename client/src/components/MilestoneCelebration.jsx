@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { MILESTONE_COPY } from "../utils/milestones";
+import { MILESTONE_COPY, MILESTONE_META } from "../utils/milestones";
+import Badge from "./Badge";
 
 const CONFETTI_COLORS = ["#7C6BAE", "#9B8EC4", "#C4A8C0", "#C4A882", "#7FAF8A", "#FFFFFF"];
 
@@ -31,8 +32,10 @@ export default function MilestoneCelebration({ milestone, onDismiss }) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="text-5xl font-bold" style={{ color: "white" }}>{milestone}</p>
-        <p className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>days checked in</p>
+        <Badge days={milestone} earned size={128} />
+        <p className="text-xl font-medium" style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}>
+          {MILESTONE_META[milestone].name}
+        </p>
         <p
           className="text-lg font-medium leading-snug"
           style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}

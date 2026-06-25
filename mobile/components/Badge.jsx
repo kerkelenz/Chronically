@@ -28,18 +28,12 @@ export default function Badge({ days, earned, size = 64 }) {
     <Svg width={size} height={size}>
       <Defs>
         <RadialGradient id={gid} cx="38%" cy="32%" r="75%">
-          {earned ? (
-            <>
-              <Stop offset="0" stopColor={t.light} />
-              <Stop offset="0.55" stopColor={t.mid} />
-              <Stop offset="1" stopColor={t.dark} />
-            </>
-          ) : (
-            <>
-              <Stop offset="0" stopColor="#C9C2D6" />
-              <Stop offset="1" stopColor="#8A82A0" />
-            </>
-          )}
+          {(earned
+            ? [["0%", t.light], ["55%", t.mid], ["100%", t.dark]]
+            : [["0%", "#C9C2D6"], ["100%", "#8A82A0"]]
+          ).map(([offset, stopColor], i) => (
+            <Stop key={i} offset={offset} stopColor={stopColor} stopOpacity="1" />
+          ))}
         </RadialGradient>
       </Defs>
       {earned && <Circle cx={c} cy={c} r={R + size * 0.08} fill={t.mid} opacity={0.22} />}

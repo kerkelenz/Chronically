@@ -7,7 +7,8 @@ import {
   useWindowDimensions,
 } from "react-native";
 import ConfettiCannon from "react-native-confetti-cannon";
-import { MILESTONE_COPY } from "../lib/milestones";
+import { MILESTONE_COPY, MILESTONE_META } from "../lib/milestones";
+import Badge from "./Badge";
 
 const CONFETTI_COLORS = ["#7C6BAE", "#9B8EC4", "#C4A8C0", "#C4A882", "#7FAF8A", "#FFFFFF"];
 
@@ -26,8 +27,8 @@ export default function MilestoneCelebration({ milestone, onDismiss }) {
           colors={CONFETTI_COLORS}
         />
         <View style={styles.card}>
-          <Text style={styles.number}>{milestone}</Text>
-          <Text style={styles.sub}>days checked in</Text>
+          <Badge days={milestone} earned size={128} />
+          <Text style={styles.name}>{MILESTONE_META[milestone].name}</Text>
           <Text style={styles.copy}>{MILESTONE_COPY[milestone]}</Text>
           <TouchableOpacity style={styles.btn} onPress={onDismiss} activeOpacity={0.85}>
             <Text style={styles.btnText}>Keep it up</Text>
@@ -57,8 +58,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.35)",
   },
-  number: { fontFamily: "Lato_700Bold", fontSize: 52, color: "white", lineHeight: 58 },
-  sub: { fontFamily: "Lato_400Regular", fontSize: 13, color: "rgba(255,255,255,0.7)", marginTop: 2 },
+  name: { fontFamily: "PlayfairDisplay_500Medium", fontSize: 22, color: "white", marginTop: 14, textAlign: "center" },
   copy: {
     fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 18,
