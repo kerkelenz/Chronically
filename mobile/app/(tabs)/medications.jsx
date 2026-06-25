@@ -327,15 +327,11 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
       onRequestClose={onCancel}
     >
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.modalScrim}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <TouchableOpacity
-          style={[styles.modalScrim, { height: insets.top + 8 }]}
-          activeOpacity={1}
-          onPress={onCancel}
-        />
-        <View style={[styles.modalCard, { flex: 1 }]}>
+        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onCancel} />
+        <View style={styles.modalCard}>
           {/* Header */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>
@@ -1243,14 +1239,18 @@ const styles = StyleSheet.create({
   // ── MedModal ───────────────────────────────────────────────────────────────
 
   modalScrim: {
-    backgroundColor: "rgba(0,0,0,0.45)",
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
   },
   modalCard: {
+    maxHeight: "88%",
     backgroundColor: "rgba(52,38,86,0.98)",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderTopWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: "rgba(255,255,255,0.18)",
+    overflow: "hidden",
   },
   modalHeader: {
     paddingHorizontal: 20,

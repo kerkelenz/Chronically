@@ -15,6 +15,7 @@ import {
   Alert,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import * as Print from "expo-print";
@@ -45,6 +46,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function AppointmentsScreen() {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -752,8 +754,9 @@ export default function AppointmentsScreen() {
 
       {/* ── Add / Edit modal ─────────────────────────────────────────────────── */}
       <Modal
-        animationType="fade"
+        animationType="slide"
         transparent
+        statusBarTranslucent
         visible={showModal}
         onRequestClose={closeModal}
       >
@@ -761,6 +764,7 @@ export default function AppointmentsScreen() {
           style={styles.modalScrim}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={closeModal} />
           <View style={styles.modalCard}>
             {/* Modal header */}
             <View style={styles.modalHeader}>
@@ -774,7 +778,7 @@ export default function AppointmentsScreen() {
 
             {/* Scrollable form */}
             <ScrollView
-              contentContainerStyle={styles.formContent}
+              contentContainerStyle={[styles.formContent, { paddingBottom: insets.bottom + 12 }]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -1466,18 +1470,16 @@ const styles = StyleSheet.create({
   // Add / Edit modal
   modalScrim: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 16,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
   },
   modalCard: {
-    width: "100%",
-    maxHeight: "90%",
-    backgroundColor: "rgba(90,75,130,0.97)",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
+    maxHeight: "88%",
+    backgroundColor: "rgba(52,38,86,0.98)",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
     overflow: "hidden",
   },
   modalHeader: {

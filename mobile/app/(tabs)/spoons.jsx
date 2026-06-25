@@ -493,15 +493,17 @@ export default function SpoonCenterScreen() {
 
       {/* ── Add Activity Sheet ──────────────────────────────────────────────── */}
       <Modal
-        animationType="fade"
+        animationType="slide"
         transparent
+        statusBarTranslucent
         visible={showAdd}
         onRequestClose={() => setShowAdd(false)}
       >
         <KeyboardAvoidingView
           style={styles.scrimBottom}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowAdd(false)} />
           <View style={styles.sheet}>
             {/* Sheet header */}
             <View style={styles.sheetHeader}>
@@ -958,12 +960,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   sheet: {
-    backgroundColor: "rgba(70,55,108,0.98)",
+    maxHeight: "88%",
+    backgroundColor: "rgba(52,38,86,0.98)",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    maxHeight: "82%",
+    borderTopWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
     overflow: "hidden",
   },
   dialog: {
