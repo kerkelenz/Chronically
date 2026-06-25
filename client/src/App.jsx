@@ -11,6 +11,7 @@ import ProfilePage from "./pages/ProfilePage";
 import TrendsPage from "./pages/TrendsPage";
 import MedicationsPage from "./pages/MedicationsPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
+import SpoonCenterPage from "./pages/SpoonCenterPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsPage from "./pages/TermsPage";
 
@@ -63,6 +64,14 @@ function App() {
           element={
             <ProtectedRoute>
               <AppointmentsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/spoons"
+          element={
+            <ProtectedRoute>
+              <SpoonCenterPage />
             </ProtectedRoute>
           }
         />

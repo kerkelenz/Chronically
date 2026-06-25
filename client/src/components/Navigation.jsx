@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  FiHome, FiTrendingUp, FiPackage, FiUser, FiCalendar, FiMenu, FiX,
+  FiHome, FiTrendingUp, FiPackage, FiUser, FiCalendar, FiMenu, FiX, FiBattery,
 } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
 
 const NAV_ITEMS = [
   { label: "Dashboard",    mobileLabel: "Home",    path: "/dashboard",    Icon: FiHome },
+  { label: "Spoon Center", mobileLabel: "Spoons",  path: "/spoons",       Icon: FiBattery },
   { label: "Trends",       mobileLabel: "Trends",  path: "/trends",       Icon: FiTrendingUp },
   { label: "Medications",  mobileLabel: "Meds",    path: "/medications",  Icon: FiPackage },
   { label: "Appointments", mobileLabel: "Appts",   path: "/appointments", Icon: FiCalendar },
@@ -86,7 +87,7 @@ function Navigation() {
       className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
       style={{ background: "white", borderTop: "1px solid #DDD5EE" }}
     >
-      <div className="grid grid-cols-5">
+      <div className="grid grid-cols-6">
         {NAV_ITEMS.map(({ mobileLabel, path, Icon }) => {
           const isActive = pathname === path;
           return (
