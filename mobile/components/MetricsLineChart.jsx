@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import Svg, { Path, Circle, Line, Text as SvgText } from "react-native-svg";
+import { line, curveMonotoneX } from "d3-shape";
 
 const SERIES = [
   { key: "energy",   color: "#8FAF9B" },
@@ -93,32 +94,18 @@ export default function MetricsLineChart({ data, width }) {
 
         {/* Series: path with gaps at null values; single-point dot */}
         {SERIES.map(({ key, color }) => {
-          let pathD = "";
-          let prevNull = true;
-          let nonNullCount = 0;
-          let lastX = 0;
-          let lastY = 0;
-
-          data.forEach((pt, i) => {
-            const v = pt[key];
-            if (v === null || v === undefined) {
-              prevNull = true;
-            } else {
-              nonNullCount++;
-              const x = xFn(i);
-              const y = yFn(v);
-              lastX = x;
-              lastY = y;
-              if (prevNull) {
-                pathD += `M${x.toFixed(2)},${y.toFixed(2)} `;
-              } else {
-                pathD += `L${x.toFixed(2)},${y.toFixed(2)} `;
-              }
-              prevNull = false;
-            }
-          });
-
-          const trimmed = pathD.trim();
+          const lineGen = line()
+            .defined((pt) => pt[key] !== null && pt[key] !== undefined)
+            .x((pt, i) => xFn(i))
+            .y((pt) => yFn(pt[key]))
+            .curve(curveMonotoneX);
+          const trimmed = (lineGen(data) || "").trim();
+          const nonNullPoints = data.filter((pt) => pt[key] !== null && pt[key] !== undefined);
+          const nonNullCount = nonNullPoints.length;
+          const lastPt = nonNullPoints[nonNullCount - 1];
+          const lastIdx = lastPt ? data.indexOf(lastPt) : 0;
+          const lastX = lastPt ? xFn(lastIdx) : 0;
+          const lastY = lastPt ? yFn(lastPt[key]) : 0;
           return (
             <React.Fragment key={key}>
               {trimmed && nonNullCount > 1 && (
