@@ -63,6 +63,10 @@ const User = sequelize.define("User", {
     type: DataTypes.JSON,
     defaultValue: [],
   },
+  spoonBaseline: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
 });
 
 module.exports = User;
