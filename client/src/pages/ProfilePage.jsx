@@ -47,6 +47,14 @@ function ProfilePage() {
   const [deleteError, setDeleteError] = useState("");
 
   // Crop modal state
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportCategory, setReportCategory] = useState("Bug");
+  const [reportMessage, setReportMessage] = useState("");
+  const [reportSending, setReportSending] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [reportSent, setReportSent] = useState(false);
+
+  // Crop modal state
   const [showCropModal, setShowCropModal] = useState(false);
   const [imageSrc, setImageSrc] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -154,6 +162,25 @@ function ProfilePage() {
       updateUser({ ...user, avatar: null });
     } catch (err) {
       setError("Failed to remove photo. Please try again.");
+    }
+  };
+
+  const handleSendReport = async () => {
+    if (!reportMessage.trim()) { setReportError("Please describe the problem."); return; }
+    setReportSending(true);
+    setReportError("");
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/feedback`,
+        { message: reportMessage, category: reportCategory, platform: "web" },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setReportSent(true);
+      setReportMessage("");
+    } catch (err) {
+      setReportError("Couldn't send just now — please try again.");
+    } finally {
+      setReportSending(false);
     }
   };
 
@@ -316,6 +343,14 @@ function ProfilePage() {
             <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
           </button>
           <button
+            onClick={() => { setShowReportModal(true); setReportError(""); setReportSent(false); }}
+            className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
+            style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.2)" }}
+          >
+            Report a problem
+            <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
+          </button>
+          <button
             onClick={() => { logout(); navigate("/"); }}
             className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
             style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.2)" }}
@@ -408,6 +443,82 @@ function ProfilePage() {
                   Close
                 </button>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }}>
+          <div className="w-full max-w-sm mx-4 p-6 rounded-2xl flex flex-col gap-4" style={{ background: "white" }}>
+            {reportSent ? (
+              <>
+                <p className="font-medium text-center" style={{ color: "#2D2540", fontFamily: "Playfair Display, Georgia, serif" }}>
+                  Thank you — we've got it 💜
+                </p>
+                <p className="text-sm text-center" style={{ color: "#6B5F7A" }}>
+                  We read every message. It helps us make Chronically better.
+                </p>
+                <button
+                  onClick={() => setShowReportModal(false)}
+                  className="py-2 rounded-full text-sm text-white transition-all duration-200"
+                  style={{ background: "#7C6BAE" }}
+                >
+                  Close
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1">
+                  <p className="font-medium" style={{ color: "#2D2540", fontFamily: "Playfair Display, Georgia, serif" }}>
+                    Report a problem
+                  </p>
+                  <p className="text-sm" style={{ color: "#6B5F7A" }}>
+                    Something not working, or have an idea? Tell us — it helps us make Chronically better.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {["Bug", "Suggestion", "Other"].map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setReportCategory(c)}
+                      className="px-3 py-1.5 rounded-full text-xs transition-all"
+                      style={reportCategory === c
+                        ? { background: "#7C6BAE", color: "white" }
+                        : { background: "#F0EBF8", color: "#6B5F7A" }}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={reportMessage}
+                  onChange={(e) => setReportMessage(e.target.value)}
+                  rows={4}
+                  placeholder="Describe what happened…"
+                  className="w-full p-3 rounded-xl text-sm resize-none"
+                  style={{ background: "#F7F4FC", color: "#2D2540", border: "1px solid #E4DCF0" }}
+                />
+                {reportError && <p className="text-xs" style={{ color: "#B07088" }}>{reportError}</p>}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowReportModal(false)}
+                    disabled={reportSending}
+                    className="flex-1 py-2 rounded-full text-sm transition-all duration-200"
+                    style={{ background: "#F0EBF8", color: "#6B5F7A" }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSendReport}
+                    disabled={reportSending}
+                    className="flex-1 py-2 rounded-full text-sm text-white transition-all duration-200"
+                    style={{ background: "#7C6BAE", opacity: reportSending ? 0.7 : 1 }}
+                  >
+                    {reportSending ? "Sending…" : "Send"}
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>

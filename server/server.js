@@ -11,6 +11,7 @@ const userRoutes = require("./routes/userRoutes");
 const medicationRoutes = require("./routes/medicationRoutes");
 const appointmentRoutes = require("./routes/appointmentRoutes");
 const spoonRoutes = require("./routes/spoonRoutes");
+const feedbackRoutes = require("./routes/feedbackRoutes");
 const rateLimit = require("express-rate-limit");
 
 // importing the models here so Sequelize knows about them before we call sync
@@ -86,6 +87,7 @@ const startServer = async () => {
   app.use("/api/medications", medicationRoutes);
   app.use("/api/appointments", appointmentRoutes);
   app.use("/api/spoons", spoonRoutes);
+  app.use("/api/feedback", feedbackRoutes);
 
   // use the PORT from .env if it exists, otherwise default to 3001
   const PORT = process.env.PORT || 3001;
