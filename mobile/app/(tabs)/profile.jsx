@@ -39,6 +39,14 @@ export default function ProfileScreen() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  // ── Send feedback ─────────────────────────────────────────────────────────
+  const [showReport, setShowReport] = useState(false);
+  const [reportCategory, setReportCategory] = useState("Bug");
+  const [reportMessage, setReportMessage] = useState("");
+  const [reportSending, setReportSending] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [reportSent, setReportSent] = useState(false);
+
   const hasChanges =
     username !== (user?.username || "") || email !== (user?.email || "");
 
@@ -115,6 +123,25 @@ export default function ProfileScreen() {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSendReport() {
+    if (!reportMessage.trim()) { setReportError("Please describe the problem."); return; }
+    setReportSending(true);
+    setReportError("");
+    try {
+      await api.post("/api/feedback", {
+        message: reportMessage,
+        category: reportCategory,
+        platform: Platform.OS,
+      });
+      setReportSent(true);
+      setReportMessage("");
+    } catch (e) {
+      setReportError("Couldn't send just now — please try again.");
+    } finally {
+      setReportSending(false);
     }
   }
 
@@ -262,6 +289,13 @@ export default function ProfileScreen() {
             >
               <Text style={styles.legalText}>Terms of Service</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.legalRow}
+              onPress={() => { setReportError(""); setReportSent(false); setShowReport(true); }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.legalText}>Send feedback</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.signOutBtn}
@@ -284,6 +318,73 @@ export default function ProfileScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── Send feedback sheet ──────────────────────────────────────────── */}
+      <Modal
+        animationType="slide"
+        transparent
+        statusBarTranslucent
+        visible={showReport}
+        onRequestClose={() => setShowReport(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.reportScrim}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowReport(false)} />
+          <View style={styles.reportCard}>
+            {reportSent ? (
+              <View style={{ alignItems: "center", gap: 10 }}>
+                <Text style={styles.reportTitle}>Thank you — we've got it 💜</Text>
+                <Text style={styles.reportSub}>We read every message. It helps us make Chronically better.</Text>
+                <TouchableOpacity style={styles.reportSendBtn} onPress={() => setShowReport(false)} activeOpacity={0.85}>
+                  <Text style={styles.reportSendText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.reportTitle}>Send feedback</Text>
+                <Text style={styles.reportSub}>Something not working, or have an idea? Tell us — it helps us make Chronically better.</Text>
+                <View style={styles.reportChipRow}>
+                  {["Bug", "Suggestion", "Other"].map((c) => (
+                    <TouchableOpacity
+                      key={c}
+                      style={[styles.reportChip, reportCategory === c && styles.reportChipActive]}
+                      onPress={() => setReportCategory(c)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.reportChipText, reportCategory === c && styles.reportChipTextActive]}>{c}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TextInput
+                  style={styles.reportInput}
+                  value={reportMessage}
+                  onChangeText={setReportMessage}
+                  placeholder="Describe what happened…"
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  multiline
+                  textAlignVertical="top"
+                />
+                {reportError ? <Text style={styles.reportErrorText}>{reportError}</Text> : null}
+                <View style={styles.reportBtnRow}>
+                  <TouchableOpacity style={[styles.reportCancelBtn, { flex: 1 }]} onPress={() => setShowReport(false)} activeOpacity={0.8}>
+                    <Text style={styles.reportCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.reportSendBtn, { flex: 1 }, reportSending && { opacity: 0.7 }]}
+                    onPress={handleSendReport}
+                    disabled={reportSending}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.reportSendText}>{reportSending ? "Sending…" : "Send"}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* ── Delete confirmation modal ─────────────────────────────────────── */}
       <Modal
@@ -573,4 +674,44 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "white",
   },
+
+  // Send feedback sheet
+  reportScrim: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  reportCard: {
+    backgroundColor: "rgba(52,38,86,0.98)",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    padding: 24,
+    paddingBottom: 32,
+    gap: 12,
+  },
+  reportTitle: { fontFamily: "PlayfairDisplay_500Medium", fontSize: 21, color: "white", textAlign: "center" },
+  reportSub: { fontFamily: "Lato_400Regular", fontSize: 13, color: "rgba(255,255,255,0.7)", textAlign: "center", lineHeight: 19 },
+  reportChipRow: { flexDirection: "row", gap: 8, justifyContent: "center", marginTop: 4 },
+  reportChip: {
+    paddingVertical: 7, paddingHorizontal: 16, borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.12)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)",
+  },
+  reportChipActive: { backgroundColor: "rgba(255,255,255,0.9)", borderColor: "rgba(255,255,255,0.9)" },
+  reportChipText: { fontFamily: "Lato_700Bold", fontSize: 13, color: "rgba(255,255,255,0.8)" },
+  reportChipTextActive: { color: "#5A3A60" },
+  reportInput: {
+    minHeight: 100, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.1)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", padding: 14,
+    fontFamily: "Lato_400Regular", fontSize: 15, color: "white", marginTop: 4,
+  },
+  reportErrorText: { fontFamily: "Lato_400Regular", fontSize: 13, color: "rgba(255,150,150,0.9)" },
+  reportBtnRow: { flexDirection: "row", gap: 12, marginTop: 4 },
+  reportCancelBtn: {
+    paddingVertical: 13, borderRadius: 24, alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.12)", borderWidth: 1, borderColor: "rgba(255,255,255,0.25)",
+  },
+  reportCancelText: { fontFamily: "Lato_400Regular", fontSize: 15, color: "rgba(255,255,255,0.8)" },
+  reportSendBtn: {
+    paddingVertical: 13, paddingHorizontal: 32, borderRadius: 24, alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.25)", borderWidth: 1, borderColor: "rgba(255,255,255,0.4)",
+  },
+  reportSendText: { fontFamily: "Lato_700Bold", fontSize: 15, color: "white" },
 });

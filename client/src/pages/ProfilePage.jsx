@@ -347,7 +347,7 @@ function ProfilePage() {
             className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
             style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.2)" }}
           >
-            Report a problem
+            Send feedback
             <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
           </button>
           <button
@@ -471,7 +471,7 @@ function ProfilePage() {
               <>
                 <div className="flex flex-col gap-1">
                   <p className="font-medium" style={{ color: "#2D2540", fontFamily: "Playfair Display, Georgia, serif" }}>
-                    Report a problem
+                    Send feedback
                   </p>
                   <p className="text-sm" style={{ color: "#6B5F7A" }}>
                     Something not working, or have an idea? Tell us — it helps us make Chronically better.
