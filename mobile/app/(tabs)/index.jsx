@@ -389,6 +389,20 @@ export default function DashboardScreen() {
           </View>
         )}
 
+        {/* Off-window re-check */}
+        {!error && todaysDone && checkIns.length > 0 && (
+          <View style={styles.recheckPrompt}>
+            <Text style={styles.recheckText}>Feeling different than earlier?</Text>
+            <TouchableOpacity
+              style={styles.recheckBtn}
+              onPress={openCheckIn}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.recheckBtnText}>Check in now</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {checkIns.length > 0 && (
           <>
             {/* 14-day dials */}
@@ -947,4 +961,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   editSaveText: { fontFamily: "Lato_700Bold", fontSize: 14, color: "white" },
+  recheckPrompt: {
+    alignItems: "center",
+    paddingVertical: 16,
+    gap: 8,
+  },
+  recheckText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.75)",
+    textAlign: "center",
+  },
+  recheckBtn: {
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    paddingVertical: 9,
+    paddingHorizontal: 22,
+  },
+  recheckBtnText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 14,
+    color: "white",
+  },
 });

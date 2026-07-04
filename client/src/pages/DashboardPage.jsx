@@ -240,6 +240,21 @@ function DashboardPage() {
           </div>
         )}
 
+        {todaysDone && checkIns.length > 0 && (
+          <div className="flex flex-col items-center justify-center py-5 gap-2">
+            <p className="text-sm" style={{ color: "rgba(255,255,255,0.75)" }}>
+              Feeling different than earlier?
+            </p>
+            <button
+              onClick={() => setShowCheckIn(true)}
+              className="px-6 py-2.5 rounded-full text-white font-medium hover:scale-105 transition-all duration-200"
+              style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
+            >
+              Check in now
+            </button>
+          </div>
+        )}
+
         {checkIns.length > 0 && (
           <div className="flex flex-col gap-4">
             {/* stat cards */}
