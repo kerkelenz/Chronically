@@ -42,9 +42,15 @@ export function formatTime(time) {
 
 export function isMedicationDueToday(medication, today) {
   const { frequency, frequencyWeeks, createdAt } = medication;
-  const start = new Date(createdAt);
-  const now = new Date(today);
-  const daysDiff = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+
+  // Compare whole calendar days in LOCAL time. Collapsing both dates to local
+  // midnight strips time-of-day/timezone so interval meds land on the correct
+  // weekday (their creation day), instead of drifting a day off.
+  const c = new Date(createdAt);
+  const startDay = new Date(c.getFullYear(), c.getMonth(), c.getDate());
+  const [ty, tm, td] = today.split("-").map(Number);
+  const nowDay = new Date(ty, tm - 1, td);
+  const daysDiff = Math.round((nowDay - startDay) / (1000 * 60 * 60 * 24));
 
   switch (frequency) {
     case "daily":
@@ -53,15 +59,15 @@ export function isMedicationDueToday(medication, today) {
     case "four_times_daily":
       return true;
     case "every_other_day":
-      return daysDiff % 2 === 0;
+      return daysDiff >= 0 && daysDiff % 2 === 0;
     case "weekly":
-      return daysDiff % 7 === 0;
+      return daysDiff >= 0 && daysDiff % 7 === 0;
     case "biweekly":
-      return daysDiff % 14 === 0;
+      return daysDiff >= 0 && daysDiff % 14 === 0;
     case "monthly":
-      return start.getDate() === now.getDate();
+      return nowDay.getDate() === startDay.getDate();
     case "every_x_weeks":
-      return frequencyWeeks > 0 && daysDiff % (frequencyWeeks * 7) === 0;
+      return frequencyWeeks > 0 && daysDiff >= 0 && daysDiff % (frequencyWeeks * 7) === 0;
     case "as_needed":
       return false;
     default:
