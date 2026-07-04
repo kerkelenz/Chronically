@@ -238,11 +238,13 @@ function AppointmentsPage() {
   };
 
   const todayStr = new Date().toLocaleDateString("en-CA");
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
   const upcoming = appointments
-    .filter((a) => a.status === "upcoming")
+    .filter((a) => a.status === "upcoming" && new Date(a.date) >= todayStart)
     .sort((a, b) => new Date(a.date) - new Date(b.date));
   const past = appointments
-    .filter((a) => a.status !== "upcoming")
+    .filter((a) => a.status !== "upcoming" || new Date(a.date) < todayStart)
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const calendarDays = loading ? [] : buildCalendarDays();
