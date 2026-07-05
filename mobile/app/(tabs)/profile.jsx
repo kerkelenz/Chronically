@@ -19,6 +19,7 @@ import Avatar from "../../components/Avatar";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
 import MilestoneBadges from "../../components/MilestoneBadges";
+import BottomSheet from "../../components/BottomSheet";
 
 export default function ProfileScreen() {
   const { user, signOut, updateUser } = useAuth();
@@ -320,71 +321,59 @@ export default function ProfileScreen() {
       </KeyboardAvoidingView>
 
       {/* ── Send feedback sheet ──────────────────────────────────────────── */}
-      <Modal
-        animationType="slide"
-        transparent
-        statusBarTranslucent
-        visible={showReport}
-        onRequestClose={() => setShowReport(false)}
-      >
-        <KeyboardAvoidingView
-          style={styles.reportScrim}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowReport(false)} />
-          <View style={styles.reportCard}>
-            {reportSent ? (
-              <View style={{ alignItems: "center", gap: 10 }}>
-                <Text style={styles.reportTitle}>Thank you — we've got it 💜</Text>
-                <Text style={styles.reportSub}>We read every message. It helps us make Chronically better.</Text>
-                <TouchableOpacity style={styles.reportSendBtn} onPress={() => setShowReport(false)} activeOpacity={0.85}>
-                  <Text style={styles.reportSendText}>Close</Text>
+      <BottomSheet visible={showReport} onClose={() => setShowReport(false)}>
+        <View style={{ gap: 12 }}>
+          {reportSent ? (
+            <View style={{ alignItems: "center", gap: 10 }}>
+              <Text style={styles.reportTitle}>Thank you — we've got it 💜</Text>
+              <Text style={styles.reportSub}>We read every message. It helps us make Chronically better.</Text>
+              <TouchableOpacity style={styles.reportSendBtn} onPress={() => setShowReport(false)} activeOpacity={0.85}>
+                <Text style={styles.reportSendText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.reportTitle}>Send feedback</Text>
+              <Text style={styles.reportSub}>Something not working, or have an idea? Tell us — it helps us make Chronically better.</Text>
+              <View style={styles.reportChipRow}>
+                {["Bug", "Suggestion", "Other"].map((c) => (
+                  <TouchableOpacity
+                    key={c}
+                    style={[styles.reportChip, reportCategory === c && styles.reportChipActive]}
+                    onPress={() => setReportCategory(c)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.reportChipText, reportCategory === c && styles.reportChipTextActive]}>{c}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TextInput
+                style={styles.reportInput}
+                value={reportMessage}
+                onChangeText={setReportMessage}
+                placeholder="Describe what happened…"
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                multiline
+                textAlignVertical="top"
+              />
+              {reportError ? <Text style={styles.reportErrorText}>{reportError}</Text> : null}
+              <View style={styles.reportBtnRow}>
+                <TouchableOpacity style={[styles.reportCancelBtn, { flex: 1 }]} onPress={() => setShowReport(false)} activeOpacity={0.8}>
+                  <Text style={styles.reportCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.reportSendBtn, { flex: 1 }, reportSending && { opacity: 0.7 }]}
+                  onPress={handleSendReport}
+                  disabled={reportSending}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.reportSendText}>{reportSending ? "Sending…" : "Send"}</Text>
                 </TouchableOpacity>
               </View>
-            ) : (
-              <>
-                <Text style={styles.reportTitle}>Send feedback</Text>
-                <Text style={styles.reportSub}>Something not working, or have an idea? Tell us — it helps us make Chronically better.</Text>
-                <View style={styles.reportChipRow}>
-                  {["Bug", "Suggestion", "Other"].map((c) => (
-                    <TouchableOpacity
-                      key={c}
-                      style={[styles.reportChip, reportCategory === c && styles.reportChipActive]}
-                      onPress={() => setReportCategory(c)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.reportChipText, reportCategory === c && styles.reportChipTextActive]}>{c}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <TextInput
-                  style={styles.reportInput}
-                  value={reportMessage}
-                  onChangeText={setReportMessage}
-                  placeholder="Describe what happened…"
-                  placeholderTextColor="rgba(255,255,255,0.4)"
-                  multiline
-                  textAlignVertical="top"
-                />
-                {reportError ? <Text style={styles.reportErrorText}>{reportError}</Text> : null}
-                <View style={styles.reportBtnRow}>
-                  <TouchableOpacity style={[styles.reportCancelBtn, { flex: 1 }]} onPress={() => setShowReport(false)} activeOpacity={0.8}>
-                    <Text style={styles.reportCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.reportSendBtn, { flex: 1 }, reportSending && { opacity: 0.7 }]}
-                    onPress={handleSendReport}
-                    disabled={reportSending}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.reportSendText}>{reportSending ? "Sending…" : "Send"}</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+            </>
+          )}
+        </View>
+      </BottomSheet>
 
       {/* ── Delete confirmation modal ─────────────────────────────────────── */}
       <Modal
@@ -676,17 +665,6 @@ const styles = StyleSheet.create({
   },
 
   // Send feedback sheet
-  reportScrim: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  reportCard: {
-    backgroundColor: "rgba(52,38,86,0.98)",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    padding: 24,
-    paddingBottom: 32,
-    gap: 12,
-  },
   reportTitle: { fontFamily: "PlayfairDisplay_500Medium", fontSize: 21, color: "white", textAlign: "center" },
   reportSub: { fontFamily: "Lato_400Regular", fontSize: 13, color: "rgba(255,255,255,0.7)", textAlign: "center", lineHeight: 19 },
   reportChipRow: { flexDirection: "row", gap: 8, justifyContent: "center", marginTop: 4 },
