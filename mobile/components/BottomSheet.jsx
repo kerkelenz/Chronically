@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
  * safe-area inset baked in so content never sits under the nav bar.
  * Wrap any sheet content in this instead of hand-rolling a <Modal>.
  */
-export default function BottomSheet({ visible, onClose, children, maxHeight = "88%" }) {
+export default function BottomSheet({ visible, onClose, children, maxHeight = "88%", cardStyle }) {
   const insets = useSafeAreaInsets();
   return (
     <Modal
@@ -22,7 +22,7 @@ export default function BottomSheet({ visible, onClose, children, maxHeight = "8
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
-        <View style={[styles.card, { maxHeight, paddingBottom: insets.bottom + 20 }]}>
+        <View style={[styles.card, { maxHeight, paddingBottom: insets.bottom + 20 }, cardStyle]}>
           {children}
         </View>
       </KeyboardAvoidingView>
@@ -40,5 +40,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.18)",
     paddingHorizontal: 24,
     paddingTop: 24,
+    overflow: "hidden",
   },
 });

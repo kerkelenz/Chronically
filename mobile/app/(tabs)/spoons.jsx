@@ -12,6 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import BottomSheet from "../../components/BottomSheet";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Circle } from "react-native-svg";
@@ -492,19 +493,7 @@ export default function SpoonCenterScreen() {
       </ScrollView>
 
       {/* ── Add Activity Sheet ──────────────────────────────────────────────── */}
-      <Modal
-        animationType="slide"
-        transparent
-        statusBarTranslucent
-        visible={showAdd}
-        onRequestClose={() => setShowAdd(false)}
-      >
-        <KeyboardAvoidingView
-          style={styles.scrimBottom}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setShowAdd(false)} />
-          <View style={styles.sheet}>
+      <BottomSheet visible={showAdd} onClose={() => setShowAdd(false)} cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}>
             {/* Sheet header */}
             <View style={styles.sheetHeader}>
               <Text style={styles.modalTitle}>Add to day</Text>
@@ -529,7 +518,7 @@ export default function SpoonCenterScreen() {
             </View>
 
             <ScrollView
-              contentContainerStyle={{ paddingBottom: insets.bottom + 12 }}
+              contentContainerStyle={{ paddingBottom: 12 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -609,9 +598,7 @@ export default function SpoonCenterScreen() {
                 </TouchableOpacity>
               </View>
             </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      </BottomSheet>
 
       {/* ── Baseline Modal ──────────────────────────────────────────────────── */}
       <Modal
@@ -948,25 +935,11 @@ const styles = StyleSheet.create({
   },
 
   // ── Modals ────────────────────────────────────────────────────────────────
-  scrimBottom: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
   scrimCenter: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     paddingHorizontal: 20,
-  },
-  sheet: {
-    maxHeight: "88%",
-    backgroundColor: "rgba(52,38,86,0.98)",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    overflow: "hidden",
   },
   dialog: {
     backgroundColor: "rgba(70,55,108,0.98)",

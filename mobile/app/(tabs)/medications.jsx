@@ -11,10 +11,9 @@ import {
   TextInput,
   Switch,
   Platform,
-  KeyboardAvoidingView,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import BottomSheet from "../../components/BottomSheet";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../../components/ScreenBackground";
@@ -286,7 +285,6 @@ function MedCard({ med, onEdit, onDeleteRequest }) {
 function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError }) {
   const [showFreqPicker, setShowFreqPicker] = useState(false);
   const [editingTimeIndex, setEditingTimeIndex] = useState(null);
-  const insets = useSafeAreaInsets();
 
   const timeCount = FREQUENCY_TIME_COUNTS[form.frequency] ?? 1;
 
@@ -319,19 +317,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
   }
 
   return (
-    <Modal
-      animationType="slide"
-      transparent
-      statusBarTranslucent
-      visible={visible}
-      onRequestClose={onCancel}
-    >
-      <KeyboardAvoidingView
-        style={styles.modalScrim}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onCancel} />
-        <View style={styles.modalCard}>
+    <BottomSheet visible={visible} onClose={onCancel} cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}>
           {/* Header */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>
@@ -556,7 +542,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
           ) : null}
 
           {/* ── Footer (pinned) ── */}
-          <View style={[styles.modalFooter, { paddingBottom: insets.bottom + 12 }]}>
+          <View style={[styles.modalFooter, { paddingBottom: 12 }]}>
             <TouchableOpacity
               style={styles.cancelBtn}
               onPress={onCancel}
@@ -582,9 +568,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
               )}
             </TouchableOpacity>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </BottomSheet>
   );
 }
 
@@ -1238,20 +1222,6 @@ const styles = StyleSheet.create({
 
   // ── MedModal ───────────────────────────────────────────────────────────────
 
-  modalScrim: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalCard: {
-    maxHeight: "88%",
-    backgroundColor: "rgba(52,38,86,0.98)",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    overflow: "hidden",
-  },
   modalHeader: {
     paddingHorizontal: 20,
     paddingTop: 20,

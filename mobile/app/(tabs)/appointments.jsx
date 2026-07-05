@@ -10,13 +10,12 @@ import {
   RefreshControl,
   Modal,
   TextInput,
-  KeyboardAvoidingView,
   Platform,
   Alert,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import BottomSheet from "../../components/BottomSheet";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import * as Print from "expo-print";
 import * as FileSystem from "expo-file-system/legacy";
@@ -46,7 +45,6 @@ const STATUS_OPTIONS = [
 ];
 
 export default function AppointmentsScreen() {
-  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -753,19 +751,7 @@ export default function AppointmentsScreen() {
       </ScrollView>
 
       {/* ── Add / Edit modal ─────────────────────────────────────────────────── */}
-      <Modal
-        animationType="slide"
-        transparent
-        statusBarTranslucent
-        visible={showModal}
-        onRequestClose={closeModal}
-      >
-        <KeyboardAvoidingView
-          style={styles.modalScrim}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={closeModal} />
-          <View style={styles.modalCard}>
+      <BottomSheet visible={showModal} onClose={closeModal} cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}>
             {/* Modal header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
@@ -778,7 +764,7 @@ export default function AppointmentsScreen() {
 
             {/* Scrollable form */}
             <ScrollView
-              contentContainerStyle={[styles.formContent, { paddingBottom: insets.bottom + 12 }]}
+              contentContainerStyle={[styles.formContent, { paddingBottom: 12 }]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -990,9 +976,7 @@ export default function AppointmentsScreen() {
                 </TouchableOpacity>
               </View>
             </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      </BottomSheet>
 
       {/* ── Delete confirm modal ──────────────────────────────────────────────── */}
       <Modal
@@ -1468,20 +1452,6 @@ const styles = StyleSheet.create({
   },
 
   // Add / Edit modal
-  modalScrim: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalCard: {
-    maxHeight: "88%",
-    backgroundColor: "rgba(52,38,86,0.98)",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    overflow: "hidden",
-  },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
