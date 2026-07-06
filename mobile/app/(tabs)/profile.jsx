@@ -297,6 +297,15 @@ export default function ProfileScreen() {
             >
               <Text style={styles.legalText}>Send feedback</Text>
             </TouchableOpacity>
+            {Platform.OS !== "ios" && (
+              <TouchableOpacity
+                style={styles.legalRow}
+                onPress={() => Linking.openURL("https://buymeacoffee.com/chronicallyapp")}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.legalText}>Support Chronically</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={styles.signOutBtn}

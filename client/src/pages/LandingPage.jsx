@@ -146,6 +146,8 @@ function LandingPage() {
         <a href="/terms" className="hover:underline">Terms of Service</a>
         <span className="mx-2">·</span>
         <a href="/delete-account" className="hover:underline">Delete Account</a>
+        <span className="mx-2">·</span>
+        <a href="https://buymeacoffee.com/chronicallyapp" target="_blank" rel="noopener noreferrer" className="hover:underline">Support</a>
       </div>
     </div>
   );

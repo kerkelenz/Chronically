@@ -350,6 +350,16 @@ function ProfilePage() {
             Send feedback
             <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
           </button>
+          <a
+            href="https://buymeacoffee.com/chronicallyapp"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
+            style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.2)" }}
+          >
+            Support Chronically
+            <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
+          </a>
           <button
             onClick={() => { logout(); navigate("/"); }}
             className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
