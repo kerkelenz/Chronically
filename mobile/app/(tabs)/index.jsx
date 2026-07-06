@@ -22,6 +22,7 @@ import { openCheckIn } from "../../lib/checkinNav";
 import { METRICS, METRIC_LABELS, SYMPTOM_LIST } from "../../theme/metrics";
 import { SymptomIcon } from "../../components/SymptomIcon";
 import MilestoneCelebration from "../../components/MilestoneCelebration";
+import WelcomeModal from "../../components/WelcomeModal";
 import { MILESTONES, totalCheckInDays } from "../../lib/milestones";
 
 const BAR_HEIGHTS = [12, 16, 20, 24, 28];
@@ -123,6 +124,7 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [editingCheckIn, setEditingCheckIn] = useState(null);
   const [celebration, setCelebration] = useState(null);
+  const [showWelcome, setShowWelcome] = useState(false);
   const isFirstLoadRef = useRef(true);
   const seededRef = useRef(false);
 
@@ -160,6 +162,10 @@ export default function DashboardScreen() {
       };
     }, []),
   );
+
+  useEffect(() => {
+    if (user && user.hasSeenWelcome === false) setShowWelcome(true);
+  }, [user]);
 
   useEffect(() => {
     if (!user || loading) return;
@@ -599,6 +605,8 @@ export default function DashboardScreen() {
           </View>
         </View>
       </Modal>
+
+      {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
 
       {celebration && (
         <MilestoneCelebration
