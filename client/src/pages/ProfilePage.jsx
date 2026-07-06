@@ -326,9 +326,9 @@ function ProfilePage() {
           <div className="flex items-center gap-3">
             <FiCoffee size={24} style={{ color: "white", flexShrink: 0 }} />
             <div>
-              <p className="font-semibold" style={{ color: "white" }}>Enjoying Chronically?</p>
+              <p className="font-semibold" style={{ color: "white" }}>Built by one person</p>
               <p className="text-sm" style={{ color: "rgba(255,255,255,0.75)" }}>
-                It's free and ad-free — your support keeps it growing. 💜
+                Chronically is free and ad-free — your support keeps it running and growing. 💜
               </p>
             </div>
           </div>

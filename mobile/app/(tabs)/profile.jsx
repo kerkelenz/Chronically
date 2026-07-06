@@ -278,8 +278,8 @@ export default function ProfileScreen() {
               <View style={styles.supportRow}>
                 <MaterialCommunityIcons name="coffee" size={24} color="white" />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.supportTitle}>Enjoying Chronically?</Text>
-                  <Text style={styles.supportSub}>It's free and ad-free — your support keeps it growing. 💜</Text>
+                  <Text style={styles.supportTitle}>Built by one person</Text>
+                  <Text style={styles.supportSub}>Chronically is free and ad-free — your support keeps it running and growing. 💜</Text>
                 </View>
               </View>
               <TouchableOpacity
