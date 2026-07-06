@@ -111,6 +111,7 @@ const login = async (req, res) => {
         email: user.email,
         avatar: user.avatar || null,
         celebratedMilestones: user.celebratedMilestones || [],
+        hasSeenWelcome: user.hasSeenWelcome ?? false,
       },
     });
   } catch (error) {
@@ -152,6 +153,7 @@ const verifyEmail = async (req, res) => {
         email: user.email,
         avatar: user.avatar || null,
         celebratedMilestones: user.celebratedMilestones || [],
+        hasSeenWelcome: user.hasSeenWelcome ?? false,
       },
     });
   } catch (error) {

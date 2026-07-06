@@ -120,4 +120,14 @@ const updateMilestones = async (req, res) => {
   }
 };
 
-module.exports = { updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones };
+const markWelcomeSeen = async (req, res) => {
+  try {
+    await User.update({ hasSeenWelcome: true }, { where: { id: req.user.id } });
+    res.status(200).json({ hasSeenWelcome: true });
+  } catch (error) {
+    console.error("Mark welcome seen error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+module.exports = { updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen };

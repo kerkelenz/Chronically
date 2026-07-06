@@ -10,6 +10,7 @@ import "react-circular-progressbar/dist/styles.css";
 import { SymptomIcon } from "../components/SymptomIcon";
 import Avatar from "../components/Avatar";
 import MilestoneCelebration from "../components/MilestoneCelebration";
+import WelcomeModal from "../components/WelcomeModal";
 import { MILESTONES, totalCheckInDays } from "../utils/milestones";
 
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
@@ -55,6 +56,11 @@ function DashboardPage() {
 
   const [celebrationMilestone, setCelebrationMilestone] = useState(null);
   const seededRef = useRef(false);
+
+  const [showWelcome, setShowWelcome] = useState(false);
+  useEffect(() => {
+    if (user && user.hasSeenWelcome === false) setShowWelcome(true);
+  }, [user]);
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this check-in?")) return;
@@ -744,6 +750,8 @@ function DashboardPage() {
           }}
         />
       )}
+
+      {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
 
       {celebrationMilestone && (
         <MilestoneCelebration
