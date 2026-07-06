@@ -144,6 +144,8 @@ function LandingPage() {
         <a href="/privacy" className="hover:underline">Privacy Policy</a>
         <span className="mx-2">·</span>
         <a href="/terms" className="hover:underline">Terms of Service</a>
+        <span className="mx-2">·</span>
+        <a href="/delete-account" className="hover:underline">Delete Account</a>
       </div>
     </div>
   );
