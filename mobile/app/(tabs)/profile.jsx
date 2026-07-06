@@ -20,6 +20,7 @@ import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
 import MilestoneBadges from "../../components/MilestoneBadges";
 import BottomSheet from "../../components/BottomSheet";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function ProfileScreen() {
   const { user, signOut, updateUser } = useAuth();
@@ -272,6 +273,25 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
+          {Platform.OS !== "ios" && (
+            <View style={styles.supportCard}>
+              <View style={styles.supportRow}>
+                <MaterialCommunityIcons name="coffee" size={24} color="white" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.supportTitle}>Enjoying Chronically?</Text>
+                  <Text style={styles.supportSub}>It's free and ad-free — your support keeps it growing. 💜</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.supportBtn}
+                onPress={() => Linking.openURL("https://buymeacoffee.com/chronicallyapp")}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.supportBtnText}>Support Chronically</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* ── Account / danger section ──────────────────────────────────── */}
           <View style={styles.card}>
             <Text style={styles.sectionLabel}>Account</Text>
@@ -297,16 +317,6 @@ export default function ProfileScreen() {
             >
               <Text style={styles.legalText}>Send feedback</Text>
             </TouchableOpacity>
-            {Platform.OS !== "ios" && (
-              <TouchableOpacity
-                style={styles.legalRow}
-                onPress={() => Linking.openURL("https://buymeacoffee.com/chronicallyapp")}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.legalText}>Support Chronically</Text>
-              </TouchableOpacity>
-            )}
-
             <TouchableOpacity
               style={styles.signOutBtn}
               onPress={signOut}
@@ -559,6 +569,21 @@ const styles = StyleSheet.create({
     color: "white",
     letterSpacing: 0.3,
   },
+
+  supportCard: {
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    borderRadius: 18,
+    padding: 16,
+    gap: 12,
+    marginBottom: 16,
+  },
+  supportRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  supportTitle: { fontFamily: "Lato_700Bold", fontSize: 15, color: "white" },
+  supportSub: { fontFamily: "Lato_400Regular", fontSize: 13, color: "rgba(255,255,255,0.75)", marginTop: 2 },
+  supportBtn: { backgroundColor: "white", borderRadius: 22, paddingVertical: 12, alignItems: "center" },
+  supportBtnText: { fontFamily: "Lato_700Bold", fontSize: 15, color: "#5A3A60" },
 
   legalRow: {
     paddingVertical: 12,

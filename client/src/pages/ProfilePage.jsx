@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { FiCoffee } from "react-icons/fi";
 import Cropper from "react-easy-crop";
 import { useAuth } from "../hooks/useAuth";
 import Navigation, { NavHamburger } from "../components/Navigation";
@@ -321,6 +322,26 @@ function ProfilePage() {
           )}
         </form>
 
+        <div className="rounded-2xl p-4 flex flex-col gap-3 mb-4" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}>
+          <div className="flex items-center gap-3">
+            <FiCoffee size={24} style={{ color: "white", flexShrink: 0 }} />
+            <div>
+              <p className="font-semibold" style={{ color: "white" }}>Enjoying Chronically?</p>
+              <p className="text-sm" style={{ color: "rgba(255,255,255,0.75)" }}>
+                It's free and ad-free — your support keeps it growing. 💜
+              </p>
+            </div>
+          </div>
+          <a
+            href="https://buymeacoffee.com/chronicallyapp"
+            target="_blank" rel="noopener noreferrer"
+            className="text-center py-2.5 rounded-full font-medium transition-all hover:scale-[1.02]"
+            style={{ background: "white", color: "#5A3A60" }}
+          >
+            Support Chronically
+          </a>
+        </div>
+
         {/* Session and danger */}
         <div
           className="rounded-2xl overflow-hidden"
@@ -350,16 +371,6 @@ function ProfilePage() {
             Send feedback
             <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
           </button>
-          <a
-            href="https://buymeacoffee.com/chronicallyapp"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
-            style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.2)" }}
-          >
-            Support Chronically
-            <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
-          </a>
           <button
             onClick={() => { logout(); navigate("/"); }}
             className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
