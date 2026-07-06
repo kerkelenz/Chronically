@@ -19,6 +19,7 @@ import BottomSheet from "../../components/BottomSheet";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import * as Print from "expo-print";
 import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import ScreenBackground from "../../components/ScreenBackground";
 import api from "../../lib/api";
 import { computeReportData } from "../../lib/reportData";
@@ -143,32 +144,26 @@ export default function AppointmentsScreen() {
       const stamp = new Date().toLocaleDateString("en-CA");
       const fileName = `Chronically-Doctor-Report-${stamp}`;
 
-      if (Platform.OS === "android") {
-        const perm =
-          await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-        if (!perm.granted) return; // user cancelled the folder picker — not an error
-        const base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
+      // Hand the PDF to the system share sheet — the user can save it to Files,
+      // email it, print it, or send it anywhere. No folder picker (Android blocks
+      // Download and other protected folders), works the same on iOS and Android.
+      const dest = `${FileSystem.cacheDirectory}${fileName}.pdf`;
+      let shareUri = uri;
+      try {
+        await FileSystem.copyAsync({ from: uri, to: dest }); // friendly filename
+        shareUri = dest;
+      } catch {
+        // fall back to the original temp uri if the rename copy fails
+      }
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(shareUri, {
+          mimeType: "application/pdf",
+          dialogTitle: "Doctor report",
+          UTI: "com.adobe.pdf",
         });
-        const destUri = await FileSystem.StorageAccessFramework.createFileAsync(
-          perm.directoryUri,
-          fileName,
-          "application/pdf",
-        );
-        await FileSystem.writeAsStringAsync(destUri, base64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        Alert.alert(
-          "Report saved",
-          "Your doctor report PDF was saved to the folder you selected.",
-        );
       } else {
-        const dest = `${FileSystem.documentDirectory}${fileName}.pdf`;
-        await FileSystem.copyAsync({ from: uri, to: dest });
-        Alert.alert(
-          "Report saved",
-          "Saved to the Files app under On My iPhone › Chronically.",
-        );
+        Alert.alert("Report ready", "Sharing isn't available on this device.");
       }
     } catch (err) {
       console.error("Export failed:", err);
