@@ -1,12 +1,14 @@
 import { useAuth } from "../hooks/useAuth";
 import axios from "axios";
+import { FiCheckCircle, FiTrendingUp, FiPackage, FiCalendar } from "react-icons/fi";
+import { GiSpoon } from "react-icons/gi";
 
 const FEATURES = [
-  ["📝", "Daily check-ins", "Note how you're feeling in seconds."],
-  ["🥄", "Spoon Center", "Plan your day around the energy you have."],
-  ["💊", "Medications", "Keep doses, schedules, and history in one place."],
-  ["📅", "Appointments", "Prep visits and bring a clean report to your doctor."],
-  ["📈", "Trends", "Watch your patterns come into focus over time."],
+  [FiCheckCircle, "Daily check-ins", "Note how you're feeling in seconds."],
+  [GiSpoon, "Spoon Center", "Plan your day around the energy you have."],
+  [FiPackage, "Medications", "Keep doses, schedules, and history in one place."],
+  [FiCalendar, "Appointments", "Prep visits and bring a clean report to your doctor."],
+  [FiTrendingUp, "Trends", "Watch your patterns come into focus over time."],
 ];
 
 export default function WelcomeModal({ onClose }) {
@@ -38,9 +40,9 @@ export default function WelcomeModal({ onClose }) {
           </p>
         </div>
         <div className="flex flex-col gap-3">
-          {FEATURES.map(([icon, name, desc]) => (
+          {FEATURES.map(([Icon, name, desc]) => (
             <div key={name} className="flex gap-3 items-start">
-              <span style={{ fontSize: 22, lineHeight: "24px" }}>{icon}</span>
+              <Icon size={22} style={{ color: "#7C6BAE", flexShrink: 0, marginTop: 2 }} />
               <div>
                 <p className="text-sm font-semibold" style={{ color: "#2D2540" }}>{name}</p>
                 <p className="text-sm" style={{ color: "#6B5F7A" }}>{desc}</p>
