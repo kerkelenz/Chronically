@@ -19,3 +19,6 @@ Thumbs.db
 *.log
 npm-debug.log*
 server/.env 1
+
+# Scripts
+scripts/
