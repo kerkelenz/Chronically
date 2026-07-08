@@ -22,6 +22,15 @@ const register = async (req, res) => {
       return res.status(400).json({ error: "All fields are required" });
     }
 
+    // the model can't validate this because we hash before saving (the hash is
+    // always 60 chars), so check the plain text here - max 72 because bcrypt
+    // silently ignores any bytes beyond that
+    if (password.length < 8 || password.length > 72) {
+      return res
+        .status(400)
+        .json({ error: "Password must be between 8 and 72 characters" });
+    }
+
     // check if someone already signed up with this email
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
@@ -43,11 +52,14 @@ const register = async (req, res) => {
 
     const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
 
-    await resend.emails.send({
-      from: "Chronically <noreply@mychronically.app>",
-      to: email,
-      subject: "Verify your Chronically account",
-      html: `
+    // if the email provider is down we don't want to 500 - the account already
+    // exists, and the user can request a fresh link via /resend-verification
+    try {
+      await resend.emails.send({
+        from: "Chronically <noreply@mychronically.app>",
+        to: email,
+        subject: "Verify your Chronically account",
+        html: `
         <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 32px;">
           <h2 style="color: #2D2540; font-family: Georgia, serif;">Welcome to Chronically</h2>
           <p style="color: #6B5F7A;">Thanks for signing up, ${username}. Click the button below to verify your email address.</p>
@@ -55,7 +67,10 @@ const register = async (req, res) => {
           <p style="color: #6B5F7A; font-size: 12px; margin-top: 24px;">If you didn't create this account, you can safely ignore this email.</p>
         </div>
       `,
-    });
+      });
+    } catch (emailError) {
+      console.error("Verification email failed to send:", emailError);
+    }
 
     res.status(201).json({
       message:
@@ -64,6 +79,50 @@ const register = async (req, res) => {
   } catch (error) {
     console.error("Register error:", error);
     res.status(500).json({ error: "Server error during registration" });
+  }
+};
+
+// lets a user ask for a fresh verification link - covers the case where the
+// original email never arrived (provider hiccup, spam folder, typo'd inbox)
+const resendVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required" });
+
+    // always respond with the same message so this can't be used to check
+    // whether an email address has an account
+    const genericResponse = {
+      message: "If that email needs verification, a new link has been sent.",
+    };
+
+    const user = await User.findOne({ where: { email } });
+    if (!user || (user.isVerified && !user.pendingEmail)) {
+      return res.status(200).json(genericResponse);
+    }
+
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    await User.update({ verificationToken }, { where: { id: user.id } });
+
+    const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+
+    await resend.emails.send({
+      from: "Chronically <noreply@mychronically.app>",
+      to: email,
+      subject: "Verify your Chronically account",
+      html: `
+        <div style="font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 32px;">
+          <h2 style="color: #2D2540; font-family: Georgia, serif;">Verify your email</h2>
+          <p style="color: #6B5F7A;">Here's a fresh verification link for your Chronically account. Click the button below to verify your email address.</p>
+          <a href="${verifyUrl}" style="display: inline-block; margin-top: 16px; padding: 12px 24px; background: #7C6BAE; color: white; border-radius: 999px; text-decoration: none; font-size: 14px;">Verify Email</a>
+          <p style="color: #6B5F7A; font-size: 12px; margin-top: 24px;">If you didn't request this, you can safely ignore this email.</p>
+        </div>
+      `,
+    });
+
+    res.status(200).json(genericResponse);
+  } catch (error) {
+    console.error("Resend verification error:", error);
+    res.status(500).json({ error: "Server error" });
   }
 };
 
@@ -150,7 +209,9 @@ const verifyEmail = async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email,
+        // `user` is the pre-update snapshot, so use the new email when this
+        // verification was confirming an email change
+        email: updates.email || user.email,
         avatar: user.avatar || null,
         celebratedMilestones: user.celebratedMilestones || [],
         hasSeenWelcome: user.hasSeenWelcome ?? false,
@@ -211,6 +272,14 @@ const resetPassword = async (req, res) => {
       return res.status(400).json({ error: "Token and password are required" });
     }
 
+    // same rule as registration - the model can't check this since it only
+    // ever sees the bcrypt hash
+    if (password.length < 8 || password.length > 72) {
+      return res
+        .status(400)
+        .json({ error: "Password must be between 8 and 72 characters" });
+    }
+
     const user = await User.findOne({
       where: {
         resetToken: token,
@@ -262,6 +331,7 @@ const validateResetToken = async (req, res) => {
 
 module.exports = {
   register,
+  resendVerification,
   login,
   verifyEmail,
   forgotPassword,

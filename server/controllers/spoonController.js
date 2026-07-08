@@ -53,7 +53,14 @@ const getBaseline = async (req, res) => {
 const setBaseline = async (req, res) => {
   try {
     const { baseline } = req.body;
+    // baseline is a spoon count, so it should be a small positive whole number
+    if (!Number.isInteger(baseline) || baseline < 1 || baseline > 100) {
+      return res
+        .status(400)
+        .json({ error: "Baseline must be a whole number between 1 and 100" });
+    }
     const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
     await user.update({ spoonBaseline: baseline });
     res.json({ baseline: user.spoonBaseline });
   } catch (error) {
@@ -105,7 +112,14 @@ const updateActivity = async (req, res) => {
       where: { id: req.params.id, userId: req.user.id },
     });
     if (!activity) return res.status(404).json({ error: "Activity not found" });
-    await activity.update({ ...req.body });
+    // only update fields the client is allowed to change - spreading req.body
+    // directly would let a request overwrite things like userId
+    const allowed = ["name", "cost", "icon", "archived"];
+    const updates = {};
+    for (const key of allowed) {
+      if (key in req.body) updates[key] = req.body[key];
+    }
+    await activity.update(updates);
     res.json({ activity });
   } catch (error) {
     console.error("Error updating spoon activity:", error);
@@ -130,20 +144,22 @@ const deleteActivity = async (req, res) => {
 const getDay = async (req, res) => {
   try {
     const date = req.query.date || todayStr();
-    let day = await SpoonDay.findOne({ where: { userId: req.user.id, date } });
     const checkIn = await CheckIn.findOne({
       where: { userId: req.user.id, date },
     });
     const user = await User.findByPk(req.user.id);
 
-    if (!day) {
-      day = await SpoonDay.create({
-        userId: req.user.id,
-        date,
+    // findOrCreate is atomic, so two simultaneous requests for the same day
+    // can't race each other into a unique-constraint error
+    const [day, created] = await SpoonDay.findOrCreate({
+      where: { userId: req.user.id, date },
+      defaults: {
         budget: computeBudget(user.spoonBaseline, checkIn),
         budgetEdited: false,
-      });
-    } else if (!day.budgetEdited) {
+      },
+    });
+
+    if (!created && !day.budgetEdited) {
       // re-compute in case a check-in has landed since this day was first created
       const fresh = computeBudget(user.spoonBaseline, checkIn);
       if (fresh !== day.budget) {

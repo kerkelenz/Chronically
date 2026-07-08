@@ -29,16 +29,30 @@ require("./models/SpoonEntry");
 // creating the express app - everything gets attached to this
 const app = express();
 
+// Render sits behind a proxy, so the real client IP arrives in X-Forwarded-For
+// without this, express-rate-limit either errors or lumps every user under the proxy's IP
+app.set("trust proxy", 1);
+
 // wrapping everything in an async function so we can use await for the database connection
 // we want to make sure the database is ready before the server starts accepting requests
 const startServer = async () => {
+  // without a JWT secret every login would fail at runtime - better to refuse to boot
+  if (!process.env.JWT_SECRET) {
+    console.error("JWT_SECRET is not set - refusing to start");
+    process.exit(1);
+  }
+
   await connectDB();
 
   // sync tells Sequelize to look at our models and make sure the database tables match
-  // alter: true updates existing tables if we've made changes to our models
-  // we wouldn't use alter: true in production but it's handy during development
-  await sequelize.sync({ alter: true });
-  console.log("Database synced");
+  // alter: true updates existing tables if we've made changes to our models - handy in
+  // development, but running DDL on every production boot risks data loss and slow deploys.
+  // for a production deploy that changes the schema, set DB_SYNC_ALTER=true once, then remove it
+  const alterSchema =
+    process.env.NODE_ENV !== "production" ||
+    process.env.DB_SYNC_ALTER === "true";
+  await sequelize.sync(alterSchema ? { alter: true } : {});
+  console.log(`Database synced${alterSchema ? " (alter)" : ""}`);
 
   // helmet automatically sets a bunch of security headers on every response
   app.use(helmet());
@@ -55,7 +69,8 @@ const startServer = async () => {
     }),
   );
   // this lets us read JSON from the request body - without it req.body would be undefined
-  app.use(express.json());
+  // the limit is raised from the 100kb default so avatar data-URLs (up to ~400kb) fit
+  app.use(express.json({ limit: "500kb" }));
 
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -64,6 +79,14 @@ const startServer = async () => {
   });
 
   app.use("/api/auth", authLimiter);
+
+  // feedback and account-deletion both send an email per request, so they get a
+  // much stricter limit - nobody legitimately needs more than a few of these an hour
+  const emailLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 5,
+    message: { error: "Too many requests, please try again later" },
+  });
 
   // all auth routes live under /api/auth
   // so /register becomes /api/auth/register and /login becomes /api/auth/login
@@ -88,8 +111,26 @@ const startServer = async () => {
   app.use("/api/medications", medicationRoutes);
   app.use("/api/appointments", appointmentRoutes);
   app.use("/api/spoons", spoonRoutes);
-  app.use("/api/feedback", feedbackRoutes);
-  app.use("/api/account-deletion", accountDeletionRoutes);
+  app.use("/api/feedback", emailLimiter, feedbackRoutes);
+  app.use("/api/account-deletion", emailLimiter, accountDeletionRoutes);
+
+  // anything that falls through the routes above is a 404 - return JSON instead of Express's HTML page
+  app.use((req, res) => {
+    res.status(404).json({ error: "Not found" });
+  });
+
+  // final safety net so malformed JSON, oversized bodies, and anything a route
+  // forgot to catch come back as JSON errors instead of HTML stack traces
+  app.use((err, req, res, next) => {
+    if (err.type === "entity.parse.failed") {
+      return res.status(400).json({ error: "Invalid JSON in request body" });
+    }
+    if (err.type === "entity.too.large") {
+      return res.status(413).json({ error: "Request body is too large" });
+    }
+    console.error("Unhandled error:", err);
+    res.status(500).json({ error: "Server error" });
+  });
 
   // use the PORT from .env if it exists, otherwise default to 3001
   const PORT = process.env.PORT || 3001;

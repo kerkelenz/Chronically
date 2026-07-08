@@ -83,6 +83,13 @@ const getLogs = async (req, res) => {
 const createLog = async (req, res) => {
   try {
     const { medicationId, date, scheduledTime, takenAt, status, skipReason } = req.body;
+
+    // make sure the medication being logged actually belongs to this user
+    const medication = await Medication.findOne({
+      where: { id: medicationId, userId: req.user.id },
+    });
+    if (!medication) return res.status(404).json({ error: "Medication not found" });
+
     const log = await MedicationLog.create({
       userId: req.user.id,
       medicationId, date, scheduledTime, takenAt, status, skipReason,

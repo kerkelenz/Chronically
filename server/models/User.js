@@ -45,7 +45,10 @@ const User = sequelize.define("User", {
   },
   isVerified: {
     type: DataTypes.BOOLEAN,
-    defaultValue: true,
+    // new accounts always start unverified - registration flips this via the
+    // email link, and defaulting to false means no code path can accidentally
+    // create a pre-verified account
+    defaultValue: false,
   },
   verificationToken: {
     type: DataTypes.STRING,
