@@ -13,6 +13,7 @@ const appointmentRoutes = require("./routes/appointmentRoutes");
 const spoonRoutes = require("./routes/spoonRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const accountDeletionRoutes = require("./routes/accountDeletionRoutes");
+const eventRoutes = require("./routes/eventRoutes");
 const rateLimit = require("express-rate-limit");
 
 // importing the models here so Sequelize knows about them before we call sync
@@ -25,6 +26,7 @@ require("./models/Appointment");
 require("./models/SpoonActivity");
 require("./models/SpoonDay");
 require("./models/SpoonEntry");
+require("./models/Event");
 
 // creating the express app - everything gets attached to this
 const app = express();
@@ -113,6 +115,13 @@ const startServer = async () => {
   app.use("/api/spoons", spoonRoutes);
   app.use("/api/feedback", emailLimiter, feedbackRoutes);
   app.use("/api/account-deletion", emailLimiter, accountDeletionRoutes);
+
+  const eventLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 120, // batched clients send a handful per hour; this only stops abuse
+    message: { error: "Too many requests, please try again later" },
+  });
+  app.use("/api/events", eventLimiter, eventRoutes);
 
   // anything that falls through the routes above is a 404 - return JSON instead of Express's HTML page
   app.use((req, res) => {
