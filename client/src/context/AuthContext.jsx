@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect } from "react";
+import { setAnalyticsToken, trackSession } from "../lib/analytics";
 
 const INACTIVITY_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -15,11 +16,14 @@ export function AuthProvider({ children }) {
     localStorage.setItem("token", tokenData);
     localStorage.setItem("user", JSON.stringify(userData));
     localStorage.setItem("lastActive", Date.now().toString());
+    setAnalyticsToken(tokenData);
+    trackSession();
   };
 
   const logout = () => {
     setUser(null);
     setToken(null);
+    setAnalyticsToken(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("lastActive");
@@ -44,6 +48,8 @@ export function AuthProvider({ children }) {
         setToken(savedToken);
         setUser(JSON.parse(localStorage.getItem("user")));
         localStorage.setItem("lastActive", Date.now().toString());
+        setAnalyticsToken(savedToken);
+        trackSession();
       }
     }
     setLoading(false);

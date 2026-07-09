@@ -18,6 +18,7 @@ import ScreenBackground from "../../components/ScreenBackground";
 import Avatar from "../../components/Avatar";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
+import { track } from "../../lib/analytics";
 import MilestoneBadges from "../../components/MilestoneBadges";
 import BottomSheet from "../../components/BottomSheet";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -138,6 +139,7 @@ export default function ProfileScreen() {
         category: reportCategory,
         platform: Platform.OS,
       });
+      track("feedback_sent", { category: reportCategory });
       setReportSent(true);
       setReportMessage("");
     } catch (e) {

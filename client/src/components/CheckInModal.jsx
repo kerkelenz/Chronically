@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
+import { track } from "../lib/analytics";
 import { FiEdit2 } from "react-icons/fi";
 
 const AFFIRMATIONS = [
@@ -363,6 +364,7 @@ function CheckInModal({ onClose, onComplete }) {
         },
         { headers: { Authorization: `Bearer ${token}` } },
       );
+      track("checkin_completed");
       setStep(8);
     } catch (err) {
       setError(err.response?.data?.error || "Something went wrong. Please try again.");

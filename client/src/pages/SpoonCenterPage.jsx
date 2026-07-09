@@ -4,6 +4,7 @@ import {
   FiPlus, FiCheck, FiX, FiChevronLeft, FiChevronRight,
 } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
+import { track } from "../lib/analytics";
 import Navigation, { NavHamburger } from "../components/Navigation";
 
 const API = import.meta.env.VITE_API_URL;
@@ -201,6 +202,8 @@ export default function SpoonCenterPage() {
         { name: activity.name, cost: activity.cost },
         { headers: hdrs },
       );
+      // planning starts when the day's first entry lands
+      if (entries.length === 0) track("spoon_day_planned");
       setEntries((prev) => [...prev, res.data.entry]);
       setShowAdd(false);
     } catch (err) {
@@ -225,6 +228,7 @@ export default function SpoonCenterPage() {
         { name: act.name, cost: act.cost },
         { headers: hdrs },
       );
+      if (entries.length === 0) track("spoon_day_planned");
       setEntries((prev) => [...prev, entRes.data.entry]);
       setCustomName("");
       setCustomCost("");

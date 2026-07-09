@@ -19,6 +19,7 @@ import Svg, { Circle } from "react-native-svg";
 import ScreenBackground from "../../components/ScreenBackground";
 import Card from "../../components/Card";
 import api from "../../lib/api";
+import { track } from "../../lib/analytics";
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
@@ -220,6 +221,8 @@ export default function SpoonCenterScreen() {
         name: activity.name,
         cost: activity.cost,
       });
+      // planning starts when the day's first entry lands
+      if (entries.length === 0) track("spoon_day_planned");
       setEntries((prev) => [...prev, res.data.entry]);
       setShowAdd(false);
     } catch (err) {
@@ -242,6 +245,7 @@ export default function SpoonCenterScreen() {
         name: act.name,
         cost: act.cost,
       });
+      if (entries.length === 0) track("spoon_day_planned");
       setEntries((prev) => [...prev, entRes.data.entry]);
       setCustomName("");
       setCustomCost("");

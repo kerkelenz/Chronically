@@ -4,6 +4,7 @@ import axios from "axios";
 import { FiCoffee } from "react-icons/fi";
 import Cropper from "react-easy-crop";
 import { useAuth } from "../hooks/useAuth";
+import { track } from "../lib/analytics";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import Avatar from "../components/Avatar";
 import MilestoneBadges from "../components/MilestoneBadges";
@@ -176,6 +177,7 @@ function ProfilePage() {
         { message: reportMessage, category: reportCategory, platform: "web" },
         { headers: { Authorization: `Bearer ${token}` } },
       );
+      track("feedback_sent", { category: reportCategory });
       setReportSent(true);
       setReportMessage("");
     } catch (err) {

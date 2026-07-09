@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
+import { track } from "../lib/analytics";
 import { FiEdit2, FiTrash2, FiRotateCcw, FiPlus } from "react-icons/fi";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import {
@@ -395,6 +396,7 @@ function MedicationsPage() {
         { medicationId: med.id, date: today, scheduledTime, takenAt: new Date().toISOString(), status: "taken" },
         { headers: { Authorization: `Bearer ${token}` } },
       );
+      track("medication_logged", { status: "taken" });
       setTodayLogs((prev) => [...prev, res.data.log]);
     } catch (err) {
       console.error("Error logging take:", err);
@@ -421,6 +423,7 @@ function MedicationsPage() {
         { medicationId: med.id, date: today, scheduledTime, status: "skipped", skipReason: reason },
         { headers: { Authorization: `Bearer ${token}` } },
       );
+      track("medication_logged", { status: "skipped" });
       setTodayLogs((prev) => [...prev, res.data.log]);
       setSkippingDoseKey(null);
     } catch (err) {

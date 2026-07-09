@@ -1,5 +1,6 @@
 import { useAuth } from "../hooks/useAuth";
 import axios from "axios";
+import { track } from "../lib/analytics";
 import { FiCheckCircle, FiTrendingUp, FiPackage, FiCalendar } from "react-icons/fi";
 import { GiSpoon } from "react-icons/gi";
 
@@ -24,6 +25,7 @@ export default function WelcomeModal({ onClose }) {
     } catch {
       // non-fatal — still dismiss locally
     }
+    track("welcome_completed");
     updateUser({ ...user, hasSeenWelcome: true });
     onClose();
   };

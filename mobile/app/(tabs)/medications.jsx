@@ -18,6 +18,7 @@ import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../../components/ScreenBackground";
 import api from "../../lib/api";
+import { track } from "../../lib/analytics";
 import { MedicationTypeIcon } from "../../components/SymptomIcon";
 import {
   FREQUENCY_LABELS,
@@ -696,6 +697,7 @@ export default function MedicationsScreen() {
         takenAt: new Date().toISOString(),
         status: "taken",
       });
+      track("medication_logged", { status: "taken" });
       setTodayLogs((prev) => [...prev, res.data.log]);
     } catch {
       setActionError(doseKey);
@@ -725,6 +727,7 @@ export default function MedicationsScreen() {
         status: "skipped",
         skipReason: reason,
       });
+      track("medication_logged", { status: "skipped" });
       setTodayLogs((prev) => [...prev, res.data.log]);
       setSkippingDoseKey(null);
     } catch {

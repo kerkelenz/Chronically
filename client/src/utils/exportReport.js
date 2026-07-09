@@ -1,5 +1,6 @@
 import axios from "axios";
 import { generateReport } from "./generateReport";
+import { track } from "../lib/analytics";
 
 export const exportDoctorReport = async ({ token, username }) => {
   const headers = { Authorization: `Bearer ${token}` };
@@ -23,4 +24,7 @@ export const exportDoctorReport = async ({ token, username }) => {
     logsRes.data.logs,
     apptsRes.data.appointments,
   );
+
+  // covers both export buttons (dashboard and appointments) in one place
+  track("report_exported");
 };

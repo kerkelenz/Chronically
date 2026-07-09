@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import api, { setOnUnauthorized } from "../lib/api";
+import { trackSession } from "../lib/analytics";
 import {
   getToken as loadToken,
   setToken as saveToken,
@@ -50,6 +51,7 @@ export function AuthProvider({ children }) {
 
       setToken(storedToken);
       setUserState(u);
+      trackSession();
       // Optimistic restore — validate token in background
       api.get("/api/protected").catch(() => signOut());
       setIsLoading(false);
@@ -66,6 +68,7 @@ export function AuthProvider({ children }) {
       await saveUser(newUser); // full user including avatar → AsyncStorage
       setToken(newToken);
       setUserState(newUser);
+      trackSession();
     } catch (err) {
       const msg =
         err.response?.data?.error || "Something went wrong. Please try again.";

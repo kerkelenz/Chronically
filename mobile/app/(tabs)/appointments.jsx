@@ -22,6 +22,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import ScreenBackground from "../../components/ScreenBackground";
 import api from "../../lib/api";
+import { track } from "../../lib/analytics";
 import { computeReportData } from "../../lib/reportData";
 import { buildReportHtml } from "../../lib/reportHtml";
 import { useAuth } from "../../context/AuthContext";
@@ -162,6 +163,7 @@ export default function AppointmentsScreen() {
           dialogTitle: "Doctor report",
           UTI: "com.adobe.pdf",
         });
+        track("report_exported");
       } else {
         Alert.alert("Report ready", "Sharing isn't available on this device.");
       }

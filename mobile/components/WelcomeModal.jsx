@@ -2,6 +2,7 @@ import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from "rea
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 import api from "../lib/api";
+import { track } from "../lib/analytics";
 
 const FEATURES = [
   { icon: <Ionicons name="checkmark-circle-outline" size={22} color="white" />, name: "Daily check-ins", desc: "Note how you're feeling in seconds." },
@@ -20,6 +21,7 @@ export default function WelcomeModal({ onClose }) {
     } catch {
       // non-fatal — still dismiss locally
     }
+    track("welcome_completed");
     updateUser({ ...user, hasSeenWelcome: true });
     onClose();
   };

@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../components/ScreenBackground";
 import LevelButtons from "../components/LevelButtons";
 import api from "../lib/api";
+import { track } from "../lib/analytics";
 import { consumeDeliberateOpen } from "../lib/checkinNav";
 import { METRIC_LABELS, SYMPTOM_LIST } from "../theme/metrics";
 import {
@@ -132,6 +133,7 @@ export default function CheckInScreen() {
         symptoms: symptoms.length > 0 ? symptoms : null,
         date: today,
       });
+      track("checkin_completed");
       setStep(8);
     } catch (err) {
       setError(
