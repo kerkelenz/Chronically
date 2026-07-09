@@ -13,11 +13,11 @@ export default function BrandWordmark({ className = "", style = {} }) {
         alt=""
         aria-hidden="true"
         style={{
-          height: "0.91em",
+          height: "1.12em",
           width: "auto",
           display: "inline-block",
-          verticalAlign: "-0.10em",
-          marginRight: "-0.10em",
+          verticalAlign: "-0.13em",
+          marginRight: "-0.02em",
         }}
       />
       <span aria-hidden="true">hronically</span>
