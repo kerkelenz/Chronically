@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
+import BrandWordmark from "../components/BrandWordmark";
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -133,7 +134,7 @@ function LoginPage() {
           className="text-3xl font-medium text-white"
           style={{ fontFamily: "Playfair Display, Georgia, serif" }}
         >
-          Chronically
+          <BrandWordmark />
         </h1>
         <p className="text-xs text-white opacity-70">
           your daily companion for the chronic life.

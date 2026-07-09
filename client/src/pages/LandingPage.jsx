@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import BrandWordmark from "../components/BrandWordmark";
 
 function LandingPage() {
   const navigate = useNavigate();
@@ -113,7 +114,7 @@ function LandingPage() {
           className="text-5xl font-medium text-white"
           style={{ fontFamily: "Playfair Display, Georgia, serif", letterSpacing: "0.03em" }}
         >
-          Chronically
+          <BrandWordmark />
         </h1>
         <p className="text-sm text-white opacity-70 text-center">
           your daily companion for the chronic life.
