@@ -11,6 +11,7 @@ import {
 import { Stack, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../components/ScreenBackground";
+import LavenderConfetti from "../components/LavenderConfetti";
 import LevelButtons from "../components/LevelButtons";
 import api from "../lib/api";
 import { track } from "../lib/analytics";
@@ -480,6 +481,7 @@ export default function CheckInScreen() {
             </View>
           </ScrollView>
         )}
+        {step === 8 && <LavenderConfetti />}
       </ScreenBackground>
     </>
   );
