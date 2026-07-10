@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import { track } from "../lib/analytics";
+import LavenderConfetti from "./LavenderConfetti";
 import { FiEdit2 } from "react-icons/fi";
 
 const AFFIRMATIONS = [
@@ -380,6 +381,8 @@ function CheckInModal({ onClose, onComplete }) {
       <div className="absolute rounded-full opacity-30" style={{ width: "150px", height: "150px", background: "#DEC8DA", filter: "blur(50px)", top: "50px", right: "-30px" }} />
       <div className="absolute rounded-full opacity-30" style={{ width: "180px", height: "180px", background: "#9B8EC4", filter: "blur(55px)", bottom: "80px", left: "20px" }} />
       <div className="absolute rounded-full opacity-30" style={{ width: "130px", height: "130px", background: "#C4A8C0", filter: "blur(45px)", bottom: "-20px", right: "40px" }} />
+
+      {step === 8 && <LavenderConfetti />}
 
       <div className="relative z-10 flex flex-col items-center gap-6 w-full max-w-sm px-6">
 
