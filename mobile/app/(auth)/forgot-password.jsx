@@ -13,6 +13,7 @@ import {
 import { useRouter } from "expo-router";
 import ScreenBackground from "../../components/ScreenBackground";
 import FloatingPetals from "../../components/FloatingPetals";
+import BrandWordmark from "../../components/BrandWordmark";
 import api from "../../lib/api";
 
 export default function ForgotPasswordScreen() {
@@ -48,7 +49,7 @@ export default function ForgotPasswordScreen() {
         <FloatingPetals />
         <View style={styles.centeredFull}>
           <View style={styles.header}>
-            <Text style={styles.appName}>Chronically</Text>
+            <BrandWordmark fontSize={30} />
             <Text style={styles.tagline}>
               your daily companion for the chronic life.
             </Text>
@@ -84,7 +85,7 @@ export default function ForgotPasswordScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <Text style={styles.appName}>Chronically</Text>
+            <BrandWordmark fontSize={30} />
             <Text style={styles.tagline}>
               your daily companion for the chronic life.
             </Text>
@@ -154,12 +155,6 @@ const styles = StyleSheet.create({
   header: {
     alignItems: "center",
     marginBottom: 32,
-  },
-  appName: {
-    fontFamily: "PlayfairDisplay_500Medium",
-    fontSize: 30,
-    color: "white",
-    textAlign: "center",
   },
   tagline: {
     fontFamily: "Lato_400Regular",
