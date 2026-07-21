@@ -2,13 +2,17 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import { track } from "../lib/analytics";
-import { FiEdit2, FiTrash2, FiRotateCcw, FiPlus, FiPause, FiPlay, FiX } from "react-icons/fi";
+import {
+  FiEdit2, FiTrash2, FiRotateCcw, FiPlus, FiPause, FiPlay, FiX,
+  FiSunrise, FiSun, FiMoon, FiClock, FiChevronDown, FiChevronRight,
+} from "react-icons/fi";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import {
   formatTime,
   resolvePattern,
   expectedDosesOn,
   describeSchedule,
+  nextDueDate,
 } from "../utils/medicationHelpers";
 import { MedicationTypeIcon } from "../components/SymptomIcon";
 
@@ -86,11 +90,25 @@ function slotGroup(slot) {
 }
 
 const GROUP_ORDER = [
-  { key: "morning", label: "Morning" },
-  { key: "afternoon", label: "Afternoon" },
-  { key: "evening", label: "Evening" },
-  { key: "anytime", label: "Anytime today" },
+  { key: "morning", label: "Morning", Icon: FiSunrise },
+  { key: "afternoon", label: "Afternoon", Icon: FiSun },
+  { key: "evening", label: "Evening", Icon: FiMoon },
+  { key: "anytime", label: "Anytime today", Icon: FiClock },
 ];
+
+/** "Next: today · 8:00 AM" / "Next: tomorrow" / "Next: Friday" / "Next: Aug 12" — null for PRN. */
+function nextDoseLabel(med, today) {
+  const next = nextDueDate(med, today);
+  if (!next) return null;
+  const firstTime = (med.scheduledTimes || []).filter(Boolean)[0];
+  if (next === today) {
+    return firstTime ? `Next: today · ${formatTime(firstTime)}` : "Next: today";
+  }
+  const diff = Math.round((ymdToDate(next) - ymdToDate(today)) / 86400000);
+  if (diff === 1) return "Next: tomorrow";
+  if (diff <= 6) return `Next: ${ymdToDate(next).toLocaleDateString("en-US", { weekday: "long" })}`;
+  return `Next: ${ymdToDate(next).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+}
 
 // ── Zone 2: adherence dots ────────────────────────────────────────────────────
 
@@ -165,7 +183,11 @@ function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onD
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 flex-1 min-w-0">
-          <MedicationTypeIcon type={med.type} size={24} style={{ marginTop: "2px" }} />
+          <MedicationTypeIcon
+            type={med.type}
+            size={18}
+            style={{ marginTop: "2px", color: "rgba(255,255,255,0.75)" }}
+          />
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm" style={{ color: "white" }}>
               {med.name}
@@ -178,6 +200,11 @@ function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onD
             <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.7)" }}>
               {describeSchedule(med)}
             </p>
+            {!paused && nextDoseLabel(med, today) && (
+              <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>
+                {nextDoseLabel(med, today)}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex gap-0.5 flex-shrink-0">
@@ -208,7 +235,7 @@ function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onD
         </div>
       </div>
       {!paused && (
-        <div className="flex gap-2" style={{ paddingLeft: "32px" }} aria-label="Last 7 days">
+        <div className="flex gap-2" style={{ paddingLeft: "26px" }} aria-label="Last 7 days">
           {weekDates.map((day) => (
             <AdherenceDot key={day} med={med} day={day} weekLogs={weekLogs} today={today} />
           ))}
@@ -505,6 +532,8 @@ function MedicationsPage() {
   const [deleting, setDeleting] = useState(false);
   const [reasonEditKey, setReasonEditKey] = useState(null);
   const [actionError, setActionError] = useState(null);
+  // cabinet collapse (session state only)
+  const [cabinetOpen, setCabinetOpen] = useState(false);
 
   const hdrs = { Authorization: `Bearer ${token}` };
   const today = new Date().toLocaleDateString("en-CA");
@@ -737,6 +766,11 @@ function MedicationsPage() {
     doses: doses.filter((d) => d.group === g.key),
   })).filter((g) => g.doses.length > 0);
 
+  // today progress: expected scheduled slots (PRN excluded) vs those logged
+  const todayExpected = doses.length;
+  const todayLogged = doses.filter((d) => d.log).length;
+  const allLogged = todayExpected > 0 && todayLogged === todayExpected;
+
   // ── Dose row renderer ───────────────────────────────────────────────────────
 
   const renderDoseRow = (dose) => {
@@ -959,17 +993,46 @@ function MedicationsPage() {
                   </p>
                 ) : (
                   <div className="flex flex-col gap-2">
-                    {groups.map((g) => (
-                      <div key={g.key} className="flex flex-col gap-2">
-                        <p
-                          className="text-[10px] uppercase tracking-wide mt-1"
-                          style={{ color: "rgba(255,255,255,0.5)" }}
-                        >
-                          {g.label}
-                        </p>
-                        {g.doses.map(renderDoseRow)}
+                    {/* Today progress — states a fact, nothing more */}
+                    <div className="flex flex-col gap-1.5 mb-1">
+                      <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
+                        {todayLogged} of {todayExpected} doses logged
+                      </p>
+                      <div
+                        className="w-full rounded-full overflow-hidden"
+                        style={{ height: "4px", background: "rgba(255,255,255,0.15)" }}
+                      >
+                        <div
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{
+                            width: `${Math.round((todayLogged / todayExpected) * 100)}%`,
+                            background: "#C4A8C0",
+                          }}
+                        />
                       </div>
-                    ))}
+                    </div>
+
+                    {allLogged ? (
+                      <p
+                        className="text-sm text-center py-4"
+                        style={{ color: "rgba(255,255,255,0.75)" }}
+                      >
+                        All logged for today 💜
+                      </p>
+                    ) : (
+                      groups.map((g) => (
+                        <div key={g.key} className="flex flex-col gap-2">
+                          <p
+                            className="text-[10px] uppercase tracking-wide mt-1 flex items-center gap-1.5"
+                            style={{ color: "rgba(255,255,255,0.5)" }}
+                          >
+                            <g.Icon size={16} style={{ color: "rgba(255,255,255,0.7)" }} />
+                            {g.label}
+                          </p>
+                          {g.doses.map(renderDoseRow)}
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
 
@@ -1051,43 +1114,60 @@ function MedicationsPage() {
               </div>
             </div>
 
-            {/* ── Zone 2: My medications ────────────────────────────────────── */}
-            {activeMeds.length > 0 && (
+            {/* ── Zone 2: Medicine cabinet (collapsed by default) ───────────── */}
+            {medications.length > 0 && (
               <div className="flex flex-col gap-3">
-                <p className="text-xs uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>
-                  My medications
-                </p>
-                {activeMeds.map((med) => (
-                  <CabinetCard
-                    key={med.id}
-                    med={med}
-                    weekDates={weekDates}
-                    weekLogs={weekLogs}
-                    today={today}
-                    onEdit={openEdit}
-                    onSetActive={handleSetActive}
-                    onDelete={setDeleteConfirm}
-                  />
-                ))}
-              </div>
-            )}
-            {pausedMeds.length > 0 && (
-              <div className="flex flex-col gap-3">
-                <p className="text-xs uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>
-                  Paused
-                </p>
-                {pausedMeds.map((med) => (
-                  <CabinetCard
-                    key={med.id}
-                    med={med}
-                    weekDates={weekDates}
-                    weekLogs={weekLogs}
-                    today={today}
-                    onEdit={openEdit}
-                    onSetActive={handleSetActive}
-                    onDelete={setDeleteConfirm}
-                  />
-                ))}
+                <button
+                  onClick={() => setCabinetOpen((o) => !o)}
+                  aria-expanded={cabinetOpen}
+                  className="flex items-center gap-1.5 text-left w-fit"
+                  style={{ color: "rgba(255,255,255,0.7)" }}
+                >
+                  <span className="text-xs uppercase tracking-wide">
+                    Medicine cabinet ({activeMeds.length})
+                  </span>
+                  {cabinetOpen ? <FiChevronDown size={14} /> : <FiChevronRight size={14} />}
+                </button>
+
+                {cabinetOpen && (
+                  <>
+                    {activeMeds.map((med) => (
+                      <CabinetCard
+                        key={med.id}
+                        med={med}
+                        weekDates={weekDates}
+                        weekLogs={weekLogs}
+                        today={today}
+                        onEdit={openEdit}
+                        onSetActive={handleSetActive}
+                        onDelete={setDeleteConfirm}
+                      />
+                    ))}
+
+                    {pausedMeds.length > 0 && (
+                      <>
+                        <p
+                          className="text-xs uppercase tracking-wide mt-1"
+                          style={{ color: "rgba(255,255,255,0.7)" }}
+                        >
+                          Paused
+                        </p>
+                        {pausedMeds.map((med) => (
+                          <CabinetCard
+                            key={med.id}
+                            med={med}
+                            weekDates={weekDates}
+                            weekLogs={weekLogs}
+                            today={today}
+                            onEdit={openEdit}
+                            onSetActive={handleSetActive}
+                            onDelete={setDeleteConfirm}
+                          />
+                        ))}
+                      </>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </>

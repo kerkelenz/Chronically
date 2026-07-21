@@ -254,3 +254,16 @@ export function adherenceStats(medications, logs, fromYmd, toYmd, todayYmd) {
     prnTaken,
   };
 }
+
+/** Next due date on/after fromYmd within `horizon` days, or null (PRN/none). */
+export function nextDueDate(medication, fromYmd, horizon = 31) {
+  const p = resolvePattern(medication);
+  if (p.kind === "as_needed" || p.kind === "none") return null;
+  const start = parseYmd(fromYmd);
+  for (let i = 0; i < horizon; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const ymdStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (isMedicationDueOn(medication, ymdStr)) return ymdStr;
+  }
+  return null;
+}

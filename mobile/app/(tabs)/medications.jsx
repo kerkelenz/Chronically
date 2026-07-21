@@ -26,6 +26,7 @@ import {
   resolvePattern,
   expectedDosesOn,
   describeSchedule,
+  nextDueDate,
 } from "../../theme/medications";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -123,11 +124,25 @@ function slotGroup(slot) {
 }
 
 const GROUP_ORDER = [
-  { key: "morning", label: "Morning" },
-  { key: "afternoon", label: "Afternoon" },
-  { key: "evening", label: "Evening" },
-  { key: "anytime", label: "Anytime today" },
+  { key: "morning", label: "Morning", icon: "sunny-outline" },
+  { key: "afternoon", label: "Afternoon", icon: "partly-sunny-outline" },
+  { key: "evening", label: "Evening", icon: "moon-outline" },
+  { key: "anytime", label: "Anytime today", icon: "time-outline" },
 ];
+
+/** "Next: today · 8:00 AM" / "Next: tomorrow" / "Next: Friday" / "Next: Aug 12" — null for PRN. */
+function nextDoseLabel(med, today) {
+  const next = nextDueDate(med, today);
+  if (!next) return null;
+  const firstTime = (med.scheduledTimes || []).filter(Boolean)[0];
+  if (next === today) {
+    return firstTime ? `Next: today · ${formatTime(firstTime)}` : "Next: today";
+  }
+  const diff = Math.round((ymdToDate(next) - ymdToDate(today)) / 86400000);
+  if (diff === 1) return "Next: tomorrow";
+  if (diff <= 6) return `Next: ${ymdToDate(next).toLocaleDateString("en-US", { weekday: "long" })}`;
+  return `Next: ${ymdToDate(next).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+}
 
 // ── Zone 1: dose row ──────────────────────────────────────────────────────────
 // Neutral all day: unlogged doses read as grey "not logged" — never red, never
@@ -319,13 +334,16 @@ function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onD
   return (
     <View style={styles.medCard}>
       <View style={styles.medCardTop}>
-        <MedicationTypeIcon type={med.type} size={22} color="rgba(255,255,255,0.9)" />
+        <MedicationTypeIcon type={med.type} size={18} color="rgba(255,255,255,0.75)" />
         <View style={styles.medCardInfo}>
           <Text style={styles.medCardName}>
             {med.name}
             {med.dosage ? ` · ${med.dosage}` : ""}
           </Text>
           <Text style={styles.medCardSub}>{describeSchedule(med)}</Text>
+          {!paused && nextDoseLabel(med, today) && (
+            <Text style={styles.nextDoseLine}>{nextDoseLabel(med, today)}</Text>
+          )}
         </View>
         <View style={styles.medCardActions}>
           <TouchableOpacity
@@ -798,6 +816,9 @@ export default function MedicationsScreen() {
   const [actionLoading, setActionLoading] = useState(null);
   const [actionError, setActionError] = useState(null);
 
+  // cabinet collapse (session state only)
+  const [cabinetOpen, setCabinetOpen] = useState(false);
+
   // add/edit/delete
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -1075,6 +1096,11 @@ export default function MedicationsScreen() {
     doses: doses.filter((d) => d.group === g.key),
   })).filter((g) => g.doses.length > 0);
 
+  // today progress: expected scheduled slots (PRN excluded) vs those logged
+  const todayExpected = doses.length;
+  const todayLogged = doses.filter((d) => d.log).length;
+  const allLogged = todayExpected > 0 && todayLogged === todayExpected;
+
   // ── Loading ───────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -1142,26 +1168,52 @@ export default function MedicationsScreen() {
               Nothing scheduled today — your as-needed medications are below.
             </Text>
           ) : (
-            groups.map((g) => (
-              <View key={g.key}>
-                <Text style={styles.groupTitle}>{g.label}</Text>
-                {g.doses.map((dose) => (
-                  <DoseRow
-                    key={dose.doseKey}
-                    dose={dose}
-                    reasonEditKey={reasonEditKey}
-                    onTake={handleTake}
-                    onSkip={handleSkip}
-                    onReasonOpen={setReasonEditKey}
-                    onReasonPick={handleReasonPick}
-                    onReasonCancel={() => setReasonEditKey(null)}
-                    onUndo={handleUndo}
-                    actionLoading={actionLoading}
-                    actionError={actionError}
+            <>
+              {/* Today progress — states a fact, nothing more */}
+              <View style={styles.progressWrap}>
+                <Text style={styles.progressText}>
+                  {todayLogged} of {todayExpected} doses logged
+                </Text>
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${Math.round((todayLogged / todayExpected) * 100)}%` },
+                    ]}
                   />
-                ))}
+                </View>
               </View>
-            ))
+
+              {allLogged ? (
+                <Text style={styles.allDoneText}>All logged for today 💜</Text>
+              ) : (
+                groups.map((g) => (
+                  <View key={g.key}>
+                    <View style={styles.groupTitleRow}>
+                      <Ionicons name={g.icon} size={16} color="rgba(255,255,255,0.7)" />
+                      <Text style={[styles.groupTitle, { marginTop: 0, marginBottom: 0 }]}>
+                        {g.label}
+                      </Text>
+                    </View>
+                    {g.doses.map((dose) => (
+                      <DoseRow
+                        key={dose.doseKey}
+                        dose={dose}
+                        reasonEditKey={reasonEditKey}
+                        onTake={handleTake}
+                        onSkip={handleSkip}
+                        onReasonOpen={setReasonEditKey}
+                        onReasonPick={handleReasonPick}
+                        onReasonCancel={() => setReasonEditKey(null)}
+                        onUndo={handleUndo}
+                        actionLoading={actionLoading}
+                        actionError={actionError}
+                      />
+                    ))}
+                  </View>
+                ))
+              )}
+            </>
           )}
 
           {/* As-needed lane */}
@@ -1227,40 +1279,61 @@ export default function MedicationsScreen() {
           )}
         </View>
 
-        {/* ── Zone 2: My medications ────────────────────────────────────────── */}
-        {activeMeds.length > 0 && (
+        {/* ── Zone 2: Medicine cabinet (collapsed by default) ───────────────── */}
+        {medications.length > 0 && (
           <>
-            <Text style={styles.regimenTitle}>My medications</Text>
-            {activeMeds.map((med) => (
-              <CabinetCard
-                key={med.id}
-                med={med}
-                weekDates={weekDates}
-                weekLogs={weekLogs}
-                today={today}
-                onEdit={openEdit}
-                onSetActive={handleSetActive}
-                onDeleteRequest={setDeleteConfirm}
+            <TouchableOpacity
+              style={styles.cabinetHeader}
+              onPress={() => setCabinetOpen((o) => !o)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: cabinetOpen }}
+              accessibilityLabel={`Medicine cabinet, ${activeMeds.length} active medication${activeMeds.length === 1 ? "" : "s"}`}
+            >
+              <Text style={styles.regimenTitle}>
+                Medicine cabinet ({activeMeds.length})
+              </Text>
+              <Ionicons
+                name={cabinetOpen ? "chevron-down" : "chevron-forward"}
+                size={18}
+                color="rgba(255,255,255,0.7)"
               />
-            ))}
-          </>
-        )}
+            </TouchableOpacity>
 
-        {pausedMeds.length > 0 && (
-          <>
-            <Text style={styles.regimenTitle}>Paused</Text>
-            {pausedMeds.map((med) => (
-              <CabinetCard
-                key={med.id}
-                med={med}
-                weekDates={weekDates}
-                weekLogs={weekLogs}
-                today={today}
-                onEdit={openEdit}
-                onSetActive={handleSetActive}
-                onDeleteRequest={setDeleteConfirm}
-              />
-            ))}
+            {cabinetOpen && (
+              <>
+                {activeMeds.map((med) => (
+                  <CabinetCard
+                    key={med.id}
+                    med={med}
+                    weekDates={weekDates}
+                    weekLogs={weekLogs}
+                    today={today}
+                    onEdit={openEdit}
+                    onSetActive={handleSetActive}
+                    onDeleteRequest={setDeleteConfirm}
+                  />
+                ))}
+
+                {pausedMeds.length > 0 && (
+                  <>
+                    <Text style={styles.pausedTitle}>Paused</Text>
+                    {pausedMeds.map((med) => (
+                      <CabinetCard
+                        key={med.id}
+                        med={med}
+                        weekDates={weekDates}
+                        weekLogs={weekLogs}
+                        today={today}
+                        onEdit={openEdit}
+                        onSetActive={handleSetActive}
+                        onDeleteRequest={setDeleteConfirm}
+                      />
+                    ))}
+                  </>
+                )}
+              </>
+            )}
           </>
         )}
       </ScrollView>
@@ -1392,6 +1465,42 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginTop: 10,
     marginBottom: 8,
+  },
+  groupTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    marginBottom: 8,
+  },
+
+  // Today progress
+  progressWrap: {
+    gap: 6,
+    marginBottom: 4,
+  },
+  progressText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.7)",
+  },
+  progressTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 2,
+    backgroundColor: "#C4A8C0",
+  },
+  allDoneText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.75)",
+    textAlign: "center",
+    paddingVertical: 14,
   },
   emptyText: {
     fontFamily: "Lato_400Regular",
@@ -1546,8 +1655,20 @@ const styles = StyleSheet.create({
     fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 20,
     color: "white",
-    marginBottom: 10,
+  },
+  cabinetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     marginTop: 4,
+    marginBottom: 10,
+  },
+  pausedTitle: {
+    fontFamily: "PlayfairDisplay_500Medium",
+    fontSize: 17,
+    color: "rgba(255,255,255,0.85)",
+    marginTop: 8,
+    marginBottom: 10,
   },
   medCard: {
     backgroundColor: "rgba(255,255,255,0.1)",
@@ -1575,6 +1696,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "rgba(255,255,255,0.6)",
   },
+  nextDoseLine: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.5)",
+    marginTop: 2,
+  },
   medCardActions: {
     flexDirection: "row",
     gap: 4,
@@ -1587,7 +1714,7 @@ const styles = StyleSheet.create({
   dotsRow: {
     flexDirection: "row",
     gap: 8,
-    paddingLeft: 34, // aligns dots under the text column, past the type icon
+    paddingLeft: 30, // aligns dots under the text column, past the type icon
   },
   dot: {
     width: 12,
