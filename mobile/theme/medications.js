@@ -279,7 +279,7 @@ export const SKIP_REASONS = [
 ];
 
 export const DOSE_STATUS_COLORS = {
-  taken:      "#7FAF8A",
+  taken:      "#A9D8B4",
   skipped:    "rgba(255,255,255,0.3)",
   missed:     "#FF6B8A",
   "past-due": "#C4A882",

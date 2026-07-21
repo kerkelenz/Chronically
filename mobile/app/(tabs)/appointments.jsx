@@ -1218,7 +1218,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 20,
   },
-  pillCompleted: { backgroundColor: "rgba(127,175,138,0.3)" },
+  pillCompleted: { backgroundColor: "rgba(140,220,160,0.28)" },
   pillCancelled: { backgroundColor: "rgba(255,255,255,0.15)" },
   pillUpcoming:  { backgroundColor: "rgba(124,107,174,0.4)" },
   statusPillText: {
@@ -1295,7 +1295,7 @@ const styles = StyleSheet.create({
   },
   apptCardCompleted: {
     borderLeftWidth: 3,
-    borderLeftColor: "#7FAF8A",
+    borderLeftColor: "#A9D8B4",
   },
   apptCardCancelled: {
     borderLeftWidth: 3,
@@ -1374,7 +1374,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   completedPill: {
-    backgroundColor: "rgba(127,175,138,0.25)",
+    backgroundColor: "rgba(140,220,160,0.28)",
     borderRadius: 20,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -1382,7 +1382,7 @@ const styles = StyleSheet.create({
   completedPillText: {
     fontFamily: "Lato_700Bold",
     fontSize: 10,
-    color: "#7FAF8A",
+    color: "#E9F7EE",
   },
   cancelledPill: {
     backgroundColor: "rgba(255,255,255,0.1)",

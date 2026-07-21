@@ -15,7 +15,7 @@ module.exports = {
         energy: "#8FAF9B",
         anxiety: "#9BAFC4",
         appetite: "#C4A882",
-        success: "#7FAF8A",
+        success: "#A9D8B4",
         error: "#B07088",
         "frosted-sm": "rgba(255,255,255,0.15)",
         "frosted-md": "rgba(255,255,255,0.18)",

@@ -781,7 +781,7 @@ function MedicationsPage() {
     let statusColor = "rgba(255,255,255,0.6)";
     if (log?.status === "taken") {
       statusLine = `Taken at ${formatTakenAt(log.takenAt)}`;
-      statusColor = "#7FAF8A";
+      statusColor = "#D6F2DF";
     } else if (log?.status === "skipped") {
       statusLine = log.skipReason ? `Skipped · ${log.skipReason}` : "Skipped";
     } else {
@@ -820,7 +820,7 @@ function MedicationsPage() {
           {log ? (
             <div className="flex items-center gap-1.5 flex-shrink-0">
               {log.status === "taken" ? (
-                <span className="text-sm" style={{ color: "#7FAF8A" }}>✓</span>
+                <span className="text-sm" style={{ color: "#D6F2DF" }}>✓</span>
               ) : (
                 <button
                   onClick={() => setReasonEditKey(isEditingReason ? null : doseKey)}
@@ -1012,27 +1012,26 @@ function MedicationsPage() {
                       </div>
                     </div>
 
-                    {allLogged ? (
+                    {allLogged && (
                       <p
-                        className="text-sm text-center py-4"
+                        className="text-sm text-center pt-2"
                         style={{ color: "rgba(255,255,255,0.75)" }}
                       >
                         All logged for today 💜
                       </p>
-                    ) : (
-                      groups.map((g) => (
-                        <div key={g.key} className="flex flex-col gap-2">
-                          <p
-                            className="text-[10px] uppercase tracking-wide mt-1 flex items-center gap-1.5"
-                            style={{ color: "rgba(255,255,255,0.5)" }}
-                          >
-                            <g.Icon size={16} style={{ color: "rgba(255,255,255,0.7)" }} />
-                            {g.label}
-                          </p>
-                          {g.doses.map(renderDoseRow)}
-                        </div>
-                      ))
                     )}
+                    {groups.map((g) => (
+                      <div key={g.key} className="flex flex-col gap-2">
+                        <p
+                          className="text-[10px] uppercase tracking-wide mt-1 flex items-center gap-1.5"
+                          style={{ color: "rgba(255,255,255,0.5)" }}
+                        >
+                          <g.Icon size={16} style={{ color: "rgba(255,255,255,0.7)" }} />
+                          {g.label}
+                        </p>
+                        {g.doses.map(renderDoseRow)}
+                      </div>
+                    ))}
                   </div>
                 )}
 
@@ -1092,7 +1091,7 @@ function MedicationsPage() {
                               className="flex items-center justify-between mt-2 pt-2"
                               style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}
                             >
-                              <p className="text-[10px]" style={{ color: "#7FAF8A" }}>
+                              <p className="text-[10px]" style={{ color: "#D6F2DF" }}>
                                 Taken at {formatTakenAt(l.takenAt)}
                               </p>
                               <button

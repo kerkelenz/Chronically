@@ -307,7 +307,7 @@ function ProfilePage() {
           </div>
 
           {success && (
-            <p className="text-xs text-center font-medium" style={{ color: "#7FAF8A" }}>{success}</p>
+            <p className="text-xs text-center font-medium" style={{ color: "#D6F2DF" }}>{success}</p>
           )}
           {error && (
             <p className="text-xs text-center" style={{ color: "#FF6B8A" }}>{error}</p>

@@ -11,7 +11,7 @@ export const formatApptTime = (dateStr) => {
 };
 
 export const dotColor = (status) => {
-  if (status === "completed") return "#7FAF8A";
+  if (status === "completed") return "#A9D8B4";
   if (status === "cancelled") return "rgba(255,255,255,0.3)";
   return "white";
 };

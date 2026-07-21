@@ -8,7 +8,7 @@ const PAD = { left: 38, right: 10, top: 14, bottom: 22 };
 const GRID_VALUES = [0, 50, 100];
 const REF_LINES = [
   { value: 75, color: "#C4A882", label: "75%" },
-  { value: 90, color: "#7FAF8A", label: "90%" },
+  { value: 90, color: "#A9D8B4", label: "90%" },
 ];
 const LINE_COLOR = "#8FAF9B";
 

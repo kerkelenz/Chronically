@@ -10,7 +10,7 @@ import ConfettiCannon from "react-native-confetti-cannon";
 import { MILESTONE_COPY, MILESTONE_META } from "../lib/milestones";
 import Badge from "./Badge";
 
-const CONFETTI_COLORS = ["#7C6BAE", "#9B8EC4", "#C4A8C0", "#C4A882", "#7FAF8A", "#FFFFFF"];
+const CONFETTI_COLORS = ["#7C6BAE", "#9B8EC4", "#C4A8C0", "#C4A882", "#A9D8B4", "#FFFFFF"];
 
 export default function MilestoneCelebration({ milestone, onDismiss }) {
   const { width } = useWindowDimensions();

@@ -48,7 +48,7 @@ const toDateOnly = (isoStr) => {
 };
 
 const dotColor = (status) => {
-  if (status === "completed") return "#7FAF8A";
+  if (status === "completed") return "#A9D8B4";
   if (status === "cancelled") return "rgba(255,255,255,0.3)";
   return "white";
 };
@@ -449,7 +449,7 @@ function AppointmentsPage() {
                       style={{
                         background:
                           popoverAppointment.status === "completed"
-                            ? "rgba(127,175,138,0.3)"
+                            ? "rgba(140,220,160,0.28)"
                             : popoverAppointment.status === "cancelled"
                             ? "rgba(255,255,255,0.15)"
                             : "rgba(124,107,174,0.4)",
@@ -600,7 +600,7 @@ function AppointmentsPage() {
                           style={{
                             background: "rgba(255,255,255,0.15)",
                             border: "1px solid rgba(255,255,255,0.3)",
-                            borderLeft: isCompleted ? "3px solid #7FAF8A" : isCancelled ? "3px solid rgba(255,255,255,0.2)" : undefined,
+                            borderLeft: isCompleted ? "3px solid #A9D8B4" : isCancelled ? "3px solid rgba(255,255,255,0.2)" : undefined,
                             opacity: isCancelled ? 0.6 : 1,
                           }}
                         >
@@ -610,7 +610,7 @@ function AppointmentsPage() {
                                 {isCompleted && (
                                   <span
                                     className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                                    style={{ background: "rgba(127,175,138,0.25)", color: "#7FAF8A" }}
+                                    style={{ background: "rgba(140,220,160,0.28)", color: "#E9F7EE" }}
                                   >
                                     COMPLETED
                                   </span>

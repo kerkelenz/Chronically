@@ -313,9 +313,9 @@ function TrendsPage() {
                               />
                               <ReferenceLine
                                 y={90}
-                                stroke="#7FAF8A"
+                                stroke="#A9D8B4"
                                 strokeDasharray="3 3"
-                                label={{ value: "90%", position: "right", fontSize: 8, fill: "#7FAF8A" }}
+                                label={{ value: "90%", position: "right", fontSize: 8, fill: "#A9D8B4" }}
                               />
                               <Line
                                 type="monotone"

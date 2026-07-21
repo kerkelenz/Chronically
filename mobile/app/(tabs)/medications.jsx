@@ -193,7 +193,7 @@ function DoseRow({
           {log ? (
             <View style={styles.doseActionRow}>
               {log.status === "taken" ? (
-                <Ionicons name="checkmark-circle" size={18} color="#7FAF8A" style={{ marginRight: 6 }} />
+                <Ionicons name="checkmark-circle" size={18} color="#D6F2DF" style={{ marginRight: 6 }} />
               ) : (
                 <TouchableOpacity
                   style={styles.skippedChip}
@@ -1184,35 +1184,34 @@ export default function MedicationsScreen() {
                 </View>
               </View>
 
-              {allLogged ? (
+              {allLogged && (
                 <Text style={styles.allDoneText}>All logged for today 💜</Text>
-              ) : (
-                groups.map((g) => (
-                  <View key={g.key}>
-                    <View style={styles.groupTitleRow}>
-                      <Ionicons name={g.icon} size={16} color="rgba(255,255,255,0.7)" />
-                      <Text style={[styles.groupTitle, { marginTop: 0, marginBottom: 0 }]}>
-                        {g.label}
-                      </Text>
-                    </View>
-                    {g.doses.map((dose) => (
-                      <DoseRow
-                        key={dose.doseKey}
-                        dose={dose}
-                        reasonEditKey={reasonEditKey}
-                        onTake={handleTake}
-                        onSkip={handleSkip}
-                        onReasonOpen={setReasonEditKey}
-                        onReasonPick={handleReasonPick}
-                        onReasonCancel={() => setReasonEditKey(null)}
-                        onUndo={handleUndo}
-                        actionLoading={actionLoading}
-                        actionError={actionError}
-                      />
-                    ))}
-                  </View>
-                ))
               )}
+              {groups.map((g) => (
+                <View key={g.key}>
+                  <View style={styles.groupTitleRow}>
+                    <Ionicons name={g.icon} size={16} color="rgba(255,255,255,0.7)" />
+                    <Text style={[styles.groupTitle, { marginTop: 0, marginBottom: 0 }]}>
+                      {g.label}
+                    </Text>
+                  </View>
+                  {g.doses.map((dose) => (
+                    <DoseRow
+                      key={dose.doseKey}
+                      dose={dose}
+                      reasonEditKey={reasonEditKey}
+                      onTake={handleTake}
+                      onSkip={handleSkip}
+                      onReasonOpen={setReasonEditKey}
+                      onReasonPick={handleReasonPick}
+                      onReasonCancel={() => setReasonEditKey(null)}
+                      onUndo={handleUndo}
+                      actionLoading={actionLoading}
+                      actionError={actionError}
+                    />
+                  ))}
+                </View>
+              ))}
             </>
           )}
 
@@ -1500,7 +1499,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "rgba(255,255,255,0.75)",
     textAlign: "center",
-    paddingVertical: 14,
+    paddingTop: 8,
+    paddingBottom: 2,
   },
   emptyText: {
     fontFamily: "Lato_400Regular",
@@ -1540,7 +1540,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "rgba(255,255,255,0.6)",
   },
-  doseStatusTaken: { color: "#7FAF8A" },
+  doseStatusTaken: { color: "#D6F2DF" },
   doseError: {
     fontFamily: "Lato_400Regular",
     fontSize: 11,
@@ -1607,7 +1607,7 @@ const styles = StyleSheet.create({
   prnLogText: {
     fontFamily: "Lato_400Regular",
     fontSize: 12,
-    color: "#7FAF8A",
+    color: "#D6F2DF",
   },
 
   // ── Skip reason chips ──────────────────────────────────────────────────────
