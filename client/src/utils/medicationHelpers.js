@@ -40,37 +40,129 @@ export function formatTime(time) {
   return `${hour12}:${m} ${ampm}`;
 }
 
-export function isMedicationDueToday(medication, today) {
-  const { frequency, frequencyWeeks, createdAt } = medication;
+// ── Canonical schedule patterns ─────────────────────────────────────────────
+// New meds save frequency ∈ daily | specific_days | every_n_days | monthly | as_needed.
+// Legacy enums are resolved here at read time — no data migration, old rows work forever.
 
-  // Compare whole calendar days in LOCAL time. Collapsing both dates to local
-  // midnight strips time-of-day/timezone so interval meds land on the correct
-  // weekday (their creation day), instead of drifting a day off.
-  const c = new Date(createdAt);
-  const startDay = new Date(c.getFullYear(), c.getMonth(), c.getDate());
-  const [ty, tm, td] = today.split("-").map(Number);
-  const nowDay = new Date(ty, tm - 1, td);
-  const daysDiff = Math.round((nowDay - startDay) / (1000 * 60 * 60 * 24));
+function localDay(dateish) {
+  const d = new Date(dateish);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+function parseYmd(s) {
+  const [y, m, dd] = s.split("-").map(Number);
+  return new Date(y, m - 1, dd);
+}
 
+/** Resolve any medication (new or legacy) to a canonical pattern object. */
+export function resolvePattern(med) {
+  const { frequency, frequencyWeeks, daysOfWeek, startDate, intervalDays, createdAt } = med;
+  const anchor = startDate ? parseYmd(startDate) : localDay(createdAt);
   switch (frequency) {
     case "daily":
     case "twice_daily":
     case "three_times_daily":
     case "four_times_daily":
-      return true;
+      return { kind: "daily" };
+    case "specific_days":
+      return { kind: "specific_days", days: Array.isArray(daysOfWeek) ? daysOfWeek : [] };
+    case "weekly": // legacy: the weekday it was anchored to
+      return { kind: "specific_days", days: [anchor.getDay()] };
+    case "every_n_days":
+      return { kind: "every_n_days", n: intervalDays || 1, anchor };
     case "every_other_day":
-      return daysDiff >= 0 && daysDiff % 2 === 0;
-    case "weekly":
-      return daysDiff >= 0 && daysDiff % 7 === 0;
+      return { kind: "every_n_days", n: 2, anchor };
     case "biweekly":
-      return daysDiff >= 0 && daysDiff % 14 === 0;
-    case "monthly":
-      return nowDay.getDate() === startDay.getDate();
+      return { kind: "every_n_days", n: 14, anchor };
     case "every_x_weeks":
-      return frequencyWeeks > 0 && daysDiff >= 0 && daysDiff % (frequencyWeeks * 7) === 0;
+      return { kind: "every_n_days", n: 7 * (frequencyWeeks || 1), anchor };
+    case "monthly":
+      return { kind: "monthly", dayOfMonth: anchor.getDate() };
     case "as_needed":
-      return false;
+      return { kind: "as_needed" };
+    default:
+      return { kind: "none" };
+  }
+}
+
+/** Is this medication due on the given local YYYY-MM-DD date? (PRN → false: it has no due days.) */
+export function isMedicationDueOn(medication, dateStr) {
+  const p = resolvePattern(medication);
+  const day = parseYmd(dateStr);
+  switch (p.kind) {
+    case "daily":
+      return true;
+    case "specific_days":
+      return p.days.includes(day.getDay());
+    case "every_n_days": {
+      const diff = Math.round((day - p.anchor) / (1000 * 60 * 60 * 24));
+      return diff >= 0 && diff % p.n === 0;
+    }
+    case "monthly":
+      return day.getDate() === p.dayOfMonth;
     default:
       return false;
+  }
+}
+
+// Back-compat alias — current UI code calls this; Prompts 2–3 migrate call sites.
+export function isMedicationDueToday(medication, today) {
+  return isMedicationDueOn(medication, today);
+}
+
+/** Expected dose slots for a day: [] when not due; scheduled times (or [null] = anytime) when due. */
+export function expectedDosesOn(medication, dateStr) {
+  if (!isMedicationDueOn(medication, dateStr)) return [];
+  const times = Array.isArray(medication.scheduledTimes) ? medication.scheduledTimes.filter(Boolean) : [];
+  return times.length ? times : [null];
+}
+
+// ── Human-readable schedule sentence ────────────────────────────────────────
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function fmtTime(t) {
+  if (!t) return null;
+  const [h, m] = t.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const hh = h % 12 === 0 ? 12 : h % 12;
+  return `${hh}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+function fmtTimes(med) {
+  const ts = (med.scheduledTimes || []).filter(Boolean).map(fmtTime);
+  if (!ts.length) return null;
+  if (ts.length <= 2) return ts.join(" & ");
+  return ts.join(", ");
+}
+function ordinal(n) {
+  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+export function describeSchedule(med) {
+  const p = resolvePattern(med);
+  const times = fmtTimes(med);
+  const withTimes = (base) => (times ? `${base} · ${times}` : base);
+  switch (p.kind) {
+    case "daily": {
+      const n = (med.scheduledTimes || []).filter(Boolean).length;
+      const word = n <= 1 ? "Once daily" : n === 2 ? "Twice daily" : `${n} times daily`;
+      return withTimes(word);
+    }
+    case "specific_days": {
+      if (p.days.length >= 7) return withTimes("Every day");
+      if (p.days.length === 1) return withTimes(`Every ${DAY_FULL[p.days[0]]}`);
+      const sorted = [...p.days].sort((a, b) => a - b);
+      return withTimes(sorted.map((d) => DAY_NAMES[d]).join(", "));
+    }
+    case "every_n_days": {
+      const from = `${p.anchor.toLocaleString("en-US", { month: "short" })} ${p.anchor.getDate()}`;
+      return withTimes(p.n === 1 ? "Every day" : `Every ${p.n} days · from ${from}`);
+    }
+    case "monthly":
+      return withTimes(`Monthly on the ${ordinal(p.dayOfMonth)}`);
+    case "as_needed":
+      return "As needed";
+    default:
+      return "";
   }
 }

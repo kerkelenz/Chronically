@@ -1,6 +1,25 @@
 const Medication = require("../models/Medication");
 const MedicationLog = require("../models/MedicationLog");
 
+// light validation for the schedule-pattern fields - returns an error string or null
+const validateScheduleFields = ({ daysOfWeek, startDate, intervalDays }) => {
+  if (daysOfWeek != null) {
+    const ok =
+      Array.isArray(daysOfWeek) &&
+      daysOfWeek.every((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+    if (!ok) return "daysOfWeek must be an array of integers 0-6";
+  }
+  if (intervalDays != null) {
+    if (!Number.isInteger(intervalDays) || intervalDays < 1 || intervalDays > 90) {
+      return "intervalDays must be a whole number between 1 and 90";
+    }
+  }
+  if (startDate != null && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+    return "startDate must be a YYYY-MM-DD date";
+  }
+  return null;
+};
+
 const getMedications = async (req, res) => {
   try {
     const medications = await Medication.findAll({
@@ -16,10 +35,13 @@ const getMedications = async (req, res) => {
 
 const createMedication = async (req, res) => {
   try {
-    const { name, type, dosage, frequency, frequencyWeeks, scheduledTimes, notes, active } = req.body;
+    const { name, type, dosage, frequency, frequencyWeeks, scheduledTimes, notes, active, daysOfWeek, startDate, intervalDays } = req.body;
+    const scheduleError = validateScheduleFields({ daysOfWeek, startDate, intervalDays });
+    if (scheduleError) return res.status(400).json({ error: scheduleError });
     const medication = await Medication.create({
       userId: req.user.id,
       name, type, dosage, frequency, frequencyWeeks, scheduledTimes, notes,
+      daysOfWeek, startDate, intervalDays,
       active: active !== undefined ? active : true,
     });
     res.status(201).json({ medication });
@@ -36,8 +58,10 @@ const updateMedication = async (req, res) => {
     });
     if (!medication) return res.status(404).json({ error: "Medication not found" });
 
-    const { name, type, dosage, frequency, frequencyWeeks, scheduledTimes, notes, active } = req.body;
-    await medication.update({ name, type, dosage, frequency, frequencyWeeks, scheduledTimes, notes, active });
+    const { name, type, dosage, frequency, frequencyWeeks, scheduledTimes, notes, active, daysOfWeek, startDate, intervalDays } = req.body;
+    const scheduleError = validateScheduleFields({ daysOfWeek, startDate, intervalDays });
+    if (scheduleError) return res.status(400).json({ error: scheduleError });
+    await medication.update({ name, type, dosage, frequency, frequencyWeeks, scheduledTimes, notes, active, daysOfWeek, startDate, intervalDays });
     res.json({ medication });
   } catch (error) {
     console.error("Update medication error:", error);
