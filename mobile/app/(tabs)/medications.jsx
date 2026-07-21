@@ -9,7 +9,7 @@ import {
   RefreshControl,
   Modal,
   TextInput,
-  Switch,
+  Alert,
   Platform,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -21,12 +21,11 @@ import api from "../../lib/api";
 import { track } from "../../lib/analytics";
 import { MedicationTypeIcon } from "../../components/SymptomIcon";
 import {
-  FREQUENCY_LABELS,
-  FREQUENCY_TIME_COUNTS,
   SKIP_REASONS,
-  DOSE_STATUS_COLORS,
   formatTime,
-  isMedicationDueToday,
+  resolvePattern,
+  expectedDosesOn,
+  describeSchedule,
 } from "../../theme/medications";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -35,17 +34,38 @@ const EMPTY_FORM = {
   name: "",
   type: "pill",
   dosage: "",
-  frequency: "daily",
-  frequencyWeeks: 2,
+  pattern: "daily", // daily | specific_days | every_n_days | monthly | as_needed
+  daysOfWeek: [],
+  intervalDays: 2,
+  startDate: "", // filled with today when the sheet opens
   scheduledTimes: ["08:00"],
   notes: "",
-  active: true,
 };
 
 const TYPE_OPTIONS = ["pill", "injection", "infusion", "supplement"];
-const FREQUENCY_OPTIONS = Object.keys(FREQUENCY_LABELS);
 
-// ── Time helpers ──────────────────────────────────────────────────────────────
+const PATTERN_OPTIONS = [
+  { key: "daily", label: "Every day" },
+  { key: "specific_days", label: "Specific days" },
+  { key: "every_n_days", label: "Every N days" },
+  { key: "monthly", label: "Monthly" },
+  { key: "as_needed", label: "As needed" },
+];
+
+// display Mon-first; stored ints stay 0=Sun … 6=Sat
+const DAY_CHIPS = [
+  { d: 1, label: "Mon" },
+  { d: 2, label: "Tue" },
+  { d: 3, label: "Wed" },
+  { d: 4, label: "Thu" },
+  { d: 5, label: "Fri" },
+  { d: 6, label: "Sat" },
+  { d: 0, label: "Sun" },
+];
+
+const MAX_TIMES = 4;
+
+// ── Date/time helpers ─────────────────────────────────────────────────────────
 
 function timeStrToDate(timeStr) {
   const d = new Date();
@@ -60,7 +80,19 @@ function dateToTimeStr(date) {
   return `${h}:${m}`;
 }
 
-// ── Dose helpers (from 5a) ────────────────────────────────────────────────────
+function ymdToDate(ymd) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function formatYmd(ymd) {
+  if (!ymd) return "";
+  return ymdToDate(ymd).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 function formatTakenAt(isoString) {
   const d = new Date(isoString);
@@ -71,93 +103,70 @@ function formatTakenAt(isoString) {
   return `${h12}:${m} ${ampm}`;
 }
 
-function buildDoses(medications, todayLogs, today) {
-  const now = new Date();
-  const activeMeds = medications.filter((m) => m.active);
-  const doses = [];
-
-  activeMeds.forEach((med) => {
-    if (!isMedicationDueToday(med, today)) return;
-    const times = med.scheduledTimes?.length > 0 ? med.scheduledTimes : [null];
-
-    times.forEach((scheduledTime) => {
-      const doseKey = `${med.id}-${scheduledTime || "none"}`;
-      const log = todayLogs.find(
-        (l) => l.medicationId === med.id && l.scheduledTime === scheduledTime
-      );
-
-      let status;
-      if (log) {
-        status = log.status;
-      } else if (scheduledTime) {
-        const [h, m] = scheduledTime.split(":").map(Number);
-        const sched = new Date();
-        sched.setHours(h, m, 0, 0);
-        const minPast = (now - sched) / (1000 * 60);
-        if (minPast > 60) status = "missed";
-        else if (minPast > 0) status = "past-due";
-        else status = "upcoming";
-      } else {
-        status = "upcoming";
-      }
-
-      doses.push({ med, scheduledTime, doseKey, status, log });
-    });
+/** Last n local dates ending at endYmd, oldest → newest. */
+function lastNDates(n, endYmd) {
+  const end = ymdToDate(endYmd);
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(end);
+    d.setDate(end.getDate() - (n - 1 - i));
+    return d.toLocaleDateString("en-CA");
   });
-
-  doses.sort((a, b) =>
-    (a.scheduledTime || "99:99").localeCompare(b.scheduledTime || "99:99")
-  );
-  return doses;
 }
 
-// ── DoseRow (from 5a, unchanged) ──────────────────────────────────────────────
+// Today groups: Morning < 12:00 · Afternoon 12:00–16:59 · Evening ≥ 17:00 · null = anytime
+function slotGroup(slot) {
+  if (!slot) return "anytime";
+  const hour = Number(slot.split(":")[0]);
+  if (hour < 12) return "morning";
+  if (hour < 17) return "afternoon";
+  return "evening";
+}
+
+const GROUP_ORDER = [
+  { key: "morning", label: "Morning" },
+  { key: "afternoon", label: "Afternoon" },
+  { key: "evening", label: "Evening" },
+  { key: "anytime", label: "Anytime today" },
+];
+
+// ── Zone 1: dose row ──────────────────────────────────────────────────────────
+// Neutral all day: unlogged doses read as grey "not logged" — never red, never
+// "missed", no countdowns. Past unlogged doses are a statistics concept only.
 
 function DoseRow({
   dose,
-  skippingDoseKey,
+  reasonEditKey,
   onTake,
-  onSkipOpen,
-  onSkipReason,
-  onSkipCancel,
+  onSkip,
+  onReasonOpen,
+  onReasonPick,
+  onReasonCancel,
   onUndo,
   actionLoading,
   actionError,
 }) {
-  const { med, scheduledTime, doseKey, status, log } = dose;
-  const isSkipping = skippingDoseKey === doseKey;
+  const { med, slot, doseKey, log } = dose;
   const isActing = actionLoading === doseKey;
-  const borderColor = DOSE_STATUS_COLORS[status] || "transparent";
+  const isEditingReason = reasonEditKey === doseKey;
 
   let statusLine;
-  if (status === "taken" && log?.takenAt) {
+  if (log?.status === "taken") {
     statusLine = `Taken at ${formatTakenAt(log.takenAt)}`;
-  } else if (status === "skipped") {
-    statusLine = log?.skipReason ? `Skipped · ${log.skipReason}` : "Skipped";
-  } else if (status === "missed") {
-    statusLine = "Missed";
-  } else if (scheduledTime) {
-    statusLine = formatTime(scheduledTime);
+  } else if (log?.status === "skipped") {
+    statusLine = log.skipReason ? `Skipped · ${log.skipReason}` : "Skipped";
   } else {
-    statusLine = FREQUENCY_LABELS[med.frequency] || "";
+    statusLine = `${slot ? formatTime(slot) : "Anytime"} · not logged`;
   }
 
   return (
-    <View style={[styles.doseCard, { borderLeftColor: borderColor }]}>
+    <View style={styles.doseCard}>
       <View style={styles.doseMain}>
         <View style={styles.doseInfo}>
           <Text style={styles.doseName}>
             {med.name}
             {med.dosage ? ` · ${med.dosage}` : ""}
           </Text>
-          <Text
-            style={[
-              styles.doseStatus,
-              status === "missed" && styles.doseStatusMissed,
-              status === "past-due" && styles.doseStatusPastDue,
-              status === "taken" && styles.doseStatusTaken,
-            ]}
-          >
+          <Text style={[styles.doseStatus, log?.status === "taken" && styles.doseStatusTaken]}>
             {statusLine}
           </Text>
           {actionError === doseKey && (
@@ -166,16 +175,28 @@ function DoseRow({
         </View>
 
         <View style={styles.doseActions}>
-          {(status === "taken" || status === "skipped") && (
+          {log ? (
             <View style={styles.doseActionRow}>
-              {status === "taken" && (
+              {log.status === "taken" ? (
                 <Ionicons name="checkmark-circle" size={18} color="#7FAF8A" style={{ marginRight: 6 }} />
+              ) : (
+                <TouchableOpacity
+                  style={styles.skippedChip}
+                  onPress={() => onReasonOpen(doseKey)}
+                  activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel="Skipped — tap to add a reason"
+                >
+                  <Text style={styles.skippedChipText}>Skipped</Text>
+                </TouchableOpacity>
               )}
               <TouchableOpacity
                 onPress={() => onUndo(log.id, doseKey)}
                 disabled={isActing}
                 activeOpacity={0.7}
                 style={styles.undoBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Undo"
               >
                 {isActing ? (
                   <ActivityIndicator size="small" color="rgba(255,255,255,0.6)" />
@@ -184,9 +205,7 @@ function DoseRow({
                 )}
               </TouchableOpacity>
             </View>
-          )}
-
-          {(status === "upcoming" || status === "past-due") && !isSkipping && (
+          ) : (
             <View style={styles.doseActionRow}>
               <TouchableOpacity
                 style={[styles.takeBtn, isActing && styles.btnDisabled]}
@@ -197,31 +216,34 @@ function DoseRow({
                 {isActing ? (
                   <ActivityIndicator size="small" color="white" />
                 ) : (
-                  <Text style={styles.takeBtnText}>Take</Text>
+                  <Text style={styles.takeBtnText}>Taken ✓</Text>
                 )}
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.skipBtn}
-                onPress={() => onSkipOpen(doseKey)}
+                onPress={() => onSkip(dose)}
                 disabled={isActing}
                 activeOpacity={0.8}
               >
-                <Text style={styles.skipBtnText}>Skip</Text>
+                <Text style={styles.skipBtnText}>skip</Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
       </View>
 
-      {isSkipping && (
+      {isEditingReason && log?.status === "skipped" && (
         <View style={styles.skipReasonWrap}>
-          <Text style={styles.skipReasonLabel}>Reason for skipping</Text>
+          <Text style={styles.skipReasonLabel}>Reason (optional)</Text>
           <View style={styles.skipReasonChips}>
             {SKIP_REASONS.map((reason) => (
               <TouchableOpacity
                 key={reason}
-                style={styles.skipReasonChip}
-                onPress={() => onSkipReason(dose, reason)}
+                style={[
+                  styles.skipReasonChip,
+                  log.skipReason === reason && styles.skipReasonChipActive,
+                ]}
+                onPress={() => onReasonPick(log, reason, doseKey)}
                 activeOpacity={0.75}
               >
                 <Text style={styles.skipReasonChipText}>{reason}</Text>
@@ -230,10 +252,10 @@ function DoseRow({
           </View>
           <TouchableOpacity
             style={styles.skipCancelBtn}
-            onPress={onSkipCancel}
+            onPress={onReasonCancel}
             activeOpacity={0.75}
           >
-            <Text style={styles.skipCancelText}>Cancel</Text>
+            <Text style={styles.skipCancelText}>Close</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -241,65 +263,143 @@ function DoseRow({
   );
 }
 
-// ── MedCard (editable) ────────────────────────────────────────────────────────
+// ── Zone 2: adherence dots ────────────────────────────────────────────────────
 
-function MedCard({ med, onEdit, onDeleteRequest }) {
-  const subParts = [med.dosage, FREQUENCY_LABELS[med.frequency]].filter(Boolean);
-  const timePart =
-    med.scheduledTimes?.length > 0
-      ? med.scheduledTimes.map(formatTime).join(" · ")
-      : null;
+function AdherenceDot({ med, day, weekLogs, today }) {
+  const isToday = day === today;
+  const weekday = ymdToDate(day).toLocaleDateString("en-US", { weekday: "long" });
+  const isPrn = resolvePattern(med).kind === "as_needed";
+  const dayLogs = weekLogs.filter((l) => l.medicationId === med.id && l.date === day);
+  const takenLogs = dayLogs.filter((l) => l.status === "taken").length;
+
+  let expected = 0;
+  let pct = 0;
+  let label;
+  if (isPrn) {
+    pct = takenLogs > 0 ? 1 : 0;
+    label = `${weekday}: ${
+      takenLogs > 0
+        ? `${takenLogs} as-needed dose${takenLogs === 1 ? "" : "s"} logged`
+        : "no as-needed doses logged"
+    }`;
+  } else {
+    expected = expectedDosesOn(med, day).length;
+    if (expected === 0) {
+      label = `${weekday}: nothing scheduled`;
+    } else {
+      const taken = Math.min(takenLogs, expected);
+      pct = taken / expected;
+      label = `${weekday}: ${taken} of ${expected} dose${expected === 1 ? "" : "s"} taken`;
+    }
+  }
+
+  const hasSchedule = isPrn ? pct > 0 : expected > 0;
+  const borderColor = isToday
+    ? "#B7A6D9"
+    : hasSchedule
+      ? "rgba(255,255,255,0.5)"
+      : "rgba(255,255,255,0.18)";
+  const fillColor = isToday ? "#B7A6D9" : "rgba(255,255,255,0.85)";
 
   return (
-    <View style={styles.medCard}>
-      <MedicationTypeIcon type={med.type} size={22} color="rgba(255,255,255,0.9)" />
-      <View style={styles.medCardInfo}>
-        <Text style={styles.medCardName}>{med.name}</Text>
-        <Text style={styles.medCardSub}>
-          {[subParts.join(" · "), timePart].filter(Boolean).join(" — ")}
-        </Text>
-      </View>
-      <View style={styles.medCardActions}>
-        <TouchableOpacity
-          onPress={() => onEdit(med)}
-          style={styles.medCardActionBtn}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
-        >
-          <Ionicons name="pencil" size={15} color="rgba(255,255,255,0.55)" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => onDeleteRequest(med.id)}
-          style={styles.medCardActionBtn}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
-        >
-          <Ionicons name="trash-outline" size={15} color="rgba(255,120,120,0.65)" />
-        </TouchableOpacity>
-      </View>
+    <View accessible accessibilityLabel={label} style={[styles.dot, { borderColor }]}>
+      {pct > 0 && (
+        <View
+          style={[styles.dotFill, { width: `${Math.round(pct * 100)}%`, backgroundColor: fillColor }]}
+        />
+      )}
     </View>
   );
 }
 
-// ── MedModal ──────────────────────────────────────────────────────────────────
+// ── Zone 2: cabinet card ──────────────────────────────────────────────────────
+
+function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onDeleteRequest }) {
+  const paused = !med.active;
+  return (
+    <View style={styles.medCard}>
+      <View style={styles.medCardTop}>
+        <MedicationTypeIcon type={med.type} size={22} color="rgba(255,255,255,0.9)" />
+        <View style={styles.medCardInfo}>
+          <Text style={styles.medCardName}>
+            {med.name}
+            {med.dosage ? ` · ${med.dosage}` : ""}
+          </Text>
+          <Text style={styles.medCardSub}>{describeSchedule(med)}</Text>
+        </View>
+        <View style={styles.medCardActions}>
+          <TouchableOpacity
+            onPress={() => onEdit(med)}
+            style={styles.medCardActionBtn}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${med.name}`}
+          >
+            <Ionicons name="pencil" size={15} color="rgba(255,255,255,0.55)" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => onSetActive(med, paused)}
+            style={styles.medCardActionBtn}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            accessibilityRole="button"
+            accessibilityLabel={paused ? `Resume ${med.name}` : `Pause ${med.name}`}
+          >
+            <Ionicons
+              name={paused ? "play" : "pause"}
+              size={15}
+              color="rgba(255,255,255,0.55)"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => onDeleteRequest(med.id)}
+            style={styles.medCardActionBtn}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${med.name}`}
+          >
+            <Ionicons name="trash-outline" size={15} color="rgba(255,120,120,0.65)" />
+          </TouchableOpacity>
+        </View>
+      </View>
+      {!paused && (
+        <View style={styles.dotsRow} accessibilityLabel="Last 7 days">
+          {weekDates.map((day) => (
+            <AdherenceDot key={day} med={med} day={day} weekLogs={weekLogs} today={today} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ── Add/edit sheet — five patterns ────────────────────────────────────────────
 
 function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError }) {
-  const [showFreqPicker, setShowFreqPicker] = useState(false);
   const [editingTimeIndex, setEditingTimeIndex] = useState(null);
+  const [editingStartDate, setEditingStartDate] = useState(false);
 
-  const timeCount = FREQUENCY_TIME_COUNTS[form.frequency] ?? 1;
+  const showTimes = form.pattern !== "as_needed";
+  const showStartDate = form.pattern === "every_n_days" || form.pattern === "monthly";
+  const needsDays = form.pattern === "specific_days" && form.daysOfWeek.length === 0;
+  const canSave = form.name.trim() && !needsDays && !saving;
 
-  function handleFrequencyChange(newFreq) {
-    const count = FREQUENCY_TIME_COUNTS[newFreq] ?? 1;
-    const current = form.scheduledTimes || [];
-    let times;
-    if (count === 0) times = [];
-    else if (count > current.length)
-      times = [...current, ...Array(count - current.length).fill("08:00")];
-    else times = current.slice(0, count);
-    setForm({ ...form, frequency: newFreq, scheduledTimes: times });
-    setShowFreqPicker(false);
+  function handlePatternChange(key) {
+    let times = form.scheduledTimes;
+    if (key === "as_needed") times = [];
+    else if (times.length === 0) times = ["08:00"];
+    setForm({ ...form, pattern: key, scheduledTimes: times });
     setEditingTimeIndex(null);
+    setEditingStartDate(false);
+  }
+
+  function toggleDay(d) {
+    const days = form.daysOfWeek.includes(d)
+      ? form.daysOfWeek.filter((x) => x !== d)
+      : [...form.daysOfWeek, d];
+    setForm({ ...form, daysOfWeek: days });
   }
 
   function handleTimeChange(event, date) {
@@ -315,6 +415,28 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
       newTimes[editingTimeIndex] = dateToTimeStr(date);
       setForm({ ...form, scheduledTimes: newTimes });
     }
+  }
+
+  function handleStartDateChange(event, date) {
+    if (Platform.OS === "android") {
+      setEditingStartDate(false);
+      if (event.type === "dismissed" || !date) return;
+      setForm({ ...form, startDate: date.toLocaleDateString("en-CA") });
+    } else {
+      if (!date) return;
+      setForm({ ...form, startDate: date.toLocaleDateString("en-CA") });
+    }
+  }
+
+  function addTime() {
+    if (form.scheduledTimes.length >= MAX_TIMES) return;
+    setForm({ ...form, scheduledTimes: [...form.scheduledTimes, "08:00"] });
+  }
+
+  function removeTime(i) {
+    const newTimes = form.scheduledTimes.filter((_, idx) => idx !== i);
+    setForm({ ...form, scheduledTimes: newTimes });
+    setEditingTimeIndex(null);
   }
 
   return (
@@ -380,68 +502,77 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
               returnKeyType="done"
             />
 
-            {/* ── Frequency ── */}
-            <Text style={styles.fieldLabel}>Frequency</Text>
-            <TouchableOpacity
-              style={styles.selectField}
-              onPress={() => {
-                setShowFreqPicker((p) => !p);
-                setEditingTimeIndex(null);
-              }}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.selectFieldText}>
-                {FREQUENCY_LABELS[form.frequency]}
-              </Text>
-              <Ionicons
-                name={showFreqPicker ? "chevron-up" : "chevron-down"}
-                size={16}
-                color="rgba(255,255,255,0.5)"
-              />
-            </TouchableOpacity>
-
-            {showFreqPicker && (
-              <View style={styles.freqList}>
-                {FREQUENCY_OPTIONS.map((f) => (
-                  <TouchableOpacity
-                    key={f}
+            {/* ── Schedule pattern ── */}
+            <Text style={styles.fieldLabel}>Schedule</Text>
+            <View style={styles.patternRow}>
+              {PATTERN_OPTIONS.map((p) => (
+                <TouchableOpacity
+                  key={p.key}
+                  style={[
+                    styles.patternChip,
+                    form.pattern === p.key && styles.patternChipActive,
+                  ]}
+                  onPress={() => handlePatternChange(p.key)}
+                  activeOpacity={0.8}
+                >
+                  <Text
                     style={[
-                      styles.freqOption,
-                      form.frequency === f && styles.freqOptionActive,
+                      styles.patternChipText,
+                      form.pattern === p.key && styles.patternChipTextActive,
                     ]}
-                    onPress={() => handleFrequencyChange(f)}
-                    activeOpacity={0.75}
                   >
-                    <Text
+                    {p.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* ── Specific days ── */}
+            {form.pattern === "specific_days" && (
+              <>
+                <Text style={styles.fieldLabel}>Which days?</Text>
+                <View style={styles.dayRow}>
+                  {DAY_CHIPS.map(({ d, label }) => (
+                    <TouchableOpacity
+                      key={d}
                       style={[
-                        styles.freqOptionText,
-                        form.frequency === f && styles.freqOptionTextActive,
+                        styles.dayChip,
+                        form.daysOfWeek.includes(d) && styles.dayChipActive,
                       ]}
+                      onPress={() => toggleDay(d)}
+                      activeOpacity={0.8}
                     >
-                      {FREQUENCY_LABELS[f]}
-                    </Text>
-                    {form.frequency === f && (
-                      <Ionicons name="checkmark" size={14} color="#7C6BAE" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
+                      <Text
+                        style={[
+                          styles.dayChipText,
+                          form.daysOfWeek.includes(d) && styles.dayChipTextActive,
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                {needsDays && (
+                  <Text style={styles.fieldHint}>Pick at least one day.</Text>
+                )}
+              </>
             )}
 
-            {/* ── Every-X-weeks number ── */}
-            {form.frequency === "every_x_weeks" && (
+            {/* ── Every N days ── */}
+            {form.pattern === "every_n_days" && (
               <>
-                <Text style={styles.fieldLabel}>Every how many weeks?</Text>
+                <Text style={styles.fieldLabel}>Every how many days?</Text>
                 <TextInput
                   style={styles.textInput}
                   keyboardType="number-pad"
-                  value={String(form.frequencyWeeks)}
+                  value={String(form.intervalDays)}
                   onChangeText={(v) => {
                     const n = parseInt(v, 10);
                     if (!isNaN(n))
                       setForm({
                         ...form,
-                        frequencyWeeks: Math.min(52, Math.max(1, n)),
+                        intervalDays: Math.min(90, Math.max(1, n)),
                       });
                   }}
                   returnKeyType="done"
@@ -449,35 +580,99 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
               </>
             )}
 
-            {/* ── Scheduled times ── */}
-            {timeCount > 0 && (
+            {/* ── Start date (every N days + monthly) ── */}
+            {showStartDate && (
               <>
                 <Text style={styles.fieldLabel}>
-                  Scheduled time{timeCount > 1 ? "s" : ""}
+                  {form.pattern === "monthly" ? "Starts on (sets the day of the month)" : "Starting from"}
                 </Text>
-                {Array.from({ length: timeCount }).map((_, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    style={[
-                      styles.selectField,
-                      editingTimeIndex === i && styles.selectFieldActive,
-                    ]}
-                    onPress={() => {
-                      setShowFreqPicker(false);
-                      setEditingTimeIndex(editingTimeIndex === i ? null : i);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name="time-outline"
-                      size={15}
-                      color="rgba(255,255,255,0.5)"
+                <TouchableOpacity
+                  style={[styles.selectField, editingStartDate && styles.selectFieldActive]}
+                  onPress={() => {
+                    setEditingTimeIndex(null);
+                    setEditingStartDate((p) => !p);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="calendar-outline" size={15} color="rgba(255,255,255,0.5)" />
+                  <Text style={[styles.selectFieldText, { marginLeft: 6, flex: 1 }]}>
+                    {formatYmd(form.startDate)}
+                  </Text>
+                </TouchableOpacity>
+                {editingStartDate && (
+                  <View style={styles.timePickerWrap}>
+                    <DateTimePicker
+                      mode="date"
+                      display={Platform.OS === "ios" ? "spinner" : "default"}
+                      value={form.startDate ? ymdToDate(form.startDate) : new Date()}
+                      onChange={handleStartDateChange}
+                      themeVariant="dark"
                     />
-                    <Text style={[styles.selectFieldText, { marginLeft: 6 }]}>
-                      {formatTime(form.scheduledTimes[i] || "08:00")}
-                    </Text>
-                  </TouchableOpacity>
+                    {Platform.OS === "ios" && (
+                      <TouchableOpacity
+                        style={styles.timePickerDoneBtn}
+                        onPress={() => setEditingStartDate(false)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.timePickerDoneText}>Done</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+              </>
+            )}
+
+            {/* ── Times ── */}
+            {showTimes && (
+              <>
+                <Text style={styles.fieldLabel}>
+                  Time{form.scheduledTimes.length === 1 ? "" : "s"} (optional — leave empty for anytime)
+                </Text>
+                {form.scheduledTimes.map((t, i) => (
+                  <View key={i} style={styles.timeRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.selectField,
+                        { flex: 1, marginBottom: 0 },
+                        editingTimeIndex === i && styles.selectFieldActive,
+                      ]}
+                      onPress={() => {
+                        setEditingStartDate(false);
+                        setEditingTimeIndex(editingTimeIndex === i ? null : i);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons
+                        name="time-outline"
+                        size={15}
+                        color="rgba(255,255,255,0.5)"
+                      />
+                      <Text style={[styles.selectFieldText, { marginLeft: 6, flex: 1 }]}>
+                        {formatTime(t || "08:00")}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.timeRemoveBtn}
+                      onPress={() => removeTime(i)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${formatTime(t || "08:00")}`}
+                    >
+                      <Ionicons name="close" size={16} color="rgba(255,255,255,0.5)" />
+                    </TouchableOpacity>
+                  </View>
                 ))}
+
+                {form.scheduledTimes.length < MAX_TIMES && (
+                  <TouchableOpacity
+                    style={styles.addTimeBtn}
+                    onPress={addTime}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="add" size={14} color="rgba(255,255,255,0.75)" />
+                    <Text style={styles.addTimeBtnText}>Add time</Text>
+                  </TouchableOpacity>
+                )}
 
                 {/* Time picker — inline, only shown when a slot is being edited */}
                 {editingTimeIndex !== null && (
@@ -517,23 +712,6 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
               numberOfLines={3}
               textAlignVertical="top"
             />
-
-            {/* ── Active ── */}
-            <View style={styles.switchRow}>
-              <Text style={styles.fieldLabel} style={styles.switchLabel}>
-                Active
-              </Text>
-              <Switch
-                value={form.active}
-                onValueChange={(v) => setForm({ ...form, active: v })}
-                trackColor={{
-                  false: "rgba(255,255,255,0.2)",
-                  true: "#7C6BAE",
-                }}
-                thumbColor="white"
-              />
-            </View>
-
           </ScrollView>
 
           {saveError ? (
@@ -552,20 +730,15 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                styles.saveBtn,
-                (!form.name.trim() || saving) && styles.saveBtnDisabled,
-              ]}
+              style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
               onPress={onSave}
-              disabled={!form.name.trim() || saving}
+              disabled={!canSave}
               activeOpacity={0.85}
             >
               {saving ? (
                 <ActivityIndicator color="white" size="small" />
               ) : (
-                <Text style={styles.saveBtnText}>
-                  {saving ? "Saving…" : "Save"}
-                </Text>
+                <Text style={styles.saveBtnText}>Save</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -615,17 +788,17 @@ function DeleteModal({ visible, onCancel, onConfirm, deleting }) {
 
 export default function MedicationsScreen() {
   const [medications, setMedications] = useState([]);
-  const [todayLogs, setTodayLogs] = useState([]);
+  const [weekLogs, setWeekLogs] = useState([]); // last 7 days incl. today
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  // dose actions (5a)
-  const [skippingDoseKey, setSkippingDoseKey] = useState(null);
+  // dose actions
+  const [reasonEditKey, setReasonEditKey] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
   const [actionError, setActionError] = useState(null);
 
-  // management (5b)
+  // add/edit/delete
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -635,8 +808,11 @@ export default function MedicationsScreen() {
 
   const isFirstLoadRef = useRef(true);
   const today = new Date().toLocaleDateString("en-CA");
+  const weekDates = lastNDates(7, today);
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
+  // One range call covers both zones: today's checklist reads the today slice,
+  // the cabinet dots read the whole week.
 
   useFocusEffect(
     useCallback(() => {
@@ -647,11 +823,11 @@ export default function MedicationsScreen() {
         try {
           const [medsRes, logsRes] = await Promise.all([
             api.get("/api/medications"),
-            api.get(`/api/medications/logs?date=${today}`),
+            api.get(`/api/medications/logs?startDate=${weekDates[0]}&endDate=${today}`),
           ]);
           if (!active) return;
           setMedications(medsRes.data.medications || []);
-          setTodayLogs(logsRes.data.logs || []);
+          setWeekLogs(logsRes.data.logs || []);
           setError(null);
           isFirstLoadRef.current = false;
         } catch {
@@ -671,10 +847,10 @@ export default function MedicationsScreen() {
     try {
       const [medsRes, logsRes] = await Promise.all([
         api.get("/api/medications"),
-        api.get(`/api/medications/logs?date=${today}`),
+        api.get(`/api/medications/logs?startDate=${weekDates[0]}&endDate=${today}`),
       ]);
       setMedications(medsRes.data.medications || []);
-      setTodayLogs(logsRes.data.logs || []);
+      setWeekLogs(logsRes.data.logs || []);
       setError(null);
     } catch {
       setError("Could not load medications. Pull down to try again.");
@@ -683,22 +859,22 @@ export default function MedicationsScreen() {
     }
   }
 
-  // ── Dose actions (5a) ─────────────────────────────────────────────────────
+  // ── Dose actions ──────────────────────────────────────────────────────────
 
   async function handleTake(dose) {
-    const { med, scheduledTime, doseKey } = dose;
+    const { med, slot, doseKey } = dose;
     setActionLoading(doseKey);
     setActionError(null);
     try {
       const res = await api.post("/api/medications/logs", {
         medicationId: med.id,
         date: today,
-        scheduledTime,
+        scheduledTime: slot,
         takenAt: new Date().toISOString(),
         status: "taken",
       });
       track("medication_logged", { status: "taken" });
-      setTodayLogs((prev) => [...prev, res.data.log]);
+      setWeekLogs((prev) => [...prev, res.data.log]);
     } catch {
       setActionError(doseKey);
     } finally {
@@ -706,30 +882,59 @@ export default function MedicationsScreen() {
     }
   }
 
-  function handleSkipCancel() {
-    setSkippingDoseKey(null);
-  }
-
-  function handleSkipOpen(doseKey) {
-    setSkippingDoseKey(doseKey);
-    setActionError(null);
-  }
-
-  async function handleSkipReason(dose, reason) {
-    const { med, scheduledTime, doseKey } = dose;
+  // skip logs immediately, no reason required — the Skipped chip offers one after
+  async function handleSkip(dose) {
+    const { med, slot, doseKey } = dose;
     setActionLoading(doseKey);
     setActionError(null);
     try {
       const res = await api.post("/api/medications/logs", {
         medicationId: med.id,
         date: today,
-        scheduledTime,
+        scheduledTime: slot,
         status: "skipped",
-        skipReason: reason,
       });
       track("medication_logged", { status: "skipped" });
-      setTodayLogs((prev) => [...prev, res.data.log]);
-      setSkippingDoseKey(null);
+      setWeekLogs((prev) => [...prev, res.data.log]);
+    } catch {
+      setActionError(doseKey);
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handleReasonPick(log, reason, doseKey) {
+    setActionLoading(doseKey);
+    setActionError(null);
+    try {
+      const res = await api.put(`/api/medications/logs/${log.id}`, {
+        skipReason: reason,
+      });
+      setWeekLogs((prev) =>
+        prev.map((l) => (l.id === log.id ? res.data.log : l))
+      );
+      setReasonEditKey(null);
+    } catch {
+      setActionError(doseKey);
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function handlePrnLog(med) {
+    const doseKey = `prn-${med.id}`;
+    setActionLoading(doseKey);
+    setActionError(null);
+    try {
+      const res = await api.post("/api/medications/logs", {
+        medicationId: med.id,
+        date: today,
+        scheduledTime: null,
+        takenAt: new Date().toISOString(),
+        status: "taken",
+      });
+      track("medication_logged", { status: "taken" });
+      setWeekLogs((prev) => [...prev, res.data.log]);
     } catch {
       setActionError(doseKey);
     } finally {
@@ -742,7 +947,7 @@ export default function MedicationsScreen() {
     setActionError(null);
     try {
       await api.delete(`/api/medications/logs/${logId}`);
-      setTodayLogs((prev) => prev.filter((l) => l.id !== logId));
+      setWeekLogs((prev) => prev.filter((l) => l.id !== logId));
     } catch {
       setActionError(doseKey);
     } finally {
@@ -750,45 +955,57 @@ export default function MedicationsScreen() {
     }
   }
 
-  // ── Management actions (5b) ───────────────────────────────────────────────
+  // ── Cabinet actions ───────────────────────────────────────────────────────
 
   function openAdd() {
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, startDate: today });
     setSaveError("");
     setShowModal(true);
   }
 
   function openEdit(med) {
+    const p = resolvePattern(med);
+    const pattern = ["daily", "specific_days", "every_n_days", "monthly", "as_needed"].includes(p.kind)
+      ? p.kind
+      : "daily";
+    const anchorYmd =
+      med.startDate || new Date(med.createdAt).toLocaleDateString("en-CA");
     setForm({
       id: med.id,
       name: med.name,
       type: med.type,
       dosage: med.dosage || "",
-      frequency: med.frequency,
-      frequencyWeeks: med.frequencyWeeks || 2,
+      pattern,
+      daysOfWeek: p.kind === "specific_days" ? p.days : [],
+      intervalDays: p.kind === "every_n_days" ? p.n : 2,
+      startDate: anchorYmd,
       scheduledTimes: med.scheduledTimes || [],
       notes: med.notes || "",
-      active: med.active,
     });
     setSaveError("");
     setShowModal(true);
   }
 
+  // saving always writes the canonical shape — the legacy enums are never written again
   async function handleSave() {
     if (!form.name.trim()) return;
     setSaving(true);
     setSaveError("");
+    const times = form.pattern === "as_needed" ? [] : form.scheduledTimes.filter(Boolean);
     const payload = {
       name: form.name.trim(),
       type: form.type,
       dosage: form.dosage.trim() || null,
-      frequency: form.frequency,
-      frequencyWeeks:
-        form.frequency === "every_x_weeks" ? form.frequencyWeeks : null,
-      scheduledTimes:
-        form.scheduledTimes?.length > 0 ? form.scheduledTimes : null,
+      frequency: form.pattern,
+      frequencyWeeks: null,
+      scheduledTimes: form.pattern === "as_needed" ? [] : times.length > 0 ? times : null,
+      daysOfWeek: form.pattern === "specific_days" ? form.daysOfWeek : null,
+      intervalDays: form.pattern === "every_n_days" ? form.intervalDays : null,
+      startDate:
+        form.pattern === "every_n_days" || form.pattern === "monthly"
+          ? form.startDate || today
+          : null,
       notes: form.notes.trim() || null,
-      active: form.active,
     };
     try {
       if (form.id) {
@@ -808,12 +1025,23 @@ export default function MedicationsScreen() {
     }
   }
 
+  async function handleSetActive(med, nextActive) {
+    try {
+      const res = await api.put(`/api/medications/${med.id}`, { active: nextActive });
+      setMedications((prev) =>
+        prev.map((m) => (m.id === med.id ? res.data.medication : m))
+      );
+    } catch {
+      Alert.alert("Couldn't save", "Please try again.");
+    }
+  }
+
   async function handleDelete(id) {
     setDeleting(true);
     try {
       await api.delete(`/api/medications/${id}`);
       setMedications((prev) => prev.filter((m) => m.id !== id));
-      setTodayLogs((prev) => prev.filter((l) => l.medicationId !== id));
+      setWeekLogs((prev) => prev.filter((l) => l.medicationId !== id));
       setDeleteConfirm(null);
     } catch {
       // leave dialog open; user can retry
@@ -822,11 +1050,30 @@ export default function MedicationsScreen() {
     }
   }
 
-  // ── Derived ───────────────────────────────────────────────────────────────
+  // ── Derived: today's checklist + cabinet groups ───────────────────────────
 
+  const todayLogs = weekLogs.filter((l) => l.date === today);
   const activeMeds = medications.filter((m) => m.active);
-  const inactiveMeds = medications.filter((m) => !m.active);
-  const doses = buildDoses(medications, todayLogs, today);
+  const pausedMeds = medications.filter((m) => !m.active);
+  const prnMeds = activeMeds.filter((m) => resolvePattern(m).kind === "as_needed");
+  const scheduledMeds = activeMeds.filter((m) => resolvePattern(m).kind !== "as_needed");
+
+  const doses = [];
+  scheduledMeds.forEach((med) => {
+    expectedDosesOn(med, today).forEach((slot) => {
+      const doseKey = `${med.id}-${slot || "anytime"}`;
+      const log = todayLogs.find(
+        (l) => l.medicationId === med.id && l.scheduledTime === slot
+      );
+      doses.push({ med, slot, doseKey, log, group: slotGroup(slot) });
+    });
+  });
+  doses.sort((a, b) => (a.slot || "99:99").localeCompare(b.slot || "99:99"));
+
+  const groups = GROUP_ORDER.map((g) => ({
+    ...g,
+    doses: doses.filter((d) => d.group === g.key),
+  })).filter((g) => g.doses.length > 0);
 
   // ── Loading ───────────────────────────────────────────────────────────────
 
@@ -882,7 +1129,7 @@ export default function MedicationsScreen() {
           </View>
         )}
 
-        {/* ── Today's dose timeline ────────────────────────────────────────── */}
+        {/* ── Zone 1: Today ─────────────────────────────────────────────────── */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Today</Text>
 
@@ -891,49 +1138,126 @@ export default function MedicationsScreen() {
               No active medications yet. Tap Add to create one.
             </Text>
           ) : doses.length === 0 ? (
-            <Text style={styles.emptyText}>No doses scheduled today.</Text>
+            <Text style={styles.emptyText}>
+              Nothing scheduled today — your as-needed medications are below.
+            </Text>
           ) : (
-            doses.map((dose) => (
-              <DoseRow
-                key={dose.doseKey}
-                dose={dose}
-                skippingDoseKey={skippingDoseKey}
-                onTake={handleTake}
-                onSkipOpen={handleSkipOpen}
-                onSkipReason={handleSkipReason}
-                onSkipCancel={handleSkipCancel}
-                onUndo={handleUndo}
-                actionLoading={actionLoading}
-                actionError={actionError}
-              />
+            groups.map((g) => (
+              <View key={g.key}>
+                <Text style={styles.groupTitle}>{g.label}</Text>
+                {g.doses.map((dose) => (
+                  <DoseRow
+                    key={dose.doseKey}
+                    dose={dose}
+                    reasonEditKey={reasonEditKey}
+                    onTake={handleTake}
+                    onSkip={handleSkip}
+                    onReasonOpen={setReasonEditKey}
+                    onReasonPick={handleReasonPick}
+                    onReasonCancel={() => setReasonEditKey(null)}
+                    onUndo={handleUndo}
+                    actionLoading={actionLoading}
+                    actionError={actionError}
+                  />
+                ))}
+              </View>
             ))
+          )}
+
+          {/* As-needed lane */}
+          {prnMeds.length > 0 && (
+            <>
+              <Text style={styles.groupTitle}>As needed</Text>
+              {prnMeds.map((med) => {
+                const prnKey = `prn-${med.id}`;
+                const logs = todayLogs.filter((l) => l.medicationId === med.id);
+                return (
+                  <View key={med.id} style={styles.doseCard}>
+                    <View style={styles.doseMain}>
+                      <View style={styles.doseInfo}>
+                        <Text style={styles.doseName}>
+                          {med.name}
+                          {med.dosage ? ` · ${med.dosage}` : ""}
+                        </Text>
+                        {logs.length === 0 && (
+                          <Text style={styles.doseStatus}>No doses logged today</Text>
+                        )}
+                        {actionError === prnKey && (
+                          <Text style={styles.doseError}>Couldn't save, try again</Text>
+                        )}
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.takeBtn, actionLoading === prnKey && styles.btnDisabled]}
+                        onPress={() => handlePrnLog(med)}
+                        disabled={actionLoading === prnKey}
+                        activeOpacity={0.8}
+                      >
+                        {actionLoading === prnKey ? (
+                          <ActivityIndicator size="small" color="white" />
+                        ) : (
+                          <Text style={styles.takeBtnText}>Log a dose</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                    {logs.map((l) => (
+                      <View key={l.id} style={styles.prnLogRow}>
+                        <Text style={styles.prnLogText}>
+                          Taken at {formatTakenAt(l.takenAt)}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => handleUndo(l.id, `log-${l.id}`)}
+                          disabled={actionLoading === `log-${l.id}`}
+                          activeOpacity={0.7}
+                          style={styles.undoBtn}
+                          accessibilityRole="button"
+                          accessibilityLabel="Undo this dose"
+                        >
+                          {actionLoading === `log-${l.id}` ? (
+                            <ActivityIndicator size="small" color="rgba(255,255,255,0.6)" />
+                          ) : (
+                            <Ionicons name="arrow-undo" size={15} color="rgba(255,255,255,0.6)" />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })}
+            </>
           )}
         </View>
 
-        {/* ── Active medications ───────────────────────────────────────────── */}
+        {/* ── Zone 2: My medications ────────────────────────────────────────── */}
         {activeMeds.length > 0 && (
           <>
-            <Text style={styles.regimenTitle}>Active</Text>
+            <Text style={styles.regimenTitle}>My medications</Text>
             {activeMeds.map((med) => (
-              <MedCard
+              <CabinetCard
                 key={med.id}
                 med={med}
+                weekDates={weekDates}
+                weekLogs={weekLogs}
+                today={today}
                 onEdit={openEdit}
+                onSetActive={handleSetActive}
                 onDeleteRequest={setDeleteConfirm}
               />
             ))}
           </>
         )}
 
-        {/* ── Inactive medications ─────────────────────────────────────────── */}
-        {inactiveMeds.length > 0 && (
+        {pausedMeds.length > 0 && (
           <>
-            <Text style={styles.regimenTitle}>Inactive</Text>
-            {inactiveMeds.map((med) => (
-              <MedCard
+            <Text style={styles.regimenTitle}>Paused</Text>
+            {pausedMeds.map((med) => (
+              <CabinetCard
                 key={med.id}
                 med={med}
+                weekDates={weekDates}
+                weekLogs={weekLogs}
+                today={today}
                 onEdit={openEdit}
+                onSetActive={handleSetActive}
                 onDeleteRequest={setDeleteConfirm}
               />
             ))}
@@ -1060,6 +1384,15 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 12,
   },
+  groupTitle: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.45)",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginTop: 10,
+    marginBottom: 8,
+  },
   emptyText: {
     fontFamily: "Lato_400Regular",
     fontSize: 14,
@@ -1069,15 +1402,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
 
-  // ── Dose rows ──────────────────────────────────────────────────────────────
+  // ── Dose rows (neutral — no status colors on pending doses) ────────────────
 
   doseCard: {
-    borderLeftWidth: 3,
     borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.08)",
     paddingVertical: 12,
-    paddingRight: 10,
-    paddingLeft: 12,
+    paddingHorizontal: 12,
     marginBottom: 8,
   },
   doseMain: {
@@ -1101,8 +1432,6 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.6)",
   },
   doseStatusTaken: { color: "#7FAF8A" },
-  doseStatusMissed: { color: "#FF6B8A" },
-  doseStatusPastDue: { color: "#C4A882" },
   doseError: {
     fontFamily: "Lato_400Regular",
     fontSize: 11,
@@ -1128,22 +1457,48 @@ const styles = StyleSheet.create({
     color: "white",
   },
   skipBtn: {
-    backgroundColor: "rgba(255,255,255,0.18)",
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
   },
   skipBtnText: {
-    fontFamily: "Lato_700Bold",
+    fontFamily: "Lato_400Regular",
     fontSize: 13,
-    color: "rgba(255,255,255,0.8)",
+    color: "rgba(255,255,255,0.55)",
+  },
+  skippedChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+  },
+  skippedChipText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.75)",
   },
   undoBtn: {
     padding: 6,
     borderRadius: 8,
     backgroundColor: "rgba(255,255,255,0.12)",
+  },
+
+  // PRN lane
+  prnLogRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.1)",
+  },
+  prnLogText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "#7FAF8A",
   },
 
   // ── Skip reason chips ──────────────────────────────────────────────────────
@@ -1173,6 +1528,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.3)",
   },
+  skipReasonChipActive: {
+    backgroundColor: "#7C6BAE",
+    borderColor: "#7C6BAE",
+  },
   skipReasonChipText: {
     fontFamily: "Lato_400Regular",
     fontSize: 12,
@@ -1181,7 +1540,7 @@ const styles = StyleSheet.create({
   skipCancelBtn: { marginTop: 10, alignSelf: "flex-start", paddingVertical: 4 },
   skipCancelText: { fontFamily: "Lato_400Regular", fontSize: 13, color: "rgba(255,255,255,0.7)" },
 
-  // ── Med cards (editable) ───────────────────────────────────────────────────
+  // ── Cabinet cards ──────────────────────────────────────────────────────────
 
   regimenTitle: {
     fontFamily: "PlayfairDisplay_500Medium",
@@ -1191,14 +1550,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   medCard: {
-    flexDirection: "row",
-    alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.18)",
+    gap: 10,
+  },
+  medCardTop: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   medCardInfo: { flex: 1 },
@@ -1221,6 +1583,22 @@ const styles = StyleSheet.create({
     padding: 7,
     borderRadius: 8,
     backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  dotsRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingLeft: 34, // aligns dots under the text column, past the type icon
+  },
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    overflow: "hidden",
+    flexDirection: "row",
+  },
+  dotFill: {
+    height: "100%",
   },
 
   // ── MedModal ───────────────────────────────────────────────────────────────
@@ -1248,6 +1626,12 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginBottom: 6,
     marginTop: 14,
+  },
+  fieldHint: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.55)",
+    marginTop: 2,
   },
   textInput: {
     backgroundColor: "rgba(255,255,255,0.12)",
@@ -1294,11 +1678,66 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_700Bold",
   },
 
-  // Frequency selector
+  // Pattern picker
+  patternRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  patternChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+  },
+  patternChipActive: {
+    backgroundColor: "#7C6BAE",
+    borderColor: "#7C6BAE",
+  },
+  patternChipText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.8)",
+  },
+  patternChipTextActive: {
+    fontFamily: "Lato_700Bold",
+    color: "white",
+  },
+
+  // Day-of-week chips
+  dayRow: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  dayChip: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  dayChipActive: {
+    backgroundColor: "#7C6BAE",
+    borderColor: "#7C6BAE",
+  },
+  dayChipText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.75)",
+  },
+  dayChipTextActive: {
+    fontFamily: "Lato_700Bold",
+    color: "white",
+  },
+
+  // Select fields / pickers
   selectField: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     backgroundColor: "rgba(255,255,255,0.12)",
     borderRadius: 12,
     borderWidth: 1,
@@ -1315,34 +1754,33 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "white",
   },
-  freqList: {
-    backgroundColor: "rgba(30,20,55,0.95)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-    overflow: "hidden",
-    marginBottom: 4,
-  },
-  freqOption: {
+  timeRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.08)",
+    gap: 8,
+    marginBottom: 4,
   },
-  freqOptionActive: {
-    backgroundColor: "rgba(124,107,174,0.2)",
+  timeRemoveBtn: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.1)",
   },
-  freqOptionText: {
+  addTimeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+    borderStyle: "dashed",
+    marginBottom: 4,
+  },
+  addTimeBtnText: {
     fontFamily: "Lato_400Regular",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.8)",
-  },
-  freqOptionTextActive: {
-    fontFamily: "Lato_700Bold",
-    color: "white",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.75)",
   },
 
   // Time picker
@@ -1365,22 +1803,6 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_700Bold",
     fontSize: 14,
     color: "#7C6BAE",
-  },
-
-  // Switch row
-  switchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 14,
-    paddingVertical: 4,
-  },
-  switchLabel: {
-    fontFamily: "Lato_700Bold",
-    fontSize: 11,
-    color: "rgba(255,255,255,0.55)",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
   },
 
   saveError: {
