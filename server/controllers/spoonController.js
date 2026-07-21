@@ -92,12 +92,16 @@ const getActivities = async (req, res) => {
 
 const createActivity = async (req, res) => {
   try {
-    const { name, cost, icon } = req.body;
+    const { name, cost, icon, pinned } = req.body;
+    if (pinned !== undefined && typeof pinned !== "boolean") {
+      return res.status(400).json({ error: "pinned must be a boolean" });
+    }
     const activity = await SpoonActivity.create({
       userId: req.user.id,
       name,
       cost,
       icon,
+      pinned: pinned === true,
     });
     res.status(201).json({ activity });
   } catch (error) {
@@ -112,9 +116,12 @@ const updateActivity = async (req, res) => {
       where: { id: req.params.id, userId: req.user.id },
     });
     if (!activity) return res.status(404).json({ error: "Activity not found" });
+    if ("pinned" in req.body && typeof req.body.pinned !== "boolean") {
+      return res.status(400).json({ error: "pinned must be a boolean" });
+    }
     // only update fields the client is allowed to change - spreading req.body
     // directly would let a request overwrite things like userId
-    const allowed = ["name", "cost", "icon", "archived"];
+    const allowed = ["name", "cost", "icon", "archived", "pinned"];
     const updates = {};
     for (const key of allowed) {
       if (key in req.body) updates[key] = req.body[key];

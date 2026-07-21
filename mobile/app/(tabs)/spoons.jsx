@@ -106,6 +106,47 @@ function BudgetRing({ spent, budget }) {
   );
 }
 
+// ── 7-day memory strip ────────────────────────────────────────────────────────
+
+const MARKER_SIZE = 16;
+
+function DayMarker({ date, spent, budget, hasEntries, isToday, onPress }) {
+  const over = hasEntries && budget > 0 && spent > budget;
+  const ratio = budget > 0 ? Math.min(spent / budget, 1) : 0;
+  const weekday = parseDateStr(date).toLocaleDateString("en-US", {
+    weekday: "long",
+  });
+  const label = hasEntries
+    ? `${weekday}: ${spent} of ${budget} spoons`
+    : `${weekday}: no plan`;
+
+  let circleStyle;
+  if (isToday) circleStyle = styles.markerToday;
+  else if (!hasEntries) circleStyle = styles.markerEmpty;
+  else if (over) circleStyle = styles.markerOver;
+  else circleStyle = styles.markerDone;
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+      style={styles.markerWrap}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <View style={[styles.markerCircle, circleStyle]}>
+        {isToday && ratio > 0 && (
+          <View
+            style={[styles.markerFill, { height: `${Math.round(ratio * 100)}%` }]}
+          />
+        )}
+      </View>
+      <Text style={styles.markerInitial}>{weekday[0]}</Text>
+    </TouchableOpacity>
+  );
+}
+
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export default function SpoonCenterScreen() {
@@ -130,14 +171,22 @@ export default function SpoonCenterScreen() {
   const [customName, setCustomName] = useState("");
   const [customCost, setCustomCost] = useState("");
 
+  // last 7 days for the memory strip + yesterday's entries for copy-forward
+  const [stripDays, setStripDays] = useState(null);
+  const [prevEntries, setPrevEntries] = useState([]);
+
   const baselinePromptedRef = useRef(false);
   const isFirstLoadRef = useRef(true);
+  // once per session: a removed auto-filled entry must not come back on refocus
+  const autoFillDoneRef = useRef(false);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
 
   async function fetchActivities() {
     const res = await api.get("/api/spoons/activities");
-    setActivities(res.data.activities || []);
+    const acts = res.data.activities || [];
+    setActivities(acts);
+    return acts;
   }
 
   async function fetchDay(date) {
@@ -151,6 +200,7 @@ export default function SpoonCenterScreen() {
       setBaselineInput("");
       setShowBaseline(true);
     }
+    return res.data;
   }
 
   useFocusEffect(
@@ -160,8 +210,40 @@ export default function SpoonCenterScreen() {
 
       (async () => {
         try {
-          await fetchActivities();
-          await fetchDay(selectedDate);
+          const acts = await fetchActivities();
+          const dayData = await fetchDay(selectedDate);
+          let currentEntries = dayData.entries || [];
+
+          // auto-plan the pinned routine into an empty today
+          if (selectedDate === todayStr() && !autoFillDoneRef.current) {
+            autoFillDoneRef.current = true;
+            const pinned = acts
+              .filter((a) => a.pinned)
+              .sort((a, b) => a.name.localeCompare(b.name));
+            if (dayData.day && currentEntries.length === 0 && pinned.length > 0) {
+              const created = [];
+              for (const act of pinned) {
+                const res = await api.post(
+                  `/api/spoons/day/${dayData.day.id}/entries`,
+                  { name: act.name, cost: act.cost }
+                );
+                created.push(res.data.entry);
+              }
+              if (created.length > 0) track("spoon_day_planned");
+              currentEntries = created;
+              setEntries(created);
+            }
+          }
+
+          // the empty state offers to copy yesterday's plan, so peek at it
+          if (currentEntries.length === 0) {
+            const prevRes = await api.get(
+              `/api/spoons/day?date=${shiftDate(selectedDate, -1)}`
+            );
+            setPrevEntries(prevRes.data.entries || []);
+          } else {
+            setPrevEntries([]);
+          }
         } catch (err) {
           console.error("Spoon Center fetch failed:", err);
         } finally {
@@ -176,6 +258,35 @@ export default function SpoonCenterScreen() {
         active = false;
       };
     }, [selectedDate]) // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  // the memory strip always covers the last 7 days ending today, whatever day
+  // is being viewed; refreshed on focus, cached in state between navigations
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        try {
+          const today = todayStr();
+          const dates = Array.from({ length: 7 }, (_, i) => shiftDate(today, i - 6));
+          const results = await Promise.all(
+            dates.map((d) => api.get(`/api/spoons/day?date=${d}`))
+          );
+          setStripDays(
+            results.map((res, i) => {
+              const dayEntries = res.data.entries || [];
+              return {
+                date: dates[i],
+                spent: dayEntries.reduce((s, e) => s + e.cost, 0),
+                budget: res.data.day?.budget ?? 0,
+                hasEntries: dayEntries.length > 0,
+              };
+            })
+          );
+        } catch (err) {
+          console.error("Week strip fetch failed:", err);
+        }
+      })();
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   // ── Date navigation ────────────────────────────────────────────────────────
@@ -275,6 +386,40 @@ export default function SpoonCenterScreen() {
     }
   }
 
+  async function togglePin(act) {
+    try {
+      const res = await api.put(`/api/spoons/activities/${act.id}`, {
+        pinned: !act.pinned,
+      });
+      setActivities((prev) =>
+        prev.map((a) => (a.id === act.id ? res.data.activity : a))
+      );
+    } catch (err) {
+      console.error("Toggle pin failed:", err);
+    }
+  }
+
+  async function copyYesterday() {
+    if (!day || prevEntries.length === 0) return;
+    try {
+      // skip names already on the day (e.g. the pinned routine just auto-filled)
+      const existing = new Set(entries.map((e) => e.name));
+      const created = [];
+      for (const e of prevEntries) {
+        if (existing.has(e.name)) continue;
+        const res = await api.post(`/api/spoons/day/${day.id}/entries`, {
+          name: e.name,
+          cost: e.cost,
+        });
+        created.push(res.data.entry);
+      }
+      if (entries.length === 0 && created.length > 0) track("spoon_day_planned");
+      if (created.length > 0) setEntries((prev) => [...prev, ...created]);
+    } catch (err) {
+      console.error("Copy yesterday failed:", err);
+    }
+  }
+
   // ── Baseline & budget ──────────────────────────────────────────────────────
 
   async function saveBaseline() {
@@ -311,6 +456,22 @@ export default function SpoonCenterScreen() {
   const over = day ? spent > day.budget : false;
   const isToday = selectedDate === todayStr();
   const bottomPad = insets.bottom + 72;
+
+  // library sorted routine-first, then alphabetical
+  const sortedActivities = [...activities].sort((a, b) => {
+    if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+  const hasPinned = sortedActivities.some((a) => a.pinned);
+
+  // the viewed day's marker reflects live state, not the cached strip fetch
+  const displayStrip = stripDays
+    ? stripDays.map((d) =>
+        d.date === selectedDate && day
+          ? { ...d, spent, budget: day.budget, hasEntries: entries.length > 0 }
+          : d
+      )
+    : null;
 
   // ── Loading state ──────────────────────────────────────────────────────────
 
@@ -388,6 +549,23 @@ export default function SpoonCenterScreen() {
             {/* Budget ring card */}
             <Card style={styles.ringCard}>
               <BudgetRing spent={spent} budget={day.budget} />
+              {displayStrip && (
+                <View style={styles.weekStrip}>
+                  {displayStrip.map((d) => (
+                    <DayMarker
+                      key={d.date}
+                      {...d}
+                      isToday={d.date === todayStr()}
+                      onPress={() => {
+                        if (d.date !== selectedDate) {
+                          setLoading(true);
+                          setSelectedDate(d.date);
+                        }
+                      }}
+                    />
+                  ))}
+                </View>
+              )}
               <TouchableOpacity
                 onPress={() => {
                   setBudgetInput(String(day.budget));
@@ -426,6 +604,18 @@ export default function SpoonCenterScreen() {
                   >
                     <Text style={styles.emptyAddBtnText}>+ Add activity</Text>
                   </TouchableOpacity>
+                  {prevEntries.length > 0 && (
+                    <TouchableOpacity
+                      style={styles.copyBtn}
+                      onPress={copyYesterday}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.copyBtnText}>
+                        Copy yesterday's plan ({prevEntries.length}{" "}
+                        {prevEntries.length === 1 ? "activity" : "activities"})
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               ) : (
                 <>
@@ -527,12 +717,13 @@ export default function SpoonCenterScreen() {
               showsVerticalScrollIndicator={false}
             >
               {/* Library rows */}
-              {activities.length === 0 ? (
+              {hasPinned && <Text style={styles.routineLabel}>Routine</Text>}
+              {sortedActivities.length === 0 ? (
                 <Text style={[styles.emptyText, { padding: 16 }]}>
                   No activities in library yet.
                 </Text>
               ) : (
-                activities.map((act) => (
+                sortedActivities.map((act) => (
                   <TouchableOpacity
                     key={act.id}
                     style={styles.libraryRow}
@@ -543,6 +734,23 @@ export default function SpoonCenterScreen() {
                       <>
                         <Text style={styles.libraryName}>{act.name}</Text>
                         <Text style={styles.libraryCost}>{act.cost} spoons</Text>
+                        <TouchableOpacity
+                          onPress={() => togglePin(act)}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          activeOpacity={0.7}
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            act.pinned
+                              ? `Unpin ${act.name} from routine`
+                              : `Pin ${act.name} to routine`
+                          }
+                        >
+                          <Ionicons
+                            name={act.pinned ? "pin" : "pin-outline"}
+                            size={16}
+                            color={act.pinned ? "#B7A6D9" : "rgba(255,255,255,0.4)"}
+                          />
+                        </TouchableOpacity>
                       </>
                     ) : (
                       <>
@@ -617,10 +825,20 @@ export default function SpoonCenterScreen() {
         >
           <View style={styles.dialog}>
             <Text style={styles.modalTitle}>Your spoon baseline 🥄</Text>
-            <Text style={styles.explainerText}>
-              Spoon theory is a way to budget limited daily energy. You decide what a typical day
-              looks like, and Spoon Center helps you plan against it.
-            </Text>
+            <View style={{ rowGap: 6 }}>
+              <Text style={styles.explainerText}>
+                Spoon theory is the community's shorthand for limited daily energy —
+                each activity spends some of today's spoons.
+              </Text>
+              <Text style={styles.exampleText}>
+                Examples (yours may differ): Shower 2 · Cooking a meal 2 · Errand 3 ·
+                Work meeting 2 · Social visit 3–4
+              </Text>
+              <Text style={styles.exampleText}>
+                Most people start somewhere around 10–14. Yours is yours — change it
+                anytime.
+              </Text>
+            </View>
             <Text style={styles.fieldLabel}>
               How many spoons is a typical day for you?
             </Text>
@@ -841,6 +1059,47 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
+  // ── 7-day memory strip ────────────────────────────────────────────────────
+  weekStrip: {
+    flexDirection: "row",
+    columnGap: 14,
+    marginTop: 14,
+  },
+  markerWrap: {
+    alignItems: "center",
+    rowGap: 3,
+  },
+  markerCircle: {
+    width: MARKER_SIZE,
+    height: MARKER_SIZE,
+    borderRadius: MARKER_SIZE / 2,
+    overflow: "hidden",
+    justifyContent: "flex-end",
+  },
+  markerEmpty: {
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.25)",
+  },
+  markerDone: {
+    backgroundColor: "#B7A6D9",
+  },
+  markerOver: {
+    backgroundColor: "#E6C79A",
+  },
+  markerToday: {
+    borderWidth: 2,
+    borderColor: "#B7A6D9",
+  },
+  markerFill: {
+    width: "100%",
+    backgroundColor: "rgba(183,166,217,0.65)",
+  },
+  markerInitial: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 9,
+    color: "rgba(255,255,255,0.45)",
+  },
+
   // ── Nudge ─────────────────────────────────────────────────────────────────
   nudgeText: {
     fontFamily: "Lato_400Regular",
@@ -871,6 +1130,19 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_700Bold",
     fontSize: 13,
     color: "#7C6BAE",
+  },
+  copyBtn: {
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  copyBtnText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.85)",
   },
   entryRow: {
     flexDirection: "row",
@@ -1001,6 +1273,16 @@ const styles = StyleSheet.create({
   },
 
   // Library list
+  routineLabel: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.5)",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 2,
+  },
   libraryRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1110,6 +1392,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "rgba(255,255,255,0.8)",
     lineHeight: 20,
+  },
+  exampleText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.6)",
+    lineHeight: 18,
   },
   hintText: {
     fontFamily: "Lato_400Regular",

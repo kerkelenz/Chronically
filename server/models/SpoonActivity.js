@@ -24,6 +24,12 @@ const SpoonActivity = sequelize.define("SpoonActivity", {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  // pinned activities form the user's routine and auto-plan into an empty today
+  pinned: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
   // soft-delete: archived activities don't show in the library but aren't destroyed
   // so existing day entries that reference the name still make sense historically
   archived: {
