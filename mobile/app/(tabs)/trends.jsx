@@ -15,6 +15,7 @@ import MetricsLineChart from "../../components/MetricsLineChart";
 import AdherenceBars from "../../components/AdherenceBars";
 import AdherenceLineChart from "../../components/AdherenceLineChart";
 import api from "../../lib/api";
+import { adherenceStats } from "../../theme/medications";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -65,41 +66,27 @@ function getChartData(checkIns, timeframe) {
     }));
 }
 
-function getPeriodLogs(medLogs, timeframe) {
+// Adherence via the shared computed-missed engine math, so the charts, the
+// cabinet dots, and the doctor report can never disagree.
+function getAdherenceView(medications, medLogs, timeframe) {
+  const today = new Date();
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - timeframe);
+  const todayStr = today.toLocaleDateString("en-CA");
   const cutoffStr = cutoff.toLocaleDateString("en-CA");
-  return medLogs.filter((l) => l.date >= cutoffStr);
-}
-
-function getMedicationAdherence(periodLogs, medications) {
-  return medications
-    .filter((m) => m.active)
-    .map((med) => {
-      const logs = periodLogs.filter((l) => l.medicationId === med.id);
-      const taken = logs.filter((l) => l.status === "taken").length;
-      const scheduled = logs.length;
-      const percentage = scheduled > 0 ? Math.round((taken / scheduled) * 100) : 0;
-      return { name: med.name, adherence: percentage, taken, scheduled };
-    })
-    .filter((m) => m.scheduled > 0);
-}
-
-function getDailyAdherenceData(periodLogs) {
-  const byDate = {};
-  periodLogs.forEach((log) => {
-    if (!byDate[log.date]) byDate[log.date] = { taken: 0, total: 0 };
-    byDate[log.date].total++;
-    if (log.status === "taken") byDate[log.date].taken++;
-  });
-  return Object.entries(byDate)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, { taken, total }]) => ({
-      date,
-      percentage: Math.round((taken / total) * 100),
-      taken,
-      scheduled: total,
+  const stats = adherenceStats(medications, medLogs, cutoffStr, todayStr, todayStr);
+  const medAdherence = stats.perMed
+    .filter((m) => m.expected > 0)
+    .map((m) => ({ name: m.name, adherence: m.pct, taken: m.taken, scheduled: m.expected }));
+  const dailyAdherence = stats.perDay
+    .filter((d) => d.expected > 0)
+    .map((d) => ({
+      date: d.date,
+      percentage: Math.round((d.taken / d.expected) * 100),
+      taken: d.taken,
+      scheduled: d.expected,
     }));
+  return { medAdherence, dailyAdherence };
 }
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -181,9 +168,7 @@ export default function TrendsScreen() {
   const chartData = getChartData(checkIns, timeframe);
   const hasActiveMeds = medications.some((m) => m.active);
 
-  const periodLogs = getPeriodLogs(medLogs, timeframe);
-  const medAdherence = getMedicationAdherence(periodLogs, medications);
-  const dailyAdherence = getDailyAdherenceData(periodLogs);
+  const { medAdherence, dailyAdherence } = getAdherenceView(medications, medLogs, timeframe);
 
   // ── Loading ───────────────────────────────────────────────────────────────
 

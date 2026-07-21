@@ -167,6 +167,94 @@ export function describeSchedule(med) {
   }
 }
 
+// ── Adherence math (computed-missed) ────────────────────────────────────────
+// missed = an expected past dose with no log — computed at read time, never
+// written to the database. Today's unlogged doses are pending (neutral): they
+// count in neither the numerator nor the denominator.
+
+export function adherenceStats(medications, logs, fromYmd, toYmd, todayYmd) {
+  const end = toYmd < todayYmd ? toYmd : todayYmd;
+  const perMedMap = new Map();
+  const perDay = [];
+  const weekday = Array.from({ length: 7 }, () => ({ expected: 0, taken: 0 }));
+  const totals = { expected: 0, taken: 0, skipped: 0, missed: 0 };
+  let prnTaken = 0;
+
+  const meds = medications.map((m) => ({
+    med: m,
+    prn: resolvePattern(m).kind === "as_needed",
+    // created-date clamp: a med added yesterday must not show phantom missed
+    // days from before it existed
+    createdYmd: localDay(m.createdAt).toLocaleDateString("en-CA"),
+  }));
+
+  for (const { med, prn } of meds) {
+    if (prn) continue;
+    perMedMap.set(med.id, { id: med.id, name: med.name, expected: 0, taken: 0, skipped: 0, missed: 0 });
+  }
+
+  // PRN doses are reported separately — they have no denominator, so they
+  // never enter the adherence percentage
+  for (const log of logs) {
+    if (log.date < fromYmd || log.date > end) continue;
+    const entry = meds.find((x) => x.med.id === log.medicationId);
+    if (entry?.prn && log.status === "taken") prnTaken++;
+  }
+
+  for (let d = parseYmd(fromYmd); ; d.setDate(d.getDate() + 1)) {
+    const day = d.toLocaleDateString("en-CA");
+    if (day > end) break;
+    const dayRow = { date: day, expected: 0, taken: 0, skipped: 0, missed: 0 };
+    const dow = d.getDay();
+
+    for (const { med, prn, createdYmd } of meds) {
+      if (prn) continue;
+      if (day < createdYmd) continue;
+      for (const slot of expectedDosesOn(med, day)) {
+        const slotLogs = logs.filter(
+          (l) => l.medicationId === med.id && l.date === day && l.scheduledTime === slot
+        );
+        // first taken wins over skipped; duplicate logs count once. legacy
+        // status:"missed" rows have neither, so the slot computes as missed
+        // exactly once — no double counting
+        let status;
+        if (slotLogs.some((l) => l.status === "taken")) status = "taken";
+        else if (slotLogs.some((l) => l.status === "skipped")) status = "skipped";
+        else if (day < todayYmd) status = "missed";
+        else continue; // pending — today's unlogged doses stay neutral
+
+        const m = perMedMap.get(med.id);
+        m.expected++;
+        m[status]++;
+        dayRow.expected++;
+        dayRow[status]++;
+        totals.expected++;
+        totals[status]++;
+        weekday[dow].expected++;
+        if (status === "taken") weekday[dow].taken++;
+      }
+    }
+    perDay.push(dayRow);
+  }
+
+  const pctOf = (taken, expected) => (expected ? Math.round((taken / expected) * 100) : null);
+  const perMed = [...perMedMap.values()].map((m) => ({ ...m, pct: pctOf(m.taken, m.expected) }));
+  const perWeekday = weekday.map((w, i) => ({
+    weekday: i,
+    expected: w.expected,
+    taken: w.taken,
+    pct: pctOf(w.taken, w.expected),
+  }));
+
+  return {
+    perMed,
+    totals: { ...totals, pct: pctOf(totals.taken, totals.expected) },
+    perDay,
+    perWeekday,
+    prnTaken,
+  };
+}
+
 export const SKIP_REASONS = [
   "Forgot",
   "Felt sick / threw up",

@@ -113,7 +113,7 @@ export function buildReportHtml(data, username) {
     symptomStats, notableLines,
     glanceAdherenceText, glanceSevereText, glanceMostFreqSymptom,
     periodStart, periodEnd, periodStartShort, periodEndShort, generatedDate,
-    medications, medsWithActivity,
+    medications, prnTaken,
     medListHasNotes, medListRows, adherenceRows, medLogRows,
     dailyRows, adherenceByDay, skipReasonRows, recentAppts, upcomingAppts,
   } = data;
@@ -137,7 +137,7 @@ export function buildReportHtml(data, username) {
 
   // ── Page 2 helpers ────────────────────────────────────────────────────────
 
-  const medListHeadCols = ["Name", "Type", "Dosage", "Frequency", "Scheduled Times", "Status"];
+  const medListHeadCols = ["Name", "Type", "Dosage", "Schedule", "Status"];
   if (medListHasNotes) medListHeadCols.push("Notes");
   const medListHeadHtml = medListHeadCols.map((h) => `<th>${h}</th>`).join("");
   const medListBodyHtml = medications.length === 0
@@ -145,8 +145,12 @@ export function buildReportHtml(data, username) {
     : trows(medListRows);
 
   const adherenceBodyHtml = adherenceRows.length === 0
-    ? `<tr><td colspan="6" class="center muted">No medication logs in this period</td></tr>`
+    ? `<tr><td colspan="6" class="center muted">No scheduled medications in this period</td></tr>`
     : trows(adherenceRows, [1, 2, 3, 4, 5]);
+
+  const prnLineHtml = prnTaken > 0
+    ? `<p class="no-data">As-needed doses taken: ${prnTaken}</p>`
+    : "";
 
   const dowBodyHtml = `<tr>${adherenceByDay.map((p) => `<td class="center">${p ?? "—"}</td>`).join("")}</tr>`;
 
@@ -281,6 +285,7 @@ export function buildReportHtml(data, username) {
     ${adherenceBodyHtml}
     </tbody>
   </table>
+  ${prnLineHtml}
 
   <div class="section-title">Adherence by Day of Week</div>
   <table class="dow-table">

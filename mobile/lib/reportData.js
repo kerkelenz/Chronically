@@ -1,3 +1,5 @@
+import { formatTime, describeSchedule, adherenceStats } from "../theme/medications";
+
 // ── Constants (mirror generateReport.js verbatim) ─────────────────────────────
 
 export const SYMPTOM_LIST = [
@@ -11,19 +13,6 @@ export const PURPLE        = [124, 107, 174];
 export const DARK          = [45,  37,  64];
 export const GRAY          = [107, 95,  122];
 export const LAVENDER_FILL = [240, 235, 248];
-
-export const FREQUENCY_LABELS = {
-  daily:             "Daily",
-  twice_daily:       "Twice daily",
-  three_times_daily: "Three times daily",
-  four_times_daily:  "Four times daily",
-  every_other_day:   "Every other day",
-  weekly:            "Weekly",
-  biweekly:          "Biweekly",
-  monthly:           "Monthly",
-  every_x_weeks:     "Every X weeks",
-  as_needed:         "As needed",
-};
 
 export const METRIC_KEYS  = ["painLevel", "moodLevel", "energyLevel", "anxietyLevel", "appetiteLevel"];
 export const METRIC_NAMES = { painLevel: "Pain", moodLevel: "Mood", energyLevel: "Energy", anxietyLevel: "Anxiety", appetiteLevel: "Appetite" };
@@ -40,41 +29,11 @@ export const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 // ── Pure helpers (verbatim from generateReport.js) ────────────────────────────
 
-export const formatTime = (t) => {
-  if (!t) return "";
-  const [h, m] = t.split(":").map(Number);
-  const ampm = h >= 12 ? "PM" : "AM";
-  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${ampm}`;
-};
-
 export const formatApptDatePdf = (dateStr) => {
   if (!dateStr) return "—";
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) +
     " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-};
-
-export const countScheduledDoses = (med, startDateStr, endDateStr) => {
-  if (med.frequency === "as_needed") return null;
-  const timesPerDay = (med.scheduledTimes || []).length || 1;
-  let count = 0;
-  const cur = new Date(startDateStr + "T12:00:00");
-  const end = new Date(endDateStr + "T12:00:00");
-  const ref = new Date(med.createdAt);
-  while (cur <= end) {
-    const freq = med.frequency;
-    let due = false;
-    const diff = Math.round((cur - ref) / 86400000);
-    if (["daily", "twice_daily", "three_times_daily", "four_times_daily"].includes(freq)) due = true;
-    else if (freq === "every_other_day") due = diff % 2 === 0;
-    else if (freq === "weekly")          due = cur.getDay() === ref.getDay();
-    else if (freq === "biweekly")        due = diff % 14 === 0;
-    else if (freq === "monthly")         due = cur.getDate() === ref.getDate();
-    else if (freq === "every_x_weeks")   due = diff % ((med.frequencyWeeks || 1) * 7) === 0;
-    if (due) count += timesPerDay;
-    cur.setDate(cur.getDate() + 1);
-  }
-  return count;
 };
 
 // Returns 31 entries (30 days ago → today), oldest first.
@@ -209,32 +168,12 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
     return { name: symptom, days, percentage: totalDaysTracked > 0 ? Math.round((days / totalDaysTracked) * 100) : 0 };
   }).filter((s) => s.days > 0).sort((a, b) => b.days - a.days);
 
-  // Medication log buckets
-  const logsByMed = {};
-  medicationLogs.forEach((log) => {
-    const id = log.medicationId;
-    if (!logsByMed[id]) logsByMed[id] = { taken: 0, skipped: 0 };
-    if (log.status === "taken")   logsByMed[id].taken++;
-    if (log.status === "skipped") logsByMed[id].skipped++;
-  });
+  // Adherence: expected-vs-logged (computed-missed) — the shared engine math.
+  // missed = expected past dose with no log; today's unlogged doses are neutral
+  const medStats = adherenceStats(medications, medicationLogs, thirtyDaysAgoStr, todayStr, todayStr);
 
-  const medsWithActivity = medications.filter((med) => {
-    const scheduled = countScheduledDoses(med, thirtyDaysAgoStr, todayStr);
-    return (scheduled !== null && scheduled > 0) || logsByMed[med.id];
-  });
-
-  let glanceTotalScheduled = 0;
-  let glanceTotalTaken     = 0;
-  medsWithActivity.forEach((med) => {
-    if (med.frequency === "as_needed") return;
-    const scheduled = countScheduledDoses(med, thirtyDaysAgoStr, todayStr) || 0;
-    const logs = logsByMed[med.id] || { taken: 0, skipped: 0 };
-    glanceTotalScheduled += scheduled;
-    glanceTotalTaken     += logs.taken;
-  });
-
-  const glanceAdherenceText = glanceTotalScheduled > 0
-    ? `${Math.round((glanceTotalTaken / glanceTotalScheduled) * 100)}% (${glanceTotalTaken} of ${glanceTotalScheduled} doses)`
+  const glanceAdherenceText = medStats.totals.expected > 0
+    ? `${medStats.totals.pct}% (${medStats.totals.taken} of ${medStats.totals.expected} doses)`
     : "No medications tracked";
 
   // Severe days — daily average ≤ 2 (since 5 = best)
@@ -279,12 +218,8 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
       uniqueSymptoms.length > 0 ? uniqueSymptoms.join(", ") : "—"];
   });
 
-  // Adherence by day of week
-  const adherenceByDay = DOW_LABELS.map((_, di) => {
-    const logsForDay = medicationLogs.filter((log) => new Date(log.date + "T12:00:00").getDay() === di);
-    const taken = logsForDay.filter((l) => l.status === "taken").length;
-    return logsForDay.length > 0 ? `${Math.round((taken / logsForDay.length) * 100)}%` : null;
-  });
+  // Adherence by day of week — same computed-missed math
+  const adherenceByDay = medStats.perWeekday.map((w) => (w.pct != null ? `${w.pct}%` : null));
 
   // Skip reasons
   const skipReasonCounts = {};
@@ -309,18 +244,15 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
   const periodEndShort   = today.toLocaleDateString("en-US",          { month: "short", day: "numeric", year: "numeric" });
   const generatedDate    = today.toLocaleDateString("en-US",          { year: "numeric", month: "long", day: "numeric" });
 
-  // Current medication list rows (verbatim from web medListBody)
+  // Current medication list rows — the schedule column speaks the app's human
+  // sentences via describeSchedule
   const medListHasNotes = medications.some((m) => m.notes && m.notes.trim());
   const medListRows = medications.map((med) => {
-    const times = med.frequency === "as_needed"
-      ? "As needed"
-      : (med.scheduledTimes || []).map(formatTime).join(", ") || "—";
     const row = [
       med.name,
       med.type || "—",
       med.dosage || "—",
-      FREQUENCY_LABELS[med.frequency] || med.frequency,
-      times,
+      describeSchedule(med) || "—",
       med.active ? "Active" : "Inactive",
     ];
     if (medListHasNotes) {
@@ -330,15 +262,11 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
     return row;
   });
 
-  // Adherence table rows (verbatim from web adherenceBody)
-  const adherenceRows = medsWithActivity.map((med) => {
-    const logs = logsByMed[med.id] || { taken: 0, skipped: 0 };
-    if (med.frequency === "as_needed") return [med.name, "N/A", logs.taken, "N/A", "N/A", "N/A"];
-    const scheduled = countScheduledDoses(med, thirtyDaysAgoStr, todayStr) || 0;
-    const missed    = Math.max(0, scheduled - logs.taken - logs.skipped);
-    const adherence = scheduled > 0 ? `${Math.round((logs.taken / scheduled) * 100)}%` : "N/A";
-    return [med.name, scheduled, logs.taken, logs.skipped, missed, adherence];
-  });
+  // Adherence table rows — from the shared computed-missed math. PRN meds are
+  // excluded (no denominator); their doses show on the as-needed line instead
+  const adherenceRows = medStats.perMed
+    .filter((r) => r.expected > 0)
+    .map((r) => [r.name, r.expected, r.taken, r.skipped, r.missed, `${r.pct}%`]);
 
   // Daily medication log rows sorted by date then scheduledTime (verbatim from web medLogBody)
   const medMap = {};
@@ -374,7 +302,7 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
     // Symptoms
     symptomStats,
     // Med data
-    logsByMed, medsWithActivity,
+    medStats, prnTaken: medStats.prnTaken,
     // Glance
     glanceAdherenceText, glanceSevereText, glanceMostFreqSymptom,
     // Severe
