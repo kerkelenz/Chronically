@@ -549,6 +549,14 @@ export default function SpoonCenterScreen() {
             {/* Budget ring card */}
             <Card style={styles.ringCard}>
               <BudgetRing spent={spent} budget={day.budget} />
+              {isToday &&
+                day.budgetEdited === false &&
+                baseline != null &&
+                day.budget !== baseline && (
+                  <Text style={styles.budgetAdjustNote}>
+                    Adjusted from your baseline ({baseline}) after today's check-in
+                  </Text>
+                )}
               {displayStrip && (
                 <View style={styles.weekStrip}>
                   {displayStrip.map((d) => (
@@ -1057,6 +1065,14 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.5)",
     textDecorationLine: "underline",
     textAlign: "center",
+  },
+
+  budgetAdjustNote: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.65)",
+    textAlign: "center",
+    marginTop: 8,
   },
 
   // ── 7-day memory strip ────────────────────────────────────────────────────
