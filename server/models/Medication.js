@@ -5,7 +5,7 @@ const User = require("./User");
 const Medication = sequelize.define("Medication", {
   userId:         { type: DataTypes.INTEGER, allowNull: false },
   name:           { type: DataTypes.STRING, allowNull: false },
-  type:           { type: DataTypes.ENUM("pill", "injection", "infusion", "supplement"), allowNull: false },
+  type:           { type: DataTypes.ENUM("pill", "injection", "infusion", "supplement", "sublingual"), allowNull: false },
   dosage:         { type: DataTypes.STRING, allowNull: true },
   // legacy values (twice_daily, weekly, biweekly, every_other_day, every_x_weeks)
   // stay accepted forever - the shared schedule helper maps them to the five

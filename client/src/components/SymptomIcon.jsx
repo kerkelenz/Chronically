@@ -2,7 +2,7 @@ import {
   Sleepy, Neurology, Pain, Nerve, Electricity, LowVision,
   Thermometer, WalkSupported, Dizzy, Headache, Weights, Joints,
   Lungs, Nausea, Observation, Bladder,
-  Pill1, Syringe, IntravenousBag, MedicineBottle,
+  Pill1, Syringe, IntravenousBag, MedicineBottle, BloodDrop,
 } from "healthicons-react";
 
 const SYMPTOM_ICON_MAP = {
@@ -29,6 +29,7 @@ const MEDICATION_TYPE_ICON_MAP = {
   injection:  Syringe,
   infusion:   IntravenousBag,
   supplement: MedicineBottle,
+  sublingual: BloodDrop,
 };
 
 export function SymptomIcon({ name, size = 24, color = "white", style: extraStyle, ...props }) {

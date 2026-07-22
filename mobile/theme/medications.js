@@ -3,6 +3,7 @@ export const TYPE_ICONS = {
   injection:   "💉",
   infusion:    "🩺",
   supplement:  "🌿",
+  sublingual:  "💧",
 };
 
 export const FREQUENCY_LABELS = {

@@ -43,7 +43,7 @@ const EMPTY_FORM = {
   notes: "",
 };
 
-const TYPE_OPTIONS = ["pill", "injection", "infusion", "supplement"];
+const TYPE_OPTIONS = ["pill", "injection", "infusion", "supplement", "sublingual"];
 
 const PATTERN_OPTIONS = [
   { key: "daily", label: "Every day" },

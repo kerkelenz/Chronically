@@ -316,6 +316,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
               { value: "injection",  label: "Injection" },
               { value: "infusion",   label: "Infusion" },
               { value: "supplement", label: "Supplement" },
+              { value: "sublingual", label: "Sublingual" },
             ].map(({ value, label }) => (
               <button
                 key={value}
