@@ -67,6 +67,16 @@ export default function AppointmentsScreen() {
   const [cancelConfirmId, setCancelConfirmId] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
+  // ── Visit lifecycle sheets (prep / outcome) ───────────────────────────────
+  const [prepFor, setPrepFor] = useState(null);
+  const [prepText, setPrepText] = useState("");
+  const [outcomeFor, setOutcomeFor] = useState(null);
+  const [outcomeText, setOutcomeText] = useState("");
+  const [outcomeDate, setOutcomeDate] = useState("");
+  const [savingLifecycle, setSavingLifecycle] = useState(false);
+  const [showOutcomePicker, setShowOutcomePicker] = useState(false);
+  const [tempOutcomeDate, setTempOutcomeDate] = useState(new Date());
+
   // ── iOS inline pickers ────────────────────────────────────────────────────
   const [showDateTimePicker, setShowDateTimePicker] = useState(false);
   const [tempDateTime, setTempDateTime] = useState(new Date());
@@ -306,7 +316,98 @@ export default function AppointmentsScreen() {
     }
   };
 
+  // ── Visit lifecycle (prep / outcome / follow-up) ──────────────────────────
+
+  const openPrep = (appt) => {
+    setPrepFor(appt);
+    setPrepText(appt.notesBefore || "");
+  };
+
+  const savePrep = async () => {
+    if (!prepFor) return;
+    setSavingLifecycle(true);
+    try {
+      await api.put(`/api/appointments/${prepFor.id}`, {
+        ...prepFor,
+        notesBefore: prepText,
+      });
+      await fetchAppointments();
+      setPrepFor(null);
+    } catch (err) {
+      console.error("Failed to save prep notes:", err);
+    } finally {
+      setSavingLifecycle(false);
+    }
+  };
+
+  const openOutcome = (appt) => {
+    setOutcomeFor(appt);
+    setOutcomeText(appt.notesAfter || "");
+    setOutcomeDate(toDateOnly(appt.followUpDate));
+    setShowOutcomePicker(false);
+  };
+
+  const markCompleted = async (appt) => {
+    try {
+      await api.put(`/api/appointments/${appt.id}`, { ...appt, status: "completed" });
+      await fetchAppointments();
+      openOutcome({ ...appt, status: "completed" });
+    } catch (err) {
+      console.error("Failed to complete appointment:", err);
+    }
+  };
+
+  const saveOutcome = async () => {
+    if (!outcomeFor) return;
+    setSavingLifecycle(true);
+    try {
+      await api.put(`/api/appointments/${outcomeFor.id}`, {
+        ...outcomeFor,
+        notesAfter: outcomeText,
+        followUpDate: outcomeDate
+          ? new Date(outcomeDate + "T12:00:00").toISOString()
+          : null,
+      });
+      await fetchAppointments();
+      setOutcomeFor(null);
+    } catch (err) {
+      console.error("Failed to save visit notes:", err);
+    } finally {
+      setSavingLifecycle(false);
+    }
+  };
+
+  const scheduleFollowUp = (appt) => {
+    setEditingId(null);
+    setForm({
+      ...EMPTY_FORM,
+      doctorName: appt.doctorName || "",
+      specialty: appt.specialty || "",
+      location: appt.location || "",
+      date: toDateTimeLocal(appt.followUpDate),
+    });
+    setShowDateTimePicker(false);
+    setShowFollowUpPicker(false);
+    setShowModal(true);
+  };
+
   // ── Date pickers ──────────────────────────────────────────────────────────
+
+  function openOutcomeDatePickerFn() {
+    if (Platform.OS === "android") {
+      DateTimePickerAndroid.open({
+        value: outcomeDate ? new Date(outcomeDate + "T12:00:00") : new Date(),
+        mode: "date",
+        onChange: (e, d) => {
+          if (e.type !== "set" || !d) return;
+          setOutcomeDate(toDateOnly(d));
+        },
+      });
+    } else {
+      setTempOutcomeDate(outcomeDate ? new Date(outcomeDate + "T12:00:00") : new Date());
+      setShowOutcomePicker(true);
+    }
+  }
 
   function openDateTimePickerFn() {
     if (Platform.OS === "android") {
@@ -364,6 +465,9 @@ export default function AppointmentsScreen() {
   const past = appointments
     .filter((a) => a.status !== "upcoming" || new Date(a.date) < todayStart)
     .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // the soonest upcoming appointment gets the "export a report to bring" nudge
+  const soonestUpcomingId = upcoming.length > 0 ? upcoming[0].id : null;
 
   const saveDisabled = saving || !form.doctorName.trim() || !form.date;
 
@@ -541,14 +645,16 @@ export default function AppointmentsScreen() {
                 <Text style={styles.popoverDetail}>Reason: {popoverAppointment.reason}</Text>
               )}
               {!!popoverAppointment.notesBefore && (
-                <Text style={[styles.popoverDetail, { marginTop: 2 }]}>
-                  Notes: {popoverAppointment.notesBefore}
-                </Text>
+                <View style={styles.notesBlock}>
+                  <Text style={styles.notesLabel}>Before</Text>
+                  <Text style={styles.popoverDetail}>{popoverAppointment.notesBefore}</Text>
+                </View>
               )}
-              {popoverAppointment.status === "completed" && !!popoverAppointment.notesAfter && (
-                <Text style={[styles.popoverDetail, { marginTop: 2 }]}>
-                  Outcome: {popoverAppointment.notesAfter}
-                </Text>
+              {!!popoverAppointment.notesAfter && (
+                <View style={styles.notesBlock}>
+                  <Text style={styles.notesLabel}>After</Text>
+                  <Text style={styles.popoverDetail}>{popoverAppointment.notesAfter}</Text>
+                </View>
               )}
 
               <View style={styles.popoverFooter}>
@@ -614,7 +720,10 @@ export default function AppointmentsScreen() {
                           <Text style={styles.apptMeta}>Reason: {appt.reason}</Text>
                         )}
                         {!!appt.notesBefore && (
-                          <Text style={styles.apptMeta}>Notes: {appt.notesBefore}</Text>
+                          <View style={styles.notesBlock}>
+                            <Text style={styles.notesLabel}>Before</Text>
+                            <Text style={styles.apptMeta}>{appt.notesBefore}</Text>
+                          </View>
                         )}
                       </View>
                       <View style={styles.cardActions}>
@@ -622,6 +731,8 @@ export default function AppointmentsScreen() {
                           style={styles.iconBtn}
                           onPress={() => openEdit(appt)}
                           activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Edit appointment with ${appt.doctorName}`}
                         >
                           <Ionicons name="pencil-outline" size={13} color="white" />
                         </TouchableOpacity>
@@ -629,10 +740,51 @@ export default function AppointmentsScreen() {
                           style={[styles.iconBtn, styles.iconBtnDanger]}
                           onPress={() => setCancelConfirmId(appt.id)}
                           activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Cancel appointment with ${appt.doctorName}`}
                         >
                           <Ionicons name="close" size={13} color="white" />
                         </TouchableOpacity>
                       </View>
+                    </View>
+
+                    {/* Prepare + report-to-bring */}
+                    <View style={styles.prepRow}>
+                      <TouchableOpacity
+                        style={styles.prepBtn}
+                        onPress={() => openPrep(appt)}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Prepare for visit with ${appt.doctorName}`}
+                      >
+                        <Ionicons
+                          name="create-outline"
+                          size={13}
+                          color="rgba(255,255,255,0.9)"
+                        />
+                        <Text style={styles.prepBtnText}>
+                          {appt.notesBefore ? "Edit prep notes" : "Prepare"}
+                        </Text>
+                      </TouchableOpacity>
+                      {appt.id === soonestUpcomingId && (
+                        <TouchableOpacity
+                          style={styles.reportShortcut}
+                          onPress={handleExport}
+                          disabled={exporting}
+                          activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel="Export a report to bring to this visit"
+                        >
+                          <Ionicons
+                            name="document-text-outline"
+                            size={13}
+                            color="rgba(255,255,255,0.7)"
+                          />
+                          <Text style={styles.reportShortcutText}>
+                            Export a report to bring
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
 
                     {/* Inline cancel confirm */}
@@ -670,6 +822,7 @@ export default function AppointmentsScreen() {
                 {past.map((appt) => {
                   const isCompleted = appt.status === "completed";
                   const isCancelled = appt.status === "cancelled";
+                  const isPastDue = appt.status === "upcoming";
                   return (
                     <View
                       key={appt.id}
@@ -712,15 +865,16 @@ export default function AppointmentsScreen() {
                           {!!appt.reason && (
                             <Text style={styles.apptMetaFaded}>Reason: {appt.reason}</Text>
                           )}
-                          {isCompleted && !!appt.notesAfter && (
-                            <Text style={styles.apptMetaFaded}>Notes after: {appt.notesAfter}</Text>
+                          {!!appt.notesBefore && (
+                            <View style={styles.notesBlock}>
+                              <Text style={styles.notesLabel}>Before</Text>
+                              <Text style={styles.apptMetaFaded}>{appt.notesBefore}</Text>
+                            </View>
                           )}
-                          {isCompleted && !!appt.followUpDate && (
-                            <View style={styles.apptRow}>
-                              <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.4)" />
-                              <Text style={styles.apptMetaFaded}>
-                                Follow-up: {formatApptDate(appt.followUpDate)}
-                              </Text>
+                          {!!appt.notesAfter && (
+                            <View style={styles.notesBlock}>
+                              <Text style={styles.notesLabel}>After</Text>
+                              <Text style={styles.apptMetaFaded}>{appt.notesAfter}</Text>
                             </View>
                           )}
                         </View>
@@ -728,10 +882,99 @@ export default function AppointmentsScreen() {
                           style={styles.iconBtn}
                           onPress={() => openEdit(appt)}
                           activeOpacity={0.8}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Edit appointment with ${appt.doctorName}`}
                         >
                           <Ionicons name="pencil-outline" size={13} color="white" />
                         </TouchableOpacity>
                       </View>
+
+                      {/* Past-due: did this visit happen? */}
+                      {isPastDue && (
+                        <View style={styles.happenRow}>
+                          <Text style={styles.happenText}>Did this visit happen?</Text>
+                          <View style={styles.happenBtns}>
+                            <TouchableOpacity
+                              style={styles.happenYesBtn}
+                              onPress={() => markCompleted(appt)}
+                              activeOpacity={0.8}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Mark visit with ${appt.doctorName} completed`}
+                            >
+                              <Text style={styles.happenYesText}>Yes</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.happenNoBtn}
+                              onPress={() => setCancelConfirmId(appt.id)}
+                              activeOpacity={0.8}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Mark visit with ${appt.doctorName} cancelled`}
+                            >
+                              <Text style={styles.happenNoText}>Cancelled</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Inline cancel confirm (shared with the chip) */}
+                      {isPastDue && cancelConfirmId === appt.id && (
+                        <View style={styles.cancelConfirm}>
+                          <Text style={styles.cancelConfirmText}>
+                            Mark this appointment as cancelled?
+                          </Text>
+                          <View style={styles.cancelConfirmBtns}>
+                            <TouchableOpacity
+                              style={styles.keepBtn}
+                              onPress={() => setCancelConfirmId(null)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.keepBtnText}>Keep</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.cancelItBtn}
+                              onPress={() => handleCancel(appt.id)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.cancelItBtnText}>Cancel it</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Completed: add visit notes link when empty */}
+                      {isCompleted && !appt.notesAfter && (
+                        <TouchableOpacity
+                          style={styles.addNotesLink}
+                          onPress={() => openOutcome(appt)}
+                          activeOpacity={0.7}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Add visit notes for ${appt.doctorName}`}
+                        >
+                          <Ionicons name="add" size={13} color="rgba(255,255,255,0.7)" />
+                          <Text style={styles.addNotesLinkText}>Add visit notes</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Completed: follow-up chained */}
+                      {isCompleted && !!appt.followUpDate && (
+                        <View style={styles.followUpRow}>
+                          <View style={styles.followUpTextWrap}>
+                            <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.5)" />
+                            <Text style={styles.followUpText}>
+                              Follow-up around {formatApptDate(appt.followUpDate)}
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            style={styles.scheduleBtn}
+                            onPress={() => scheduleFollowUp(appt)}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Schedule follow-up appointment with ${appt.doctorName}`}
+                          >
+                            <Text style={styles.scheduleBtnText}>Schedule</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
                     </View>
                   );
                 })}
@@ -975,6 +1218,127 @@ export default function AppointmentsScreen() {
             </ScrollView>
       </BottomSheet>
 
+      {/* ── Prepare-for-visit sheet ──────────────────────────────────────────── */}
+      <BottomSheet visible={!!prepFor} onClose={() => setPrepFor(null)}>
+        <View style={styles.lifecycleHeader}>
+          <Text style={styles.modalTitle}>Prepare for this visit</Text>
+          <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setPrepFor(null)} hitSlop={8}>
+            <Ionicons name="close" size={15} color="white" />
+          </TouchableOpacity>
+        </View>
+        {!!prepFor && (
+          <Text style={styles.lifecycleSubtitle}>
+            {prepFor.doctorName}
+            {prepFor.specialty ? ` — ${prepFor.specialty}` : ""}
+          </Text>
+        )}
+        <TextInput
+          style={[styles.input, styles.inputMultiline, { marginTop: 12 }]}
+          value={prepText}
+          onChangeText={setPrepText}
+          placeholder="Questions to ask, symptoms to mention, refills to request…"
+          placeholderTextColor="rgba(255,255,255,0.3)"
+          multiline
+          numberOfLines={4}
+          autoCapitalize="sentences"
+          textAlignVertical="top"
+        />
+        <View style={styles.lifecycleBtnRow}>
+          <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setPrepFor(null)} activeOpacity={0.8}>
+            <Text style={styles.modalCancelText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modalSaveBtn, savingLifecycle && styles.modalSaveBtnDisabled]}
+            onPress={savePrep}
+            disabled={savingLifecycle}
+            activeOpacity={0.85}
+          >
+            {savingLifecycle ? (
+              <ActivityIndicator color="#7C6BAE" size="small" />
+            ) : (
+              <Text style={styles.modalSaveText}>Save</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </BottomSheet>
+
+      {/* ── How-did-it-go sheet ──────────────────────────────────────────────── */}
+      <BottomSheet visible={!!outcomeFor} onClose={() => setOutcomeFor(null)}>
+        <View style={styles.lifecycleHeader}>
+          <Text style={styles.modalTitle}>How did it go?</Text>
+          <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setOutcomeFor(null)} hitSlop={8}>
+            <Ionicons name="close" size={15} color="white" />
+          </TouchableOpacity>
+        </View>
+        {!!outcomeFor && (
+          <Text style={styles.lifecycleSubtitle}>
+            {outcomeFor.doctorName}
+            {outcomeFor.specialty ? ` — ${outcomeFor.specialty}` : ""}
+          </Text>
+        )}
+        <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Visit notes</Text>
+        <TextInput
+          style={[styles.input, styles.inputMultiline]}
+          value={outcomeText}
+          onChangeText={setOutcomeText}
+          placeholder="What was said, decisions, next steps…"
+          placeholderTextColor="rgba(255,255,255,0.3)"
+          multiline
+          numberOfLines={4}
+          autoCapitalize="sentences"
+          textAlignVertical="top"
+        />
+        <Text style={styles.fieldLabel}>Follow-up date (optional)</Text>
+        <TouchableOpacity
+          style={[styles.input, styles.pickerField]}
+          onPress={openOutcomeDatePickerFn}
+          activeOpacity={0.8}
+        >
+          <Text style={outcomeDate ? styles.pickerFieldText : styles.pickerFieldPlaceholder}>
+            {outcomeDate ? formatApptDate(outcomeDate) : "Select date"}
+          </Text>
+          <Ionicons name="calendar-outline" size={16} color="rgba(255,255,255,0.5)" />
+        </TouchableOpacity>
+        {showOutcomePicker && Platform.OS === "ios" && (
+          <View style={styles.inlinePicker}>
+            <DateTimePicker
+              value={tempOutcomeDate}
+              mode="date"
+              display="spinner"
+              textColor="white"
+              onChange={(e, d) => { if (d) setTempOutcomeDate(d); }}
+              style={{ width: "100%" }}
+            />
+            <TouchableOpacity
+              style={styles.pickerDoneBtn}
+              onPress={() => {
+                setOutcomeDate(toDateOnly(tempOutcomeDate));
+                setShowOutcomePicker(false);
+              }}
+            >
+              <Text style={styles.pickerDoneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        <View style={styles.lifecycleBtnRow}>
+          <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setOutcomeFor(null)} activeOpacity={0.8}>
+            <Text style={styles.modalCancelText}>Skip</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modalSaveBtn, savingLifecycle && styles.modalSaveBtnDisabled]}
+            onPress={saveOutcome}
+            disabled={savingLifecycle}
+            activeOpacity={0.85}
+          >
+            {savingLifecycle ? (
+              <ActivityIndicator color="#7C6BAE" size="small" />
+            ) : (
+              <Text style={styles.modalSaveText}>Save</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </BottomSheet>
+
       {/* ── Delete confirm modal ──────────────────────────────────────────────── */}
       <Modal
         animationType="fade"
@@ -1213,6 +1577,19 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 6,
   },
+
+  // Labeled Before / After note blocks
+  notesBlock: {
+    marginTop: 4,
+    gap: 1,
+  },
+  notesLabel: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 9,
+    color: "rgba(255,255,255,0.55)",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
   statusPill: {
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -1403,6 +1780,155 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_400Regular",
     fontSize: 14,
     color: "rgba(255,255,255,0.6)",
+  },
+
+  // Prepare + report-to-bring row
+  prepRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  prepBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  prepBtnText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.9)",
+  },
+  reportShortcut: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  reportShortcutText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.7)",
+    textDecorationLine: "underline",
+  },
+
+  // Past-due "did this visit happen?"
+  happenRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 2,
+  },
+  happenText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.75)",
+  },
+  happenBtns: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  happenYesBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+  },
+  happenYesText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 12,
+    color: "white",
+  },
+  happenNoBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.1)",
+  },
+  happenNoText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.65)",
+  },
+
+  // Completed: add-notes link + follow-up
+  addNotesLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+    paddingVertical: 4,
+  },
+  addNotesLinkText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.7)",
+    textDecorationLine: "underline",
+  },
+  followUpRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 2,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.12)",
+  },
+  followUpTextWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    flexShrink: 1,
+  },
+  followUpText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.7)",
+    flexShrink: 1,
+  },
+  scheduleBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  scheduleBtnText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 12,
+    color: "white",
+  },
+
+  // Lifecycle sheets (prep / outcome)
+  lifecycleHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  lifecycleSubtitle: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.7)",
+    marginTop: 4,
+  },
+  lifecycleBtnRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 16,
   },
 
   // Cancel inline confirm

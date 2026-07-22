@@ -75,6 +75,14 @@ function AppointmentsPage() {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState(false);
 
+  // Visit lifecycle sheets (prep / outcome)
+  const [prepFor, setPrepFor] = useState(null);
+  const [prepText, setPrepText] = useState("");
+  const [outcomeFor, setOutcomeFor] = useState(null);
+  const [outcomeText, setOutcomeText] = useState("");
+  const [outcomeDate, setOutcomeDate] = useState("");
+  const [savingLifecycle, setSavingLifecycle] = useState(false);
+
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [popoverAppointment, setPopoverAppointment] = useState(null);
@@ -237,6 +245,85 @@ function AppointmentsPage() {
     }
   };
 
+  // ── Visit lifecycle (prep / outcome / follow-up) ──────────────────────────
+
+  const openPrep = (appt) => {
+    setPrepFor(appt);
+    setPrepText(appt.notesBefore || "");
+  };
+
+  const savePrep = async () => {
+    if (!prepFor) return;
+    setSavingLifecycle(true);
+    try {
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/appointments/${prepFor.id}`,
+        { ...prepFor, notesBefore: prepText },
+        { headers: hdrs },
+      );
+      await fetchAppointments();
+      setPrepFor(null);
+    } catch (err) {
+      console.error("Failed to save prep notes:", err);
+    } finally {
+      setSavingLifecycle(false);
+    }
+  };
+
+  const openOutcome = (appt) => {
+    setOutcomeFor(appt);
+    setOutcomeText(appt.notesAfter || "");
+    setOutcomeDate(toDateOnly(appt.followUpDate));
+  };
+
+  const markCompleted = async (appt) => {
+    try {
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/appointments/${appt.id}`,
+        { ...appt, status: "completed" },
+        { headers: hdrs },
+      );
+      await fetchAppointments();
+      openOutcome({ ...appt, status: "completed" });
+    } catch (err) {
+      console.error("Failed to complete appointment:", err);
+    }
+  };
+
+  const saveOutcome = async () => {
+    if (!outcomeFor) return;
+    setSavingLifecycle(true);
+    try {
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/appointments/${outcomeFor.id}`,
+        {
+          ...outcomeFor,
+          notesAfter: outcomeText,
+          followUpDate: outcomeDate ? new Date(outcomeDate + "T12:00:00").toISOString() : null,
+        },
+        { headers: hdrs },
+      );
+      await fetchAppointments();
+      setOutcomeFor(null);
+    } catch (err) {
+      console.error("Failed to save visit notes:", err);
+    } finally {
+      setSavingLifecycle(false);
+    }
+  };
+
+  const scheduleFollowUp = (appt) => {
+    setEditingId(null);
+    setForm({
+      ...EMPTY_FORM,
+      doctorName: appt.doctorName || "",
+      specialty: appt.specialty || "",
+      location: appt.location || "",
+      date: toDateTimeLocal(appt.followUpDate),
+    });
+    setShowModal(true);
+  };
+
   const todayStr = new Date().toLocaleDateString("en-CA");
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -246,6 +333,9 @@ function AppointmentsPage() {
   const past = appointments
     .filter((a) => a.status !== "upcoming" || new Date(a.date) < todayStart)
     .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // the soonest upcoming appointment gets the "export a report to bring" nudge
+  const soonestUpcomingId = upcoming.length > 0 ? upcoming[0].id : null;
 
   const calendarDays = loading ? [] : buildCalendarDays();
 
@@ -433,14 +523,16 @@ function AppointmentsPage() {
                     </p>
                   )}
                   {popoverAppointment.notesBefore && (
-                    <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.7)" }}>
-                      Notes: {popoverAppointment.notesBefore}
-                    </p>
+                    <div className="mt-1">
+                      <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.55)" }}>Before</p>
+                      <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>{popoverAppointment.notesBefore}</p>
+                    </div>
                   )}
-                  {popoverAppointment.status === "completed" && popoverAppointment.notesAfter && (
-                    <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.7)" }}>
-                      Outcome: {popoverAppointment.notesAfter}
-                    </p>
+                  {popoverAppointment.notesAfter && (
+                    <div className="mt-1">
+                      <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.55)" }}>After</p>
+                      <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>{popoverAppointment.notesAfter}</p>
+                    </div>
                   )}
 
                   <div className="flex items-center justify-between mt-2">
@@ -529,9 +621,10 @@ function AppointmentsPage() {
                               </p>
                             )}
                             {appt.notesBefore && (
-                              <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>
-                                Notes: {appt.notesBefore}
-                              </p>
+                              <div>
+                                <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.55)" }}>Before</p>
+                                <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>{appt.notesBefore}</p>
+                              </div>
                             )}
                           </div>
                           <div className="flex-shrink-0 flex flex-col gap-2 self-start pt-0.5">
@@ -539,6 +632,7 @@ function AppointmentsPage() {
                               onClick={() => openEdit(appt)}
                               className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
                               style={{ background: "rgba(255,255,255,0.25)" }}
+                              aria-label={`Edit appointment with ${appt.doctorName}`}
                             >
                               <FiEdit2 size={12} color="white" />
                             </button>
@@ -546,11 +640,36 @@ function AppointmentsPage() {
                               onClick={() => setCancelConfirmId(appt.id)}
                               className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
                               style={{ background: "rgba(255,100,100,0.4)" }}
-                              title="Cancel appointment"
+                              aria-label={`Cancel appointment with ${appt.doctorName}`}
                             >
                               <FiX size={12} color="white" />
                             </button>
                           </div>
+                        </div>
+
+                        {/* Prepare + report-to-bring */}
+                        <div className="flex items-center flex-wrap gap-2">
+                          <button
+                            onClick={() => openPrep(appt)}
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 hover:opacity-80"
+                            style={{ background: "rgba(255,255,255,0.18)", color: "rgba(255,255,255,0.9)", border: "1px solid rgba(255,255,255,0.3)" }}
+                            aria-label={`Prepare for visit with ${appt.doctorName}`}
+                          >
+                            <FiEdit2 size={11} />
+                            {appt.notesBefore ? "Edit prep notes" : "Prepare"}
+                          </button>
+                          {appt.id === soonestUpcomingId && (
+                            <button
+                              onClick={handleExport}
+                              disabled={exporting}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs transition-all duration-200 hover:opacity-80 underline"
+                              style={{ color: "rgba(255,255,255,0.7)" }}
+                              aria-label="Export a report to bring to this visit"
+                            >
+                              <FiDownload size={11} />
+                              {exporting ? "Preparing…" : "Export a report to bring"}
+                            </button>
+                          )}
                         </div>
 
                         {cancelConfirmId === appt.id && (
@@ -593,6 +712,7 @@ function AppointmentsPage() {
                     {past.map((appt) => {
                       const isCompleted = appt.status === "completed";
                       const isCancelled = appt.status === "cancelled";
+                      const isPastDue = appt.status === "upcoming";
                       return (
                         <div
                           key={appt.id}
@@ -644,17 +764,16 @@ function AppointmentsPage() {
                                   Reason: {appt.reason}
                                 </p>
                               )}
-                              {isCompleted && appt.notesAfter && (
-                                <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>
-                                  Notes after: {appt.notesAfter}
-                                </p>
+                              {appt.notesBefore && (
+                                <div>
+                                  <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.55)" }}>Before</p>
+                                  <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>{appt.notesBefore}</p>
+                                </div>
                               )}
-                              {isCompleted && appt.followUpDate && (
-                                <div className="flex items-center gap-1.5">
-                                  <FiClock size={11} color="rgba(255,255,255,0.4)" />
-                                  <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
-                                    Follow-up: {formatApptDate(appt.followUpDate)}
-                                  </p>
+                              {appt.notesAfter && (
+                                <div>
+                                  <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.55)" }}>After</p>
+                                  <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>{appt.notesAfter}</p>
                                 </div>
                               )}
                             </div>
@@ -662,10 +781,100 @@ function AppointmentsPage() {
                               onClick={() => openEdit(appt)}
                               className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
                               style={{ background: "rgba(255,255,255,0.2)" }}
+                              aria-label={`Edit appointment with ${appt.doctorName}`}
                             >
                               <FiEdit2 size={12} color="white" />
                             </button>
                           </div>
+
+                          {/* Past-due: did this visit happen? */}
+                          {isPastDue && (
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <p className="text-xs" style={{ color: "rgba(255,255,255,0.75)" }}>Did this visit happen?</p>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => markCompleted(appt)}
+                                  className="px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-200 hover:opacity-80"
+                                  style={{ background: "rgba(255,255,255,0.25)", color: "white", border: "1px solid rgba(255,255,255,0.4)" }}
+                                  aria-label={`Mark visit with ${appt.doctorName} completed`}
+                                >
+                                  Yes
+                                </button>
+                                <button
+                                  onClick={() => setCancelConfirmId(appt.id)}
+                                  className="px-3.5 py-1.5 rounded-full text-xs transition-all duration-200 hover:opacity-80"
+                                  style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.65)" }}
+                                  aria-label={`Mark visit with ${appt.doctorName} cancelled`}
+                                >
+                                  Cancelled
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Inline cancel confirm (shared with the chip) */}
+                          {isPastDue && cancelConfirmId === appt.id && (
+                            <div
+                              className="rounded-xl p-3 flex flex-col gap-2"
+                              style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}
+                            >
+                              <p className="text-xs" style={{ color: "rgba(255,255,255,0.8)" }}>
+                                Mark this appointment as cancelled?
+                              </p>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => setCancelConfirmId(null)}
+                                  className="flex-1 py-1.5 rounded-lg text-xs transition-all duration-200 hover:opacity-80"
+                                  style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
+                                >
+                                  Keep
+                                </button>
+                                <button
+                                  onClick={() => handleCancel(appt.id)}
+                                  className="flex-1 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:opacity-80"
+                                  style={{ background: "rgba(255,100,100,0.5)", color: "white" }}
+                                >
+                                  Cancel it
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Completed: add visit notes link when empty */}
+                          {isCompleted && !appt.notesAfter && (
+                            <button
+                              onClick={() => openOutcome(appt)}
+                              className="self-start flex items-center gap-1 text-xs underline transition-all duration-200 hover:opacity-80"
+                              style={{ color: "rgba(255,255,255,0.7)" }}
+                              aria-label={`Add visit notes for ${appt.doctorName}`}
+                            >
+                              <FiPlus size={12} />
+                              Add visit notes
+                            </button>
+                          )}
+
+                          {/* Completed: follow-up chained */}
+                          {isCompleted && appt.followUpDate && (
+                            <div
+                              className="flex items-center justify-between flex-wrap gap-2 pt-2.5"
+                              style={{ borderTop: "1px solid rgba(255,255,255,0.12)" }}
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <FiClock size={12} color="rgba(255,255,255,0.5)" />
+                                <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
+                                  Follow-up around {formatApptDate(appt.followUpDate)}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => scheduleFollowUp(appt)}
+                                className="px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 hover:opacity-80"
+                                style={{ background: "rgba(255,255,255,0.18)", color: "white", border: "1px solid rgba(255,255,255,0.3)" }}
+                                aria-label={`Schedule follow-up appointment with ${appt.doctorName}`}
+                              >
+                                Schedule
+                              </button>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -871,6 +1080,123 @@ function AppointmentsPage() {
                   {saving ? "Saving…" : "Save"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Prepare-for-visit modal */}
+      {prepFor && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setPrepFor(null); }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl flex flex-col p-5 gap-3"
+            style={{ background: "rgba(100,85,145,0.92)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.25)" }}
+          >
+            <div className="flex justify-between items-center">
+              <p className="font-medium" style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}>
+                Prepare for this visit
+              </p>
+              <button onClick={() => setPrepFor(null)} className="p-1.5 rounded-full hover:opacity-70 transition-opacity" style={{ background: "rgba(255,255,255,0.15)" }}>
+                <FiX size={14} color="white" />
+              </button>
+            </div>
+            <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
+              {prepFor.doctorName}{prepFor.specialty ? ` — ${prepFor.specialty}` : ""}
+            </p>
+            <textarea
+              rows={4}
+              value={prepText}
+              onChange={(e) => setPrepText(e.target.value)}
+              placeholder="Questions to ask, symptoms to mention, refills to request…"
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none placeholder-white/30"
+              style={inputStyle}
+              autoFocus
+            />
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setPrepFor(null)}
+                className="flex-1 py-2.5 rounded-full text-sm transition-all duration-200 hover:opacity-80"
+                style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={savePrep}
+                disabled={savingLifecycle}
+                className="flex-1 py-2.5 rounded-full text-sm font-medium transition-all duration-200 hover:opacity-90"
+                style={{ background: "white", color: "#7C6BAE", opacity: savingLifecycle ? 0.5 : 1 }}
+              >
+                {savingLifecycle ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* How-did-it-go modal */}
+      {outcomeFor && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setOutcomeFor(null); }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl flex flex-col p-5 gap-3"
+            style={{ background: "rgba(100,85,145,0.92)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.25)" }}
+          >
+            <div className="flex justify-between items-center">
+              <p className="font-medium" style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}>
+                How did it go?
+              </p>
+              <button onClick={() => setOutcomeFor(null)} className="p-1.5 rounded-full hover:opacity-70 transition-opacity" style={{ background: "rgba(255,255,255,0.15)" }}>
+                <FiX size={14} color="white" />
+              </button>
+            </div>
+            <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
+              {outcomeFor.doctorName}{outcomeFor.specialty ? ` — ${outcomeFor.specialty}` : ""}
+            </p>
+            <div>
+              <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Visit notes</p>
+              <textarea
+                rows={4}
+                value={outcomeText}
+                onChange={(e) => setOutcomeText(e.target.value)}
+                placeholder="What was said, decisions, next steps…"
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none placeholder-white/30"
+                style={inputStyle}
+                autoFocus
+              />
+            </div>
+            <div>
+              <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Follow-up date (optional)</p>
+              <input
+                type="date"
+                value={outcomeDate}
+                onChange={(e) => setOutcomeDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                style={{ ...inputStyle, colorScheme: "dark" }}
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setOutcomeFor(null)}
+                className="flex-1 py-2.5 rounded-full text-sm transition-all duration-200 hover:opacity-80"
+                style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
+              >
+                Skip
+              </button>
+              <button
+                onClick={saveOutcome}
+                disabled={savingLifecycle}
+                className="flex-1 py-2.5 rounded-full text-sm font-medium transition-all duration-200 hover:opacity-90"
+                style={{ background: "white", color: "#7C6BAE", opacity: savingLifecycle ? 0.5 : 1 }}
+              >
+                {savingLifecycle ? "Saving…" : "Save"}
+              </button>
             </div>
           </div>
         </div>
