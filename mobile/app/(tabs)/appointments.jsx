@@ -587,26 +587,37 @@ export default function AppointmentsScreen() {
           </View>
         </View>
 
-        {/* ── Doctor report button ──────────────────────────────────────────── */}
-        <TouchableOpacity
-          style={[styles.reportBtn, exporting && styles.reportBtnDisabled]}
-          onPress={handleExport}
-          disabled={exporting}
-          activeOpacity={0.8}
-        >
-          {exporting ? (
-            <>
-              <ActivityIndicator size="small" color="white" />
-              <Text style={styles.reportBtnText}>Preparing…</Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="document-text-outline" size={14} color="white" />
-              <Text style={styles.reportBtnText}>Prepare doctor report</Text>
-            </>
+        {/* ── Doctor report card ────────────────────────────────────────────── */}
+        <View style={styles.reportCard}>
+          <Text style={styles.reportCardTitle}>Doctor Report</Text>
+          <Text style={styles.reportCardDesc}>
+            Export a 30-day PDF summary of health metrics, medications, adherence, and
+            appointments — designed to bring to your next visit.
+          </Text>
+          <TouchableOpacity
+            style={[styles.reportBtn, exporting && styles.reportBtnDisabled]}
+            onPress={handleExport}
+            disabled={exporting}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Export doctor report PDF"
+          >
+            {exporting ? (
+              <>
+                <ActivityIndicator size="small" color="#7C6BAE" />
+                <Text style={styles.reportBtnText}>Preparing…</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="document-text-outline" size={14} color="#7C6BAE" />
+                <Text style={styles.reportBtnText}>Export PDF Report</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          {exportError && (
+            <Text style={styles.reportErrorText}>Failed to prepare report. Please try again.</Text>
           )}
-        </TouchableOpacity>
-        {exportError && <Text style={styles.reportError}>{exportError}</Text>}
+        </View>
 
         {/* ── Selected-day panel ────────────────────────────────────────────── */}
         {popoverAppointment && selectedDate && (() => {
@@ -2129,31 +2140,47 @@ const styles = StyleSheet.create({
     color: "#7C6BAE",
   },
 
-  // Doctor report button
+  // Doctor report card
+  reportCard: {
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    padding: 16,
+    gap: 8,
+  },
+  reportCardTitle: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 15,
+    color: "white",
+  },
+  reportCardDesc: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.7)",
+    lineHeight: 18,
+  },
   reportBtn: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
     gap: 6,
-    backgroundColor: "rgba(255,255,255,0.25)",
+    backgroundColor: "white",
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginBottom: 20,
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+    marginTop: 2,
   },
   reportBtnDisabled: { opacity: 0.6 },
   reportBtnText: {
     fontFamily: "Lato_700Bold",
-    fontSize: 12,
-    color: "white",
+    fontSize: 13,
+    color: "#7C6BAE",
   },
-  reportError: {
+  reportErrorText: {
     fontFamily: "Lato_400Regular",
     fontSize: 12,
-    color: "white",
-    marginBottom: 16,
+    color: "rgba(255,255,255,0.85)",
   },
 
   // Delete confirm modal
