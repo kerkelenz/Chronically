@@ -458,7 +458,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
   }
 
   return (
-    <BottomSheet visible={visible} onClose={onCancel} cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}>
+    <BottomSheet visible={visible} onClose={onCancel} scrollable={false} cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}>
           {/* Header */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>

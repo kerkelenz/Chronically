@@ -1,13 +1,18 @@
-import { Modal, KeyboardAvoidingView, TouchableOpacity, View, Platform, StyleSheet } from "react-native";
+import {
+  Modal, KeyboardAvoidingView, TouchableOpacity, View, ScrollView, Platform, StyleSheet,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /**
  * Slide-up bottom sheet with the app's standard frosted card, scrim,
- * tap-to-dismiss, keyboard avoidance, and — importantly — the bottom
- * safe-area inset baked in so content never sits under the nav bar.
- * Wrap any sheet content in this instead of hand-rolling a <Modal>.
+ * tap-to-dismiss, and keyboard avoidance. By default the card scrolls, so a
+ * filled-out form (or the keyboard on smaller iPhones) can never clip the
+ * bottom action buttons. Sheets that manage their own inner ScrollView should
+ * pass `scrollable={false}` to avoid nested scrolling.
  */
-export default function BottomSheet({ visible, onClose, children, maxHeight = "88%", cardStyle }) {
+export default function BottomSheet({
+  visible, onClose, children, maxHeight = "88%", cardStyle, scrollable = true,
+}) {
   const insets = useSafeAreaInsets();
   return (
     <Modal
@@ -22,8 +27,22 @@ export default function BottomSheet({ visible, onClose, children, maxHeight = "8
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
-        <View style={[styles.card, { maxHeight, paddingBottom: insets.bottom + 20 }, cardStyle]}>
-          {children}
+        <View style={[styles.card, { maxHeight }, cardStyle]}>
+          {scrollable ? (
+            <ScrollView
+              contentContainerStyle={{
+                paddingHorizontal: 24,
+                paddingTop: 24,
+                paddingBottom: insets.bottom + 20,
+              }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {children}
+            </ScrollView>
+          ) : (
+            <View style={{ flex: 1, paddingBottom: insets.bottom + 20 }}>{children}</View>
+          )}
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -38,8 +57,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     borderTopWidth: 1,
     borderColor: "rgba(255,255,255,0.18)",
-    paddingHorizontal: 24,
-    paddingTop: 24,
     overflow: "hidden",
   },
 });

@@ -1012,7 +1012,7 @@ export default function AppointmentsScreen() {
       </ScrollView>
 
       {/* ── Add / Edit modal ─────────────────────────────────────────────────── */}
-      <BottomSheet visible={showModal} onClose={closeModal} cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}>
+      <BottomSheet visible={showModal} onClose={closeModal} scrollable={false} cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}>
             {/* Modal header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>

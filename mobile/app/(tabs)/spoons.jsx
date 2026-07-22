@@ -695,7 +695,7 @@ export default function SpoonCenterScreen() {
       </ScrollView>
 
       {/* ── Add Activity Sheet ──────────────────────────────────────────────── */}
-      <BottomSheet visible={showAdd} onClose={() => setShowAdd(false)} cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}>
+      <BottomSheet visible={showAdd} onClose={() => setShowAdd(false)} scrollable={false} cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}>
             {/* Sheet header */}
             <View style={styles.sheetHeader}>
               <Text style={styles.modalTitle}>Add to day</Text>
