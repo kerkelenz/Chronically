@@ -827,6 +827,22 @@ export default function AppointmentsScreen() {
               </View>
             )}
 
+            {upcoming.length === 0 && (
+              <View style={styles.noUpcoming}>
+                <Text style={styles.noUpcomingText}>No upcoming appointments</Text>
+                <TouchableOpacity
+                  style={styles.noUpcomingAddBtn}
+                  onPress={openAdd}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add appointment"
+                >
+                  <Ionicons name="add" size={16} color="#7C6BAE" />
+                  <Text style={styles.noUpcomingAddBtnText}>Add appointment</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {past.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionLabel}>Past</Text>
@@ -989,12 +1005,6 @@ export default function AppointmentsScreen() {
                     </View>
                   );
                 })}
-              </View>
-            )}
-
-            {upcoming.length === 0 && (
-              <View style={styles.noUpcoming}>
-                <Text style={styles.noUpcomingText}>No upcoming appointments</Text>
               </View>
             )}
           </>
@@ -1791,6 +1801,22 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_400Regular",
     fontSize: 14,
     color: "rgba(255,255,255,0.6)",
+  },
+  noUpcomingAddBtn: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "white",
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
+    alignSelf: "center",
+  },
+  noUpcomingAddBtnText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 14,
+    color: "#7C6BAE",
   },
 
   // Prepare + report-to-bring row

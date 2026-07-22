@@ -728,6 +728,19 @@ function AppointmentsPage() {
                   </div>
                 )}
 
+                {upcoming.length === 0 && (
+                  <div className="flex flex-col items-center py-6 gap-2">
+                    <p className="text-sm" style={{ color: "rgba(255,255,255,0.6)" }}>No upcoming appointments</p>
+                    <button
+                      onClick={openAdd}
+                      className="text-xs px-4 py-2 rounded-full transition-all duration-200 hover:opacity-80"
+                      style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
+                    >
+                      + Add appointment
+                    </button>
+                  </div>
+                )}
+
                 {/* Past */}
                 {past.length > 0 && (
                   <div className="flex flex-col gap-3">
@@ -903,19 +916,6 @@ function AppointmentsPage() {
                         </div>
                       );
                     })}
-                  </div>
-                )}
-
-                {upcoming.length === 0 && (
-                  <div className="flex flex-col items-center py-6 gap-2">
-                    <p className="text-sm" style={{ color: "rgba(255,255,255,0.6)" }}>No upcoming appointments</p>
-                    <button
-                      onClick={openAdd}
-                      className="text-xs px-4 py-2 rounded-full transition-all duration-200 hover:opacity-80"
-                      style={{ background: "rgba(255,255,255,0.2)", color: "white" }}
-                    >
-                      + Add appointment
-                    </button>
                   </div>
                 )}
               </>
