@@ -161,6 +161,11 @@ function DashboardPage() {
     }
   };
 
+  // the re-check nudge waits an hour so it doesn't nag right after a check-in
+  const overAnHourSinceCheckIn =
+    checkIns[0] &&
+    Date.now() - new Date(checkIns[0].createdAt).getTime() >= 60 * 60 * 1000;
+
   return (
     <div
       className="min-h-screen"
@@ -246,7 +251,7 @@ function DashboardPage() {
           </div>
         )}
 
-        {todaysDone && checkIns.length > 0 && (
+        {todaysDone && overAnHourSinceCheckIn && (
           <div className="flex flex-col items-center justify-center py-5 gap-2">
             <p className="text-sm" style={{ color: "rgba(255,255,255,0.75)" }}>
               Feeling different than earlier?

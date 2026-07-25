@@ -252,6 +252,11 @@ export default function DashboardScreen() {
     ? new Date(checkIns[0].createdAt).getTime() > fourHoursAgo
     : false;
 
+  // the re-check nudge waits an hour so it doesn't nag right after a check-in
+  const overAnHourSinceCheckIn =
+    checkIns[0] &&
+    Date.now() - new Date(checkIns[0].createdAt).getTime() >= 60 * 60 * 1000;
+
   const hour = new Date().getHours();
   const timeGreeting =
     hour < 12
@@ -396,7 +401,7 @@ export default function DashboardScreen() {
         )}
 
         {/* Off-window re-check */}
-        {!error && todaysDone && checkIns.length > 0 && (
+        {!error && todaysDone && overAnHourSinceCheckIn && (
           <View style={styles.recheckPrompt}>
             <Text style={styles.recheckText}>Feeling different than earlier?</Text>
             <TouchableOpacity
