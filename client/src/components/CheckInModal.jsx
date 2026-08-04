@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import { track } from "../lib/analytics";
@@ -21,10 +21,9 @@ const AFFIRMATIONS = [
 ];
 
 const SYMPTOM_LIST = [
-  "Fatigue", "Brain fog", "Pain flare", "Numbness",
-  "Spasticity", "Vision issues", "Heat sensitivity", "Balance issues",
-  "Dizziness", "Headache", "Muscle weakness", "Joint pain",
-  "Shortness of breath", "Nausea", "Sleep disturbance", "Bladder urgency",
+  "Fatigue", "Pain flare", "Headache", "Brain fog",
+  "Nausea", "Dizziness", "Joint pain", "Muscle aches",
+  "Numbness", "Stomach issues", "Sleep issues", "Shortness of breath",
 ];
 
 const PAIN_LABELS    = { 1: "Very Severe", 2: "Severe",  3: "Moderate", 4: "Light",    5: "Very Light" };
@@ -244,6 +243,105 @@ const COMBINED_TOAST_MESSAGES = {
   ],
 };
 
+// dedupe a name list case-insensitively, preserving first-seen order + casing
+function uniqByLower(arr) {
+  const seen = new Set();
+  const out = [];
+  for (const s of arr) {
+    const k = s.toLowerCase();
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push(s);
+    }
+  }
+  return out;
+}
+
+// Personal symptom picker: the user's recents lead, then a condition-neutral
+// default set, with search + add-your-own. Shared by the step-6 flow and the
+// step-7 edit path (both route through step 6).
+function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCustom }) {
+  const q = search.trim();
+  const qLower = q.toLowerCase();
+
+  const recentSet = new Set(recents.map((r) => r.toLowerCase()));
+  const defaultSet = new Set(SYMPTOM_LIST.map((d) => d.toLowerCase()));
+  // selected customs (neither a recent nor a default) join YOUR SYMPTOMS so a
+  // just-added chip stays visible this session
+  const extraSelected = selected.filter(
+    (s) => !recentSet.has(s.toLowerCase()) && !defaultSet.has(s.toLowerCase()),
+  );
+  const yourAll = uniqByLower([...extraSelected, ...recents]);
+  const yourShown = q
+    ? yourAll.filter((s) => s.toLowerCase().includes(qLower))
+    : yourAll.slice(0, 12);
+
+  const yourSet = new Set(yourAll.map((s) => s.toLowerCase()));
+  const commonAll = SYMPTOM_LIST.filter((s) => !yourSet.has(s.toLowerCase()));
+  const commonShown = q
+    ? commonAll.filter((s) => s.toLowerCase().includes(qLower))
+    : commonAll;
+
+  const visible = [...yourShown, ...commonShown];
+  const showAdd = q.length > 0 && !visible.some((s) => s.toLowerCase() === qLower);
+
+  const chip = (s) => {
+    const active = selected.includes(s);
+    return (
+      <button
+        key={s}
+        onClick={() => onToggle(s)}
+        className="px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105"
+        style={{
+          background: active ? "white" : "rgba(255,255,255,0.18)",
+          color: active ? "#7C6BAE" : "white",
+          border: "1px solid rgba(255,255,255,0.35)",
+        }}
+      >
+        {s}
+      </button>
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-4 w-full">
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search or add a symptom…"
+        className="w-full px-4 py-2.5 rounded-xl text-sm outline-none placeholder-white/40"
+        style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }}
+      />
+      {yourShown.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-center" style={{ color: "rgba(255,255,255,0.6)" }}>
+            Your symptoms
+          </p>
+          <div className="flex flex-wrap gap-2 justify-center">{yourShown.map(chip)}</div>
+        </div>
+      )}
+      {commonShown.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-center" style={{ color: "rgba(255,255,255,0.6)" }}>
+            Common
+          </p>
+          <div className="flex flex-wrap gap-2 justify-center">{commonShown.map(chip)}</div>
+        </div>
+      )}
+      {showAdd && (
+        <button
+          onClick={() => onAddCustom(q)}
+          className="self-center px-4 py-2 rounded-full text-sm font-bold transition-all duration-200 hover:scale-105"
+          style={{ background: "rgba(255,255,255,0.18)", color: "white", border: "1px dashed rgba(255,255,255,0.5)" }}
+        >
+          + Add "{q}"
+        </button>
+      )}
+    </div>
+  );
+}
+
 function LevelButtons({ labels, selected, onSelect }) {
   return (
     <div className="grid grid-cols-2 gap-3 w-full">
@@ -302,6 +400,8 @@ function CheckInModal({ onClose, onComplete }) {
   const [anxietyLevel, setAnxietyLevel] = useState(null);
   const [appetiteLevel, setAppetiteLevel] = useState(null);
   const [symptoms, setSymptoms] = useState([]);
+  const [recentSymptoms, setRecentSymptoms] = useState([]);
+  const [symptomSearch, setSymptomSearch] = useState("");
   const [error, setError] = useState("");
   const [affirmation] = useState(() => AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)]);
   const [toastMessage, setToastMessage] = useState("");
@@ -309,6 +409,23 @@ function CheckInModal({ onClose, onComplete }) {
   const toastTimerRef = useRef(null);
 
   const { token } = useAuth();
+
+  // fetch the user's personal recent symptoms; silent-fail to none
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+    axios
+      .get(`${import.meta.env.VITE_API_URL}/api/checkins/symptoms`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        if (active) setRecentSymptoms((res.data || []).map((r) => r.name));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [token]);
 
   const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
@@ -348,6 +465,16 @@ function CheckInModal({ onClose, onComplete }) {
 
   const toggleSymptom = (s) =>
     setSymptoms((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
+
+  const addCustomSymptom = (text) => {
+    let v = text.trim();
+    if (!v) return;
+    v = (v.charAt(0).toUpperCase() + v.slice(1)).slice(0, 40);
+    setSymptoms((prev) =>
+      prev.some((s) => s.toLowerCase() === v.toLowerCase()) ? prev : [...prev, v],
+    );
+    setSymptomSearch("");
+  };
 
   const handleSubmit = async () => {
     try {
@@ -401,7 +528,7 @@ function CheckInModal({ onClose, onComplete }) {
         {step === 1 && (
           <div className="flex flex-col items-center gap-6 w-full">
             <p className="text-white text-2xl font-medium text-center" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
-              How is your pain today?
+              How is your pain right now?
             </p>
             <LevelButtons
               labels={PAIN_LABELS}
@@ -424,7 +551,7 @@ function CheckInModal({ onClose, onComplete }) {
         {step === 2 && (
           <div className="flex flex-col items-center gap-6 w-full">
             <p className="text-white text-2xl font-medium text-center" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
-              How is your mood today?
+              How is your mood right now?
             </p>
             <LevelButtons
               labels={MOOD_LABELS}
@@ -446,7 +573,7 @@ function CheckInModal({ onClose, onComplete }) {
         {step === 3 && (
           <div className="flex flex-col items-center gap-6 w-full">
             <p className="text-white text-2xl font-medium text-center" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
-              How is your energy today?
+              How is your energy right now?
             </p>
             <LevelButtons
               labels={ENERGY_LABELS}
@@ -467,7 +594,7 @@ function CheckInModal({ onClose, onComplete }) {
         {step === 4 && (
           <div className="flex flex-col items-center gap-6 w-full">
             <p className="text-white text-2xl font-medium text-center" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
-              How is your anxiety today?
+              How is your anxiety right now?
             </p>
             <LevelButtons
               labels={ANXIETY_LABELS}
@@ -487,7 +614,7 @@ function CheckInModal({ onClose, onComplete }) {
         {step === 5 && (
           <div className="flex flex-col items-center gap-6 w-full">
             <p className="text-white text-2xl font-medium text-center" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
-              How is your appetite today?
+              How is your appetite right now?
             </p>
             <LevelButtons
               labels={APPETITE_LABELS}
@@ -506,24 +633,16 @@ function CheckInModal({ onClose, onComplete }) {
         {step === 6 && (
           <div className="flex flex-col items-center gap-6 w-full">
             <p className="text-white text-2xl font-medium text-center" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
-              Any symptoms today?
+              Any symptoms right now?
             </p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {SYMPTOM_LIST.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => toggleSymptom(s)}
-                  className="px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105"
-                  style={{
-                    background: symptoms.includes(s) ? "white" : "rgba(255,255,255,0.18)",
-                    color: symptoms.includes(s) ? "#7C6BAE" : "white",
-                    border: "1px solid rgba(255,255,255,0.35)",
-                  }}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            <SymptomPicker
+              selected={symptoms}
+              onToggle={toggleSymptom}
+              search={symptomSearch}
+              setSearch={setSymptomSearch}
+              recents={recentSymptoms}
+              onAddCustom={addCustomSymptom}
+            />
             <button
               onClick={() => {
                 const combo = getComboToast(painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel);

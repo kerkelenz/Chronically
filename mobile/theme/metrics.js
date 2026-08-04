@@ -15,10 +15,10 @@ export const METRICS = [
   { key: "appetiteLevel", label: "Appetite", color: "rgba(196,168,130,0.95)" },
 ];
 
-// full 16-symptom list (used in Phase 4; defined here for reuse)
+// condition-neutral default symptom set (the user's own recents lead the picker;
+// anything they type once lives in their personal list thereafter)
 export const SYMPTOM_LIST = [
-  "Fatigue", "Brain fog", "Pain flare", "Numbness",
-  "Spasticity", "Vision issues", "Heat sensitivity", "Balance issues",
-  "Dizziness", "Headache", "Muscle weakness", "Joint pain",
-  "Shortness of breath", "Nausea", "Sleep disturbance", "Bladder urgency",
+  "Fatigue", "Pain flare", "Headache", "Brain fog",
+  "Nausea", "Dizziness", "Joint pain", "Muscle aches",
+  "Numbness", "Stomach issues", "Sleep issues", "Shortness of breath",
 ];

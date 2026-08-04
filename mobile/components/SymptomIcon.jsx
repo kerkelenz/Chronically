@@ -1,3 +1,4 @@
+import { View } from "react-native";
 import { Svg, Path } from "react-native-svg";
 
 function icon(paths) {
@@ -141,6 +142,10 @@ const SYMPTOM_ICONS = {
   "Nausea": Nausea,
   "Sleep disturbance": Sleepy,
   "Bladder urgency": Bladder,
+  // renamed condition-neutral defaults reuse the legacy icons
+  "Muscle aches": Weights,
+  "Sleep issues": Sleepy,
+  // "Stomach issues" has no hand-drawn icon here — falls through to the dot
 };
 
 const MED_TYPE_ICONS = {
@@ -153,7 +158,14 @@ const MED_TYPE_ICONS = {
 
 export function SymptomIcon({ symptom, size = 20, color = "white" }) {
   const Icon = SYMPTOM_ICONS[symptom];
-  return Icon ? <Icon size={size} color={color} /> : null;
+  if (Icon) return <Icon size={size} color={color} />;
+  // generic fallback so custom / unmapped symptoms never render as a hole
+  const dot = Math.round(size * 0.45);
+  return (
+    <View
+      style={{ width: dot, height: dot, borderRadius: dot / 2, backgroundColor: color }}
+    />
+  );
 }
 
 export function MedicationTypeIcon({ type, size = 20, color = "white" }) {

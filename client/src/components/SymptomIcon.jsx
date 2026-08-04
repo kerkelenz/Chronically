@@ -1,7 +1,7 @@
 import {
   Sleepy, Neurology, Pain, Nerve, Electricity, LowVision,
   Thermometer, WalkSupported, Dizzy, Headache, Weights, Joints,
-  Lungs, Nausea, Observation, Bladder,
+  Lungs, Nausea, Observation, Bladder, Stomach,
   Pill1, Syringe, IntravenousBag, MedicineBottle,
 } from "healthicons-react";
 
@@ -33,6 +33,10 @@ const SYMPTOM_ICON_MAP = {
   "Nausea":             Nausea,
   "Sleep disturbance":  Observation,
   "Bladder urgency":    Bladder,
+  // renamed condition-neutral defaults reuse legacy icons; stomach has its own
+  "Muscle aches":       Weights,
+  "Sleep issues":       Observation,
+  "Stomach issues":     Stomach,
 };
 
 const MEDICATION_TYPE_ICON_MAP = {
@@ -45,14 +49,20 @@ const MEDICATION_TYPE_ICON_MAP = {
 
 export function SymptomIcon({ name, size = 24, color = "white", style: extraStyle, ...props }) {
   const Icon = SYMPTOM_ICON_MAP[name];
-  if (!Icon) return null;
   return (
     <span
       title={name}
       style={{ color, display: "inline-flex", flexShrink: 0, ...extraStyle }}
       {...props}
     >
-      <Icon width={size} height={size} />
+      {Icon ? (
+        <Icon width={size} height={size} />
+      ) : (
+        // generic fallback so custom / unmapped symptoms never render as a hole
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="5" />
+        </svg>
+      )}
     </span>
   );
 }

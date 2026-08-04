@@ -4,6 +4,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
   Animated,
   ActivityIndicator,
@@ -23,6 +24,96 @@ import {
   getIndividualToast,
   getComboToast,
 } from "../theme/checkinCopy";
+
+// dedupe a name list case-insensitively, preserving first-seen order + casing
+function uniqByLower(arr) {
+  const seen = new Set();
+  const out = [];
+  for (const s of arr) {
+    const k = s.toLowerCase();
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push(s);
+    }
+  }
+  return out;
+}
+
+// ── SymptomPicker ─────────────────────────────────────────────────────────────
+// Personal symptom picker: the user's recents lead, then a condition-neutral
+// default set, with search + add-your-own. Shared by the step-6 flow and the
+// step-7 edit path (both route through step 6).
+
+function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCustom }) {
+  const q = search.trim();
+  const qLower = q.toLowerCase();
+
+  const recentSet = new Set(recents.map((r) => r.toLowerCase()));
+  const defaultSet = new Set(SYMPTOM_LIST.map((d) => d.toLowerCase()));
+  // selected customs (neither a recent nor a default) join YOUR SYMPTOMS so a
+  // just-added chip stays visible this session
+  const extraSelected = selected.filter(
+    (s) => !recentSet.has(s.toLowerCase()) && !defaultSet.has(s.toLowerCase()),
+  );
+  const yourAll = uniqByLower([...extraSelected, ...recents]);
+  const yourShown = q
+    ? yourAll.filter((s) => s.toLowerCase().includes(qLower))
+    : yourAll.slice(0, 12);
+
+  const yourSet = new Set(yourAll.map((s) => s.toLowerCase()));
+  const commonAll = SYMPTOM_LIST.filter((s) => !yourSet.has(s.toLowerCase()));
+  const commonShown = q
+    ? commonAll.filter((s) => s.toLowerCase().includes(qLower))
+    : commonAll;
+
+  const visible = [...yourShown, ...commonShown];
+  const showAdd = q.length > 0 && !visible.some((s) => s.toLowerCase() === qLower);
+
+  const renderChip = (s) => {
+    const active = selected.includes(s);
+    return (
+      <TouchableOpacity
+        key={s}
+        onPress={() => onToggle(s)}
+        style={[styles.symptomChip, active && styles.symptomChipActive]}
+        activeOpacity={0.8}
+      >
+        <Text style={[styles.symptomText, active && styles.symptomTextActive]}>{s}</Text>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View style={styles.pickerWrap}>
+      <TextInput
+        style={styles.searchInput}
+        value={search}
+        onChangeText={setSearch}
+        placeholder="Search or add a symptom…"
+        placeholderTextColor="rgba(255,255,255,0.4)"
+        autoCapitalize="none"
+        returnKeyType="done"
+      />
+      {yourShown.length > 0 && (
+        <View style={styles.pickerSection}>
+          <Text style={styles.sectionLabel}>Your symptoms</Text>
+          <View style={styles.symptomsGrid}>{yourShown.map(renderChip)}</View>
+        </View>
+      )}
+      {commonShown.length > 0 && (
+        <View style={styles.pickerSection}>
+          <Text style={styles.sectionLabel}>Common</Text>
+          <View style={styles.symptomsGrid}>{commonShown.map(renderChip)}</View>
+        </View>
+      )}
+      {showAdd && (
+        <TouchableOpacity style={styles.addChip} onPress={() => onAddCustom(q)} activeOpacity={0.85}>
+          <Text style={styles.addChipText}>+ Add "{q}"</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
 
 // ── ReviewRow ─────────────────────────────────────────────────────────────────
 
@@ -68,6 +159,8 @@ export default function CheckInScreen() {
   const [anxietyLevel, setAnxietyLevel] = useState(null);
   const [appetiteLevel, setAppetiteLevel] = useState(null);
   const [symptoms, setSymptoms] = useState([]);
+  const [recentSymptoms, setRecentSymptoms] = useState([]);
+  const [symptomSearch, setSymptomSearch] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -84,6 +177,20 @@ export default function CheckInScreen() {
     if (!consumeDeliberateOpen()) {
       router.replace("/(tabs)");
     }
+  }, []);
+
+  // fetch the user's personal recent symptoms; silent-fail to none
+  useEffect(() => {
+    let active = true;
+    api
+      .get("/api/checkins/symptoms")
+      .then((res) => {
+        if (active) setRecentSymptoms((res.data || []).map((r) => r.name));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -118,6 +225,16 @@ export default function CheckInScreen() {
     setSymptoms((prev) =>
       prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
     );
+  }
+
+  function addCustomSymptom(text) {
+    let v = text.trim();
+    if (!v) return;
+    v = (v.charAt(0).toUpperCase() + v.slice(1)).slice(0, 40);
+    setSymptoms((prev) =>
+      prev.some((s) => s.toLowerCase() === v.toLowerCase()) ? prev : [...prev, v],
+    );
+    setSymptomSearch("");
   }
 
   async function handleSubmit() {
@@ -168,7 +285,7 @@ export default function CheckInScreen() {
                 {/* Step 1 — Pain */}
                 {step === 1 && (
                   <>
-                    <Text style={styles.heading}>How is your pain today?</Text>
+                    <Text style={styles.heading}>How is your pain right now?</Text>
                     <LevelButtons
                       labels={METRIC_LABELS.pain}
                       selected={painLevel}
@@ -189,7 +306,7 @@ export default function CheckInScreen() {
                 {/* Step 2 — Mood */}
                 {step === 2 && (
                   <>
-                    <Text style={styles.heading}>How is your mood today?</Text>
+                    <Text style={styles.heading}>How is your mood right now?</Text>
                     <LevelButtons
                       labels={METRIC_LABELS.mood}
                       selected={moodLevel}
@@ -210,7 +327,7 @@ export default function CheckInScreen() {
                 {step === 3 && (
                   <>
                     <Text style={styles.heading}>
-                      How is your energy today?
+                      How is your energy right now?
                     </Text>
                     <LevelButtons
                       labels={METRIC_LABELS.energy}
@@ -231,7 +348,7 @@ export default function CheckInScreen() {
                 {step === 4 && (
                   <>
                     <Text style={styles.heading}>
-                      How is your anxiety today?
+                      How is your anxiety right now?
                     </Text>
                     <LevelButtons
                       labels={METRIC_LABELS.anxiety}
@@ -253,7 +370,7 @@ export default function CheckInScreen() {
                 {step === 5 && (
                   <>
                     <Text style={styles.heading}>
-                      How is your appetite today?
+                      How is your appetite right now?
                     </Text>
                     <LevelButtons
                       labels={METRIC_LABELS.appetite}
@@ -273,32 +390,15 @@ export default function CheckInScreen() {
                 {/* Step 6 — Symptoms */}
                 {step === 6 && (
                   <>
-                    <Text style={styles.heading}>Any symptoms today?</Text>
-                    <View style={styles.symptomsGrid}>
-                      {SYMPTOM_LIST.map((s) => {
-                        const active = symptoms.includes(s);
-                        return (
-                          <TouchableOpacity
-                            key={s}
-                            onPress={() => toggleSymptom(s)}
-                            style={[
-                              styles.symptomChip,
-                              active && styles.symptomChipActive,
-                            ]}
-                            activeOpacity={0.8}
-                          >
-                            <Text
-                              style={[
-                                styles.symptomText,
-                                active && styles.symptomTextActive,
-                              ]}
-                            >
-                              {s}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
+                    <Text style={styles.heading}>Any symptoms right now?</Text>
+                    <SymptomPicker
+                      selected={symptoms}
+                      onToggle={toggleSymptom}
+                      search={symptomSearch}
+                      setSearch={setSymptomSearch}
+                      recents={recentSymptoms}
+                      onAddCustom={addCustomSymptom}
+                    />
                     <TouchableOpacity
                       style={styles.primaryBtn}
                       onPress={() => {
@@ -547,6 +647,47 @@ const styles = StyleSheet.create({
   },
 
   // Symptoms step
+  pickerWrap: {
+    width: "100%",
+    gap: 14,
+  },
+  pickerSection: {
+    gap: 8,
+  },
+  searchInput: {
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    fontFamily: "Lato_400Regular",
+    fontSize: 15,
+    color: "white",
+  },
+  sectionLabel: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.6)",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    textAlign: "center",
+  },
+  addChip: {
+    alignSelf: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+    borderStyle: "dashed",
+  },
+  addChipText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 13,
+    color: "white",
+  },
   symptomsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",

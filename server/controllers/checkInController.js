@@ -130,4 +130,31 @@ const deleteCheckIn = async (req, res) => {
   }
 };
 
-module.exports = { createCheckIn, getCheckIns, updateCheckIn, deleteCheckIn };
+// getMySymptoms handles GET /api/checkins/symptoms
+// aggregates the symptoms this user has logged across their recent check-ins so
+// the check-in flow can surface a personal "your symptoms" list, most-recent first
+const getMySymptoms = async (req, res) => {
+  try {
+    const rows = await CheckIn.findAll({
+      attributes: ["symptoms", "createdAt"],
+      where: { userId: req.user.id },
+      order: [["createdAt", "DESC"]],
+      limit: 200,
+      raw: true,
+    });
+    const agg = {};
+    for (const r of rows) {
+      const list = Array.isArray(r.symptoms) ? r.symptoms : [];
+      for (const s of list) {
+        if (!agg[s]) agg[s] = { name: s, count: 0, lastUsed: r.createdAt };
+        agg[s].count += 1;
+      }
+    }
+    res.json(Object.values(agg).sort((a, b) => new Date(b.lastUsed) - new Date(a.lastUsed)));
+  } catch (err) {
+    console.error("Get symptoms error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+module.exports = { createCheckIn, getCheckIns, updateCheckIn, deleteCheckIn, getMySymptoms };
