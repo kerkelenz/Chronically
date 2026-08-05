@@ -93,7 +93,7 @@ export default function LavenderConfetti() {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {PIECES.map((p) => (
-        <Piece key={p.key} p={p} fallDistance={height * 0.8} />
+        <Piece key={p.key} p={p} fallDistance={height + 60} />
       ))}
     </View>
   );

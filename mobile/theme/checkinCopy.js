@@ -1,7 +1,7 @@
 // Verbatim copy of affirmation/toast copy from client/src/components/CheckInModal.jsx
 
 export const AFFIRMATIONS = [
-  { title: "Well done 💙", message: "You showed up today. That matters." },
+  { title: "Well done 🌟", message: "You showed up today. That matters." },
   { title: "Check-in complete 🌿", message: "Tracking your health is an act of self-care. Keep going." },
   { title: "You did it ✨", message: "Living with chronic illness takes real strength. You have it." },
   { title: "That took courage 💜", message: "Even on the hard days, you checked in. That's resilience." },
@@ -10,9 +10,9 @@ export const AFFIRMATIONS = [
   { title: "You're doing the work 💫", message: "Every check-in adds up. Your future self will thank you." },
   { title: "Be gentle with yourself 🤍", message: "Rest is productive too. You're allowed to take it slow." },
   { title: "You know your body 🌱", message: "This check-in helps you listen. Keep tuning in." },
-  { title: "Progress is progress 💙", message: "It looks different every day. Today's chapter is written." },
+  { title: "Progress is progress 🌈", message: "It looks different every day. Today's chapter is written." },
   { title: "Take a breath 🕊️", message: "You just took care of yourself. That's worth something." },
-  { title: "You're not alone 💜", message: "Millions of people live with chronic illness. You're tracking, and that's taking charge." },
+  { title: "You're not alone 🫂", message: "Millions of people live with chronic illness. You're tracking, and that's taking charge." },
 ];
 
 export const TOAST_MESSAGES = {

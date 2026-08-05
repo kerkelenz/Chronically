@@ -3,9 +3,10 @@
 // COMMON_SYMPTOMS is the default quick-pick grid; the full catalog is searchable.
 
 export const COMMON_SYMPTOMS = [
-  "Fatigue", "Pain flare", "Headache", "Brain fog",
-  "Nausea", "Dizziness", "Joint pain", "Muscle aches",
-  "Numbness", "Stomach issues", "Sleep issues", "Shortness of breath",
+  "Fatigue", "Brain fog", "Nausea", "Vision issues",
+  "Pain flare", "Headache", "Dizziness", "Joint pain",
+  "Muscle aches", "Numbness", "Stomach issues", "Sleep issues",
+  "Shortness of breath",
 ];
 
 export const SYMPTOM_CATALOG = [

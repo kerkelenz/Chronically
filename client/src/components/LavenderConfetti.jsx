@@ -21,10 +21,10 @@ const KEYFRAMES = `
 @keyframes chron-confetti-fall {
   0%   { opacity: 0;    transform: translate(0px, -40px) rotate(0deg); }
   8%   { opacity: 0.85; }
-  25%  { transform: translate(var(--sway), calc((80vh + 40px) * 0.4375 - 40px)) rotate(calc(var(--spin) * 0.25)); }
-  50%  { transform: translate(0px, calc((80vh + 40px) * 0.75 - 40px)) rotate(calc(var(--spin) * 0.5)); }
-  75%  { opacity: 0.55; transform: translate(calc(var(--sway) * -0.7), calc((80vh + 40px) * 0.9375 - 40px)) rotate(calc(var(--spin) * 0.75)); }
-  100% { opacity: 0;    transform: translate(calc(var(--sway) * 0.3), 80vh) rotate(var(--spin)); }
+  25%  { transform: translate(var(--sway), calc((100vh + 40px) * 0.4375 - 40px)) rotate(calc(var(--spin) * 0.25)); }
+  50%  { transform: translate(0px, calc((100vh + 40px) * 0.75 - 40px)) rotate(calc(var(--spin) * 0.5)); }
+  75%  { opacity: 0.55; transform: translate(calc(var(--sway) * -0.7), calc((100vh + 40px) * 0.9375 - 40px)) rotate(calc(var(--spin) * 0.75)); }
+  100% { opacity: 0;    transform: translate(calc(var(--sway) * 0.3), 100vh) rotate(var(--spin)); }
 }
 `;
 
