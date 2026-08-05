@@ -19,7 +19,8 @@ import Avatar from "../../components/Avatar";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
 import { openCheckIn } from "../../lib/checkinNav";
-import { METRICS, METRIC_LABELS, SYMPTOM_LIST } from "../../theme/metrics";
+import { METRICS, METRIC_LABELS } from "../../theme/metrics";
+import { COMMON_SYMPTOMS } from "../../theme/symptomCatalog";
 import { SymptomIcon } from "../../components/SymptomIcon";
 import MilestoneCelebration from "../../components/MilestoneCelebration";
 import WelcomeModal from "../../components/WelcomeModal";
@@ -562,7 +563,7 @@ export default function DashboardScreen() {
               <View>
                 <Text style={styles.editLabel}>Symptoms</Text>
                 <View style={styles.symptomChipWrap}>
-                  {SYMPTOM_LIST.map((s) => {
+                  {COMMON_SYMPTOMS.map((s) => {
                     const active = (editingCheckIn?.symptoms || []).includes(s);
                     return (
                       <TouchableOpacity

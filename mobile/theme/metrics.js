@@ -14,11 +14,3 @@ export const METRICS = [
   { key: "anxietyLevel",  label: "Anxiety",  color: "rgba(155,175,196,0.95)" },
   { key: "appetiteLevel", label: "Appetite", color: "rgba(196,168,130,0.95)" },
 ];
-
-// condition-neutral default symptom set (the user's own recents lead the picker;
-// anything they type once lives in their personal list thereafter)
-export const SYMPTOM_LIST = [
-  "Fatigue", "Pain flare", "Headache", "Brain fog",
-  "Nausea", "Dizziness", "Joint pain", "Muscle aches",
-  "Numbness", "Stomach issues", "Sleep issues", "Shortness of breath",
-];

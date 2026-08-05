@@ -17,7 +17,9 @@ import LevelButtons from "../components/LevelButtons";
 import api from "../lib/api";
 import { track } from "../lib/analytics";
 import { consumeDeliberateOpen } from "../lib/checkinNav";
-import { METRIC_LABELS, SYMPTOM_LIST } from "../theme/metrics";
+import { METRIC_LABELS } from "../theme/metrics";
+import { COMMON_SYMPTOMS, SYMPTOM_CATALOG } from "../theme/symptomCatalog";
+import { SymptomIcon } from "../components/SymptomIcon";
 import {
   AFFIRMATIONS,
   getTier,
@@ -49,11 +51,12 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
   const qLower = q.toLowerCase();
 
   const recentSet = new Set(recents.map((r) => r.toLowerCase()));
-  const defaultSet = new Set(SYMPTOM_LIST.map((d) => d.toLowerCase()));
-  // selected customs (neither a recent nor a default) join YOUR SYMPTOMS so a
-  // just-added chip stays visible this session
+  const commonSet = new Set(COMMON_SYMPTOMS.map((d) => d.toLowerCase()));
+  // selected symptoms not shown in the non-search sections (recents / common) —
+  // customs AND catalog-but-not-common picks — join YOUR SYMPTOMS so they stay
+  // visible as selected this session
   const extraSelected = selected.filter(
-    (s) => !recentSet.has(s.toLowerCase()) && !defaultSet.has(s.toLowerCase()),
+    (s) => !recentSet.has(s.toLowerCase()) && !commonSet.has(s.toLowerCase()),
   );
   const yourAll = uniqByLower([...extraSelected, ...recents]);
   const yourShown = q
@@ -61,7 +64,9 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
     : yourAll.slice(0, 12);
 
   const yourSet = new Set(yourAll.map((s) => s.toLowerCase()));
-  const commonAll = SYMPTOM_LIST.filter((s) => !yourSet.has(s.toLowerCase()));
+  // search draws from the whole catalog; the resting COMMON section is the 12
+  const commonBase = q ? SYMPTOM_CATALOG.map((c) => c.name) : COMMON_SYMPTOMS;
+  const commonAll = commonBase.filter((s) => !yourSet.has(s.toLowerCase()));
   const commonShown = q
     ? commonAll.filter((s) => s.toLowerCase().includes(qLower))
     : commonAll;
@@ -78,6 +83,7 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
         style={[styles.symptomChip, active && styles.symptomChipActive]}
         activeOpacity={0.8}
       >
+        <SymptomIcon symptom={s} size={16} color={active ? "#7C6BAE" : "white"} />
         <Text style={[styles.symptomText, active && styles.symptomTextActive]}>{s}</Text>
       </TouchableOpacity>
     );
@@ -508,6 +514,7 @@ export default function CheckInScreen() {
                         <View style={styles.reviewSymptomChips}>
                           {symptoms.map((s) => (
                             <View key={s} style={styles.reviewSymptomChip}>
+                              <SymptomIcon symptom={s} size={13} color="white" />
                               <Text style={styles.reviewSymptomText}>{s}</Text>
                             </View>
                           ))}
@@ -695,6 +702,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   symptomChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 20,
@@ -768,6 +778,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   reviewSymptomChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,

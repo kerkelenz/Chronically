@@ -1,9 +1,13 @@
+import { Pill1, Syringe, IntravenousBag, MedicineBottle } from "healthicons-react";
 import {
-  Sleepy, Neurology, Pain, Nerve, Electricity, LowVision,
-  Thermometer, WalkSupported, Dizzy, Headache, Weights, Joints,
-  Lungs, Nausea, Observation, Bladder, Stomach,
-  Pill1, Syringe, IntravenousBag, MedicineBottle,
-} from "healthicons-react";
+  Sleepy, Fever, Chills, Sweating, Virus, Symptom, Headache, Joints, BackPain,
+  Spine, Arm, WalkSupported, Leg, Neurology, Heart, IntestinalPain, Eye, Confused,
+  Dizzy, Woozy, Foot, Walking, LowVision, Ear, Deaf, Nauseous, Vomiting, Diarrhea,
+  Stomach, Expectorate, Lungs, Coughing, Nose, Mouth, Tissue, Heartbeat, Cardiogram,
+  Allergies, Measles, FeverEmotions, Bandaged, Nervous, Angry, Skeleton, Body,
+  ThermometerDigital, Bladder, Kidneys, Tongue, Weight,
+} from "healthicons-react/outline";
+import { symptomIconName } from "../utils/symptomCatalog";
 
 // healthicons has no oval/lozenge tablet — only round pills — so define one
 // locally to match the mobile Lozenge and read distinctly from the round Pill
@@ -16,27 +20,14 @@ function Lozenge({ width = 24, height = 24 }) {
   );
 }
 
-const SYMPTOM_ICON_MAP = {
-  "Fatigue":            Sleepy,
-  "Brain fog":          Neurology,
-  "Pain flare":         Pain,
-  "Numbness":           Nerve,
-  "Spasticity":         Electricity,
-  "Vision issues":      LowVision,
-  "Heat sensitivity":   Thermometer,
-  "Balance issues":     WalkSupported,
-  "Dizziness":          Dizzy,
-  "Headache":           Headache,
-  "Muscle weakness":    Weights,
-  "Joint pain":         Joints,
-  "Shortness of breath": Lungs,
-  "Nausea":             Nausea,
-  "Sleep disturbance":  Observation,
-  "Bladder urgency":    Bladder,
-  // renamed condition-neutral defaults reuse legacy icons; stomach has its own
-  "Muscle aches":       Weights,
-  "Sleep issues":       Observation,
-  "Stomach issues":     Stomach,
+// symptom icons come from healthicons (shared cross-platform with mobile)
+const SYMPTOM_REGISTRY = {
+  Sleepy, Fever, Chills, Sweating, Virus, Symptom, Headache, Joints, BackPain,
+  Spine, Arm, WalkSupported, Leg, Neurology, Heart, IntestinalPain, Eye, Confused,
+  Dizzy, Woozy, Foot, Walking, LowVision, Ear, Deaf, Nauseous, Vomiting, Diarrhea,
+  Stomach, Expectorate, Lungs, Coughing, Nose, Mouth, Tissue, Heartbeat, Cardiogram,
+  Allergies, Measles, FeverEmotions, Bandaged, Nervous, Angry, Skeleton, Body,
+  ThermometerDigital, Bladder, Kidneys, Tongue, Weight,
 };
 
 const MEDICATION_TYPE_ICON_MAP = {
@@ -48,21 +39,15 @@ const MEDICATION_TYPE_ICON_MAP = {
 };
 
 export function SymptomIcon({ name, size = 24, color = "white", style: extraStyle, ...props }) {
-  const Icon = SYMPTOM_ICON_MAP[name];
+  if (!name) return null;
+  const Icon = SYMPTOM_REGISTRY[symptomIconName(name)] || Symptom;
   return (
     <span
       title={name}
       style={{ color, display: "inline-flex", flexShrink: 0, ...extraStyle }}
       {...props}
     >
-      {Icon ? (
-        <Icon width={size} height={size} />
-      ) : (
-        // generic fallback so custom / unmapped symptoms never render as a hole
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="5" />
-        </svg>
-      )}
+      <Icon width={size} height={size} />
     </span>
   );
 }

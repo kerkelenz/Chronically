@@ -4,6 +4,8 @@ import { useAuth } from "../hooks/useAuth";
 import { track } from "../lib/analytics";
 import LavenderConfetti from "./LavenderConfetti";
 import { FiEdit2 } from "react-icons/fi";
+import { COMMON_SYMPTOMS, SYMPTOM_CATALOG } from "../utils/symptomCatalog";
+import { SymptomIcon } from "./SymptomIcon";
 
 const AFFIRMATIONS = [
   { title: "Well done 💙", message: "You showed up today. That matters." },
@@ -18,12 +20,6 @@ const AFFIRMATIONS = [
   { title: "Progress is progress 💙", message: "It looks different every day. Today's chapter is written." },
   { title: "Take a breath 🕊️", message: "You just took care of yourself. That's worth something." },
   { title: "You're not alone 💜", message: "Millions of people live with chronic illness. You're tracking, and that's taking charge." },
-];
-
-const SYMPTOM_LIST = [
-  "Fatigue", "Pain flare", "Headache", "Brain fog",
-  "Nausea", "Dizziness", "Joint pain", "Muscle aches",
-  "Numbness", "Stomach issues", "Sleep issues", "Shortness of breath",
 ];
 
 const PAIN_LABELS    = { 1: "Very Severe", 2: "Severe",  3: "Moderate", 4: "Light",    5: "Very Light" };
@@ -265,11 +261,12 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
   const qLower = q.toLowerCase();
 
   const recentSet = new Set(recents.map((r) => r.toLowerCase()));
-  const defaultSet = new Set(SYMPTOM_LIST.map((d) => d.toLowerCase()));
-  // selected customs (neither a recent nor a default) join YOUR SYMPTOMS so a
-  // just-added chip stays visible this session
+  const commonSet = new Set(COMMON_SYMPTOMS.map((d) => d.toLowerCase()));
+  // selected symptoms not shown in the non-search sections (recents / common) —
+  // customs AND catalog-but-not-common picks — join YOUR SYMPTOMS so they stay
+  // visible as selected this session
   const extraSelected = selected.filter(
-    (s) => !recentSet.has(s.toLowerCase()) && !defaultSet.has(s.toLowerCase()),
+    (s) => !recentSet.has(s.toLowerCase()) && !commonSet.has(s.toLowerCase()),
   );
   const yourAll = uniqByLower([...extraSelected, ...recents]);
   const yourShown = q
@@ -277,7 +274,9 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
     : yourAll.slice(0, 12);
 
   const yourSet = new Set(yourAll.map((s) => s.toLowerCase()));
-  const commonAll = SYMPTOM_LIST.filter((s) => !yourSet.has(s.toLowerCase()));
+  // search draws from the whole catalog; the resting COMMON section is the 12
+  const commonBase = q ? SYMPTOM_CATALOG.map((c) => c.name) : COMMON_SYMPTOMS;
+  const commonAll = commonBase.filter((s) => !yourSet.has(s.toLowerCase()));
   const commonShown = q
     ? commonAll.filter((s) => s.toLowerCase().includes(qLower))
     : commonAll;
@@ -291,13 +290,14 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
       <button
         key={s}
         onClick={() => onToggle(s)}
-        className="px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105"
+        className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105"
         style={{
           background: active ? "white" : "rgba(255,255,255,0.18)",
           color: active ? "#7C6BAE" : "white",
           border: "1px solid rgba(255,255,255,0.35)",
         }}
       >
+        <SymptomIcon name={s} size={16} color={active ? "#7C6BAE" : "white"} />
         {s}
       </button>
     );
@@ -673,7 +673,8 @@ function CheckInModal({ onClose, onComplete }) {
                 <p className="text-white/60 text-xs mb-2">Symptoms</p>
                 <div className="flex flex-wrap gap-1">
                   {symptoms.map((s) => (
-                    <span key={s} className="text-xs px-2 py-1 rounded-full text-white" style={{ background: "rgba(255,255,255,0.25)" }}>
+                    <span key={s} className="flex items-center gap-1 text-xs px-2 py-1 rounded-full text-white" style={{ background: "rgba(255,255,255,0.25)" }}>
+                      <SymptomIcon name={s} size={13} color="white" />
                       {s}
                     </span>
                   ))}
