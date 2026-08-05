@@ -274,15 +274,32 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
     : yourAll.slice(0, 12);
 
   const yourSet = new Set(yourAll.map((s) => s.toLowerCase()));
-  // search draws from the whole catalog; the resting COMMON section is the 12
-  const commonBase = q ? SYMPTOM_CATALOG.map((c) => c.name) : COMMON_SYMPTOMS;
+  const SEARCH_MIN = 2;   // catalog search kicks in at 2+ chars
+  const SEARCH_CAP = 12;  // ranked results shown before "keep typing"
+
+  // resting view: the COMMON list; searching (2+ chars): the whole catalog
+  const searchingCatalog = qLower.length >= SEARCH_MIN;
+  const commonBase = searchingCatalog ? SYMPTOM_CATALOG.map((c) => c.name) : COMMON_SYMPTOMS;
   const commonAll = commonBase.filter((s) => !yourSet.has(s.toLowerCase()));
-  const commonShown = q
-    ? commonAll.filter((s) => s.toLowerCase().includes(qLower))
-    : commonAll;
+
+  let commonShown;
+  let truncatedFrom = 0;
+  if (!q) {
+    commonShown = commonAll;
+  } else {
+    const matches = commonAll
+      .filter((s) => s.toLowerCase().includes(qLower))
+      .sort((a, b) => {
+        const ra = a.toLowerCase().startsWith(qLower) ? 0 : 1;
+        const rb = b.toLowerCase().startsWith(qLower) ? 0 : 1;
+        return ra - rb || a.localeCompare(b);
+      });
+    if (matches.length > SEARCH_CAP) truncatedFrom = matches.length;
+    commonShown = matches.slice(0, SEARCH_CAP);
+  }
 
   const visible = [...yourShown, ...commonShown];
-  const showAdd = q.length > 0 && !visible.some((s) => s.toLowerCase() === qLower);
+  const showAdd = qLower.length >= SEARCH_MIN && visible.length === 0;
 
   const chip = (s, removable) => {
     const active = selected.includes(s);
@@ -348,6 +365,11 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
             {commonShown.map((s) => chip(s, false))}
           </div>
         </div>
+      )}
+      {truncatedFrom > 0 && (
+        <p className="text-xs text-center" style={{ color: "rgba(255,255,255,0.55)" }}>
+          Showing {commonShown.length} of {truncatedFrom} — keep typing to narrow
+        </p>
       )}
       {showAdd && (
         <button
@@ -547,7 +569,10 @@ function CheckInModal({ onClose, onComplete }) {
 
       {step === 8 && <LavenderConfetti />}
 
-      <div className="relative z-10 flex flex-col items-center gap-6 w-full max-w-sm px-6">
+      <div
+        className="relative z-10 flex flex-col items-center gap-6 w-full max-w-sm px-6"
+        style={{ maxHeight: "90vh" }}
+      >
 
         {toastMessage && (
           <div
@@ -559,6 +584,11 @@ function CheckInModal({ onClose, onComplete }) {
         )}
 
         {!toastMessage && <>
+
+        <div
+          className="w-full overflow-y-auto"
+          style={{ flex: "1 1 auto", minHeight: 0, paddingRight: 4 }}
+        >
 
         {/* Step 1 — Pain */}
         {step === 1 && (
@@ -759,8 +789,10 @@ function CheckInModal({ onClose, onComplete }) {
           </div>
         )}
 
+        </div>
+
         {step !== 8 && (
-          <div className="flex items-center gap-5 mt-4">
+          <div className="flex items-center gap-5">
             {step > 1 && (
               <button
                 onClick={() => setStep(step - 1)}

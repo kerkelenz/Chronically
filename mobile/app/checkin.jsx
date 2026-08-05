@@ -64,15 +64,32 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
     : yourAll.slice(0, 12);
 
   const yourSet = new Set(yourAll.map((s) => s.toLowerCase()));
-  // search draws from the whole catalog; the resting COMMON section is the 12
-  const commonBase = q ? SYMPTOM_CATALOG.map((c) => c.name) : COMMON_SYMPTOMS;
+  const SEARCH_MIN = 2;   // catalog search kicks in at 2+ chars
+  const SEARCH_CAP = 12;  // ranked results shown before "keep typing"
+
+  // resting view: the COMMON list; searching (2+ chars): the whole catalog
+  const searchingCatalog = qLower.length >= SEARCH_MIN;
+  const commonBase = searchingCatalog ? SYMPTOM_CATALOG.map((c) => c.name) : COMMON_SYMPTOMS;
   const commonAll = commonBase.filter((s) => !yourSet.has(s.toLowerCase()));
-  const commonShown = q
-    ? commonAll.filter((s) => s.toLowerCase().includes(qLower))
-    : commonAll;
+
+  let commonShown;
+  let truncatedFrom = 0;
+  if (!q) {
+    commonShown = commonAll;
+  } else {
+    const matches = commonAll
+      .filter((s) => s.toLowerCase().includes(qLower))
+      .sort((a, b) => {
+        const ra = a.toLowerCase().startsWith(qLower) ? 0 : 1;
+        const rb = b.toLowerCase().startsWith(qLower) ? 0 : 1;
+        return ra - rb || a.localeCompare(b);
+      });
+    if (matches.length > SEARCH_CAP) truncatedFrom = matches.length;
+    commonShown = matches.slice(0, SEARCH_CAP);
+  }
 
   const visible = [...yourShown, ...commonShown];
-  const showAdd = q.length > 0 && !visible.some((s) => s.toLowerCase() === qLower);
+  const showAdd = qLower.length >= SEARCH_MIN && visible.length === 0;
 
   const renderChip = (s, removable) => {
     const active = selected.includes(s);
@@ -131,6 +148,11 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
             {commonShown.map((s) => renderChip(s, false))}
           </View>
         </View>
+      )}
+      {truncatedFrom > 0 && (
+        <Text style={styles.searchHint}>
+          Showing {commonShown.length} of {truncatedFrom} — keep typing to narrow
+        </Text>
       )}
       {showAdd && (
         <TouchableOpacity style={styles.addChip} onPress={() => onAddCustom(q)} activeOpacity={0.85}>
@@ -711,6 +733,12 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.6)",
     letterSpacing: 1,
     textTransform: "uppercase",
+    textAlign: "center",
+  },
+  searchHint: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.55)",
     textAlign: "center",
   },
   addChip: {
