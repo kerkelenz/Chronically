@@ -46,7 +46,7 @@ function uniqByLower(arr) {
 // default set, with search + add-your-own. Shared by the step-6 flow and the
 // step-7 edit path (both route through step 6).
 
-function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCustom }) {
+function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCustom, onHide }) {
   const q = search.trim();
   const qLower = q.toLowerCase();
 
@@ -74,18 +74,34 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
   const visible = [...yourShown, ...commonShown];
   const showAdd = q.length > 0 && !visible.some((s) => s.toLowerCase() === qLower);
 
-  const renderChip = (s) => {
+  const renderChip = (s, removable) => {
     const active = selected.includes(s);
     return (
-      <TouchableOpacity
-        key={s}
-        onPress={() => onToggle(s)}
-        style={[styles.symptomChip, active && styles.symptomChipActive]}
-        activeOpacity={0.8}
-      >
-        <SymptomIcon symptom={s} size={16} color={active ? "#7C6BAE" : "white"} />
-        <Text style={[styles.symptomText, active && styles.symptomTextActive]}>{s}</Text>
-      </TouchableOpacity>
+      <View key={s} style={[styles.symptomChip, active && styles.symptomChipActive]}>
+        <TouchableOpacity
+          onPress={() => onToggle(s)}
+          style={styles.symptomChipMain}
+          activeOpacity={0.8}
+        >
+          <SymptomIcon symptom={s} size={16} color={active ? "#7C6BAE" : "white"} />
+          <Text style={[styles.symptomText, active && styles.symptomTextActive]}>{s}</Text>
+        </TouchableOpacity>
+        {removable && (
+          <TouchableOpacity
+            onPress={() => onHide(s)}
+            hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${s} from your symptoms`}
+          >
+            <Ionicons
+              name="close"
+              size={12}
+              color={active ? "#7C6BAE" : "rgba(255,255,255,0.7)"}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
     );
   };
 
@@ -103,13 +119,17 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
       {yourShown.length > 0 && (
         <View style={styles.pickerSection}>
           <Text style={styles.sectionLabel}>Your symptoms</Text>
-          <View style={styles.symptomsGrid}>{yourShown.map(renderChip)}</View>
+          <View style={styles.symptomsGrid}>
+            {yourShown.map((s) => renderChip(s, recentSet.has(s.toLowerCase())))}
+          </View>
         </View>
       )}
       {commonShown.length > 0 && (
         <View style={styles.pickerSection}>
           <Text style={styles.sectionLabel}>Common</Text>
-          <View style={styles.symptomsGrid}>{commonShown.map(renderChip)}</View>
+          <View style={styles.symptomsGrid}>
+            {commonShown.map((s) => renderChip(s, false))}
+          </View>
         </View>
       )}
       {showAdd && (
@@ -241,6 +261,18 @@ export default function CheckInScreen() {
       prev.some((s) => s.toLowerCase() === v.toLowerCase()) ? prev : [...prev, v],
     );
     setSymptomSearch("");
+  }
+
+  async function handleHideSymptom(name) {
+    const prev = recentSymptoms;
+    // optimistic: drop from suggestions + deselect if picked
+    setRecentSymptoms((r) => r.filter((x) => x.toLowerCase() !== name.toLowerCase()));
+    setSymptoms((sel) => sel.filter((x) => x.toLowerCase() !== name.toLowerCase()));
+    try {
+      await api.post("/api/checkins/symptoms/hide", { name });
+    } catch {
+      setRecentSymptoms(prev); // restore on error
+    }
   }
 
   async function handleSubmit() {
@@ -404,6 +436,7 @@ export default function CheckInScreen() {
                       setSearch={setSymptomSearch}
                       recents={recentSymptoms}
                       onAddCustom={addCustomSymptom}
+                      onHide={handleHideSymptom}
                     />
                     <TouchableOpacity
                       style={styles.primaryBtn}
@@ -711,6 +744,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.18)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.35)",
+  },
+  symptomChipMain: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   symptomChipActive: {
     backgroundColor: "white",

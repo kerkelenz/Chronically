@@ -7,6 +7,7 @@ const {
   updateCheckIn,
   deleteCheckIn,
   getMySymptoms,
+  hideSymptom,
 } = require("../controllers/checkInController");
 
 // run the authentication middleware and create check-in
@@ -20,6 +21,9 @@ router.get("/", authenticateToken, getCheckIns);
 // this user's aggregated recent symptoms — registered before any "/:id" route
 // so "symptoms" is never captured as an id
 router.get("/symptoms", authenticateToken, getMySymptoms);
+
+// hide a symptom from this user's personal suggestions (history untouched)
+router.post("/symptoms/hide", authenticateToken, hideSymptom);
 
 // runs authentication middleware and updates a specific check-in by id
 router.put("/:id", authenticateToken, updateCheckIn);

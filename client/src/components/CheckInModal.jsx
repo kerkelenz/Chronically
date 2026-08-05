@@ -256,7 +256,7 @@ function uniqByLower(arr) {
 // Personal symptom picker: the user's recents lead, then a condition-neutral
 // default set, with search + add-your-own. Shared by the step-6 flow and the
 // step-7 edit path (both route through step 6).
-function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCustom }) {
+function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCustom, onHide }) {
   const q = search.trim();
   const qLower = q.toLowerCase();
 
@@ -284,22 +284,38 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
   const visible = [...yourShown, ...commonShown];
   const showAdd = q.length > 0 && !visible.some((s) => s.toLowerCase() === qLower);
 
-  const chip = (s) => {
+  const chip = (s, removable) => {
     const active = selected.includes(s);
+    const color = active ? "#7C6BAE" : "white";
     return (
-      <button
+      <span
         key={s}
-        onClick={() => onToggle(s)}
-        className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105"
+        className="inline-flex items-center rounded-full text-sm font-medium"
         style={{
           background: active ? "white" : "rgba(255,255,255,0.18)",
-          color: active ? "#7C6BAE" : "white",
+          color,
           border: "1px solid rgba(255,255,255,0.35)",
         }}
       >
-        <SymptomIcon name={s} size={16} color={active ? "#7C6BAE" : "white"} />
-        {s}
-      </button>
+        <button
+          onClick={() => onToggle(s)}
+          className="flex items-center gap-1.5 py-2 hover:opacity-80 transition-opacity"
+          style={{ color, paddingLeft: 16, paddingRight: removable ? 6 : 16 }}
+        >
+          <SymptomIcon name={s} size={16} color={color} />
+          {s}
+        </button>
+        {removable && (
+          <button
+            onClick={() => onHide(s)}
+            aria-label={`Remove ${s} from your symptoms`}
+            className="py-2 text-base leading-none hover:opacity-70 transition-opacity"
+            style={{ color, paddingLeft: 2, paddingRight: 12 }}
+          >
+            ×
+          </button>
+        )}
+      </span>
     );
   };
 
@@ -318,7 +334,9 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
           <p className="text-[11px] font-bold uppercase tracking-wider text-center" style={{ color: "rgba(255,255,255,0.6)" }}>
             Your symptoms
           </p>
-          <div className="flex flex-wrap gap-2 justify-center">{yourShown.map(chip)}</div>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {yourShown.map((s) => chip(s, recentSet.has(s.toLowerCase())))}
+          </div>
         </div>
       )}
       {commonShown.length > 0 && (
@@ -326,7 +344,9 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
           <p className="text-[11px] font-bold uppercase tracking-wider text-center" style={{ color: "rgba(255,255,255,0.6)" }}>
             Common
           </p>
-          <div className="flex flex-wrap gap-2 justify-center">{commonShown.map(chip)}</div>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {commonShown.map((s) => chip(s, false))}
+          </div>
         </div>
       )}
       {showAdd && (
@@ -474,6 +494,22 @@ function CheckInModal({ onClose, onComplete }) {
       prev.some((s) => s.toLowerCase() === v.toLowerCase()) ? prev : [...prev, v],
     );
     setSymptomSearch("");
+  };
+
+  const handleHideSymptom = async (name) => {
+    const prev = recentSymptoms;
+    // optimistic: drop from suggestions + deselect if picked
+    setRecentSymptoms((r) => r.filter((x) => x.toLowerCase() !== name.toLowerCase()));
+    setSymptoms((sel) => sel.filter((x) => x.toLowerCase() !== name.toLowerCase()));
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/checkins/symptoms/hide`,
+        { name },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+    } catch {
+      setRecentSymptoms(prev); // restore on error
+    }
   };
 
   const handleSubmit = async () => {
@@ -642,6 +678,7 @@ function CheckInModal({ onClose, onComplete }) {
               setSearch={setSymptomSearch}
               recents={recentSymptoms}
               onAddCustom={addCustomSymptom}
+              onHide={handleHideSymptom}
             />
             <button
               onClick={() => {

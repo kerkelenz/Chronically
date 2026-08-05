@@ -74,6 +74,14 @@ const User = sequelize.define("User", {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
+  // symptom names the user has removed from their personal suggestions;
+  // history is never touched — the name just stops being offered (re-using it
+  // un-hides it, see createCheckIn)
+  hiddenSymptoms: {
+    type: DataTypes.JSON,
+    allowNull: false,
+    defaultValue: [],
+  },
 });
 
 module.exports = User;

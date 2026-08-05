@@ -1,4 +1,5 @@
 const CheckIn = require("../models/CheckIn");
+const User = require("../models/User");
 
 // createCheckIn handles POST /api/checkins
 // saves a new daily check-in to the database for the logged in user
@@ -25,6 +26,26 @@ const createCheckIn = async (req, res) => {
       date: date || new Date(),
       followUpData: followUpData || null,
     });
+
+    // using a symptom again un-hides it from suggestions — non-fatal so a
+    // hiccup here never fails the check-in itself
+    try {
+      const saved = Array.isArray(checkIn.symptoms) ? checkIn.symptoms : [];
+      if (saved.length > 0) {
+        const user = await User.findByPk(req.user.id);
+        const hidden = Array.isArray(user.hiddenSymptoms) ? user.hiddenSymptoms : [];
+        if (hidden.length > 0) {
+          const savedLower = new Set(saved.map((s) => s.toLowerCase()));
+          const next = hidden.filter((h) => !savedLower.has(h.toLowerCase()));
+          if (next.length !== hidden.length) {
+            user.hiddenSymptoms = next;
+            await user.save();
+          }
+        }
+      }
+    } catch (unhideErr) {
+      console.error("Un-hide symptom error:", unhideErr);
+    }
 
     // 201 means something was created successfully
     res.status(201).json({
@@ -135,17 +156,26 @@ const deleteCheckIn = async (req, res) => {
 // the check-in flow can surface a personal "your symptoms" list, most-recent first
 const getMySymptoms = async (req, res) => {
   try {
-    const rows = await CheckIn.findAll({
-      attributes: ["symptoms", "createdAt"],
-      where: { userId: req.user.id },
-      order: [["createdAt", "DESC"]],
-      limit: 200,
-      raw: true,
-    });
+    const [rows, user] = await Promise.all([
+      CheckIn.findAll({
+        attributes: ["symptoms", "createdAt"],
+        where: { userId: req.user.id },
+        order: [["createdAt", "DESC"]],
+        limit: 200,
+        raw: true,
+      }),
+      User.findByPk(req.user.id),
+    ]);
+    const hiddenSet = new Set(
+      (Array.isArray(user?.hiddenSymptoms) ? user.hiddenSymptoms : []).map((h) =>
+        h.toLowerCase(),
+      ),
+    );
     const agg = {};
     for (const r of rows) {
       const list = Array.isArray(r.symptoms) ? r.symptoms : [];
       for (const s of list) {
+        if (hiddenSet.has(s.toLowerCase())) continue; // hidden from suggestions
         if (!agg[s]) agg[s] = { name: s, count: 0, lastUsed: r.createdAt };
         agg[s].count += 1;
       }
@@ -157,4 +187,23 @@ const getMySymptoms = async (req, res) => {
   }
 };
 
-module.exports = { createCheckIn, getCheckIns, updateCheckIn, deleteCheckIn, getMySymptoms };
+// hideSymptom handles POST /api/checkins/symptoms/hide
+// removes a name from the user's personal suggestions; history is untouched
+const hideSymptom = async (req, res) => {
+  try {
+    const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
+    if (!name || name.length > 40) return res.status(400).json({ error: "Invalid symptom name" });
+    const user = await User.findByPk(req.user.id);
+    const hidden = Array.isArray(user.hiddenSymptoms) ? user.hiddenSymptoms : [];
+    if (!hidden.some((h) => h.toLowerCase() === name.toLowerCase())) {
+      user.hiddenSymptoms = [...hidden, name];
+      await user.save();
+    }
+    res.json({ hiddenSymptoms: user.hiddenSymptoms });
+  } catch (err) {
+    console.error("Hide symptom error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+module.exports = { createCheckIn, getCheckIns, updateCheckIn, deleteCheckIn, getMySymptoms, hideSymptom };
