@@ -133,21 +133,35 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
         autoCapitalize="none"
         returnKeyType="done"
       />
-      {yourShown.length > 0 && (
-        <View style={styles.pickerSection}>
-          <Text style={styles.sectionLabel}>Your symptoms</Text>
-          <View style={styles.symptomsGrid}>
-            {yourShown.map((s) => renderChip(s, recentSet.has(s.toLowerCase())))}
+      {searchingCatalog ? (
+        visible.length > 0 && (
+          <View style={styles.pickerSection}>
+            <Text style={styles.sectionLabel}>Results</Text>
+            <View style={styles.symptomsGrid}>
+              {yourShown.map((s) => renderChip(s, recentSet.has(s.toLowerCase())))}
+              {commonShown.map((s) => renderChip(s, false))}
+            </View>
           </View>
-        </View>
-      )}
-      {commonShown.length > 0 && (
-        <View style={styles.pickerSection}>
-          <Text style={styles.sectionLabel}>Common</Text>
-          <View style={styles.symptomsGrid}>
-            {commonShown.map((s) => renderChip(s, false))}
-          </View>
-        </View>
+        )
+      ) : (
+        <>
+          {yourShown.length > 0 && (
+            <View style={styles.pickerSection}>
+              <Text style={styles.sectionLabel}>Your symptoms</Text>
+              <View style={styles.symptomsGrid}>
+                {yourShown.map((s) => renderChip(s, recentSet.has(s.toLowerCase())))}
+              </View>
+            </View>
+          )}
+          {commonShown.length > 0 && (
+            <View style={styles.pickerSection}>
+              <Text style={styles.sectionLabel}>Common</Text>
+              <View style={styles.symptomsGrid}>
+                {commonShown.map((s) => renderChip(s, false))}
+              </View>
+            </View>
+          )}
+        </>
       )}
       {truncatedFrom > 0 && (
         <Text style={styles.searchHint}>

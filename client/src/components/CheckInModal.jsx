@@ -346,25 +346,41 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
         className="w-full px-4 py-2.5 rounded-xl text-sm outline-none placeholder-white/40"
         style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }}
       />
-      {yourShown.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-center" style={{ color: "rgba(255,255,255,0.6)" }}>
-            Your symptoms
-          </p>
-          <div className="flex flex-wrap gap-2 justify-center">
-            {yourShown.map((s) => chip(s, recentSet.has(s.toLowerCase())))}
+      {searchingCatalog ? (
+        visible.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-center" style={{ color: "rgba(255,255,255,0.6)" }}>
+              Results
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {yourShown.map((s) => chip(s, recentSet.has(s.toLowerCase())))}
+              {commonShown.map((s) => chip(s, false))}
+            </div>
           </div>
-        </div>
-      )}
-      {commonShown.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-center" style={{ color: "rgba(255,255,255,0.6)" }}>
-            Common
-          </p>
-          <div className="flex flex-wrap gap-2 justify-center">
-            {commonShown.map((s) => chip(s, false))}
-          </div>
-        </div>
+        )
+      ) : (
+        <>
+          {yourShown.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-center" style={{ color: "rgba(255,255,255,0.6)" }}>
+                Your symptoms
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {yourShown.map((s) => chip(s, recentSet.has(s.toLowerCase())))}
+              </div>
+            </div>
+          )}
+          {commonShown.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-center" style={{ color: "rgba(255,255,255,0.6)" }}>
+                Common
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {commonShown.map((s) => chip(s, false))}
+              </div>
+            </div>
+          )}
+        </>
       )}
       {truncatedFrom > 0 && (
         <p className="text-xs text-center" style={{ color: "rgba(255,255,255,0.55)" }}>
