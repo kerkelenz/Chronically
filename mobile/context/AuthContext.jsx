@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import * as Sentry from "@sentry/react-native";
 import api, { setOnUnauthorized } from "../lib/api";
 import { trackSession } from "../lib/analytics";
 import {
@@ -25,6 +26,7 @@ export function AuthProvider({ children }) {
 
   async function signOut() {
     await clearAuth();
+    Sentry.setUser(null);
     setToken(null);
     setUserState(null);
   }
@@ -51,6 +53,8 @@ export function AuthProvider({ children }) {
 
       setToken(storedToken);
       setUserState(u);
+      // numeric id only — no email/name attached to error reports
+      if (u?.id) Sentry.setUser({ id: u.id });
       trackSession();
       // Optimistic restore — validate token in background
       api.get("/api/protected").catch(() => signOut());
@@ -68,6 +72,7 @@ export function AuthProvider({ children }) {
       await saveUser(newUser); // full user including avatar → AsyncStorage
       setToken(newToken);
       setUserState(newUser);
+      if (newUser?.id) Sentry.setUser({ id: newUser.id });
       trackSession();
     } catch (err) {
       const msg =

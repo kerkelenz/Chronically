@@ -132,4 +132,6 @@ mobile/
 
 ## License
 
-See `LICENSE` if present; otherwise all rights reserved (c) 2026 Kevin Erkelenz.
+All rights reserved © 2026 Kevin Erkelenz. The source is public for reference and
+portfolio purposes only; no rights to copy, modify, distribute, or use it are
+granted without prior written permission. See [`LICENSE`](LICENSE) for the full terms.

@@ -13,6 +13,9 @@ const Appointment = sequelize.define("Appointment", {
   notesAfter:   { type: DataTypes.TEXT, allowNull: true },
   followUpDate: { type: DataTypes.DATE, allowNull: true },
   status:       { type: DataTypes.ENUM("upcoming", "completed", "cancelled"), defaultValue: "upcoming" },
+}, {
+  // appointments are queried per user, ordered/filtered by date
+  indexes: [{ fields: ["userId", "date"] }],
 });
 
 User.hasMany(Appointment, { foreignKey: "userId", onDelete: "CASCADE" });

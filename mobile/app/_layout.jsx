@@ -11,7 +11,17 @@ import {
 } from "@expo-google-fonts/playfair-display";
 import { Lato_300Light, Lato_400Regular, Lato_700Bold } from "@expo-google-fonts/lato";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import * as Sentry from "@sentry/react-native";
 import { AuthProvider, useAuth } from "../context/AuthContext";
+import ErrorBoundary from "../components/ErrorBoundary";
+
+// Errors-only and env-gated — a silent no-op when EXPO_PUBLIC_SENTRY_DSN is
+// absent, so local dev needs nothing. tracesSampleRate 0 = errors only.
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  enabled: !!process.env.EXPO_PUBLIC_SENTRY_DSN,
+  tracesSampleRate: 0,
+});
 
 SplashScreen.preventAutoHideAsync();
 
@@ -60,13 +70,15 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <AuthGate />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen
-            name="checkin"
-            options={{ presentation: "fullScreenModal", gestureEnabled: false }}
-          />
-        </Stack>
+        <ErrorBoundary>
+          <AuthGate />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen
+              name="checkin"
+              options={{ presentation: "fullScreenModal", gestureEnabled: false }}
+            />
+          </Stack>
+        </ErrorBoundary>
       </AuthProvider>
     </SafeAreaProvider>
   );

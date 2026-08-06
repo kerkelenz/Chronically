@@ -58,6 +58,10 @@ const CheckIn = sequelize.define("CheckIn", {
     // defaults to today so we don't have to send the date from the frontend every time
     defaultValue: DataTypes.NOW,
   },
+}, {
+  // the hot query is "this user's check-ins, most recent first / within a range",
+  // so index the (userId, date) access path
+  indexes: [{ fields: ["userId", "date"] }],
 });
 
 // a user can have many check-ins over time

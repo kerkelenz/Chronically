@@ -45,7 +45,15 @@
       "@react-native-community/datetimepicker",
       [
         "react-native-edge-to-edge",
-        { "android": { "enforceNavigationBarContrast": false } }
+        {
+          "android": {
+            "enforceNavigationBarContrast": false
+          }
+        }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {}
       ]
     ],
     "extra": {

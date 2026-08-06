@@ -1,3 +1,4 @@
+const { Op } = require("sequelize");
 const CheckIn = require("../models/CheckIn");
 const User = require("../models/User");
 
@@ -62,11 +63,38 @@ const createCheckIn = async (req, res) => {
 // returns all check-ins for the logged in user, newest first
 const getCheckIns = async (req, res) => {
   try {
-    // findAll with a where clause so users only ever see their own data
-    // ordering by date DESC means the most recent check-in comes back first
+    // ownership filter — users only ever see their own data
+    const where = { userId: req.user.id };
+
+    // optional YYYY-MM-DD range on the `date` column; anything malformed is
+    // ignored rather than 400'd so a bad query param never breaks the dashboard
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    const { startDate, endDate } = req.query;
+    const dateFilter = {};
+    let hasDateFilter = false;
+    if (typeof startDate === "string" && dateRe.test(startDate)) {
+      dateFilter[Op.gte] = startDate;
+      hasDateFilter = true;
+    }
+    if (typeof endDate === "string" && dateRe.test(endDate)) {
+      dateFilter[Op.lte] = endDate;
+      hasDateFilter = true;
+    }
+    // Op.gte/Op.lte are Symbol keys, so Object.keys can't see them — track a flag
+    if (hasDateFilter) where.date = dateFilter;
+
+    // hard server cap of 1000 rows no matter what's requested — at a check-in or
+    // two a day that's ~2 years, plenty for streaks and milestones
+    const MAX_LIMIT = 1000;
+    let limit = MAX_LIMIT;
+    const requested = parseInt(req.query.limit, 10);
+    if (Number.isInteger(requested) && requested > 0) limit = Math.min(requested, MAX_LIMIT);
+
+    // ordering by createdAt DESC means the most recent check-in comes back first
     const checkIns = await CheckIn.findAll({
-      where: { userId: req.user.id },
+      where,
       order: [["createdAt", "DESC"]],
+      limit,
     });
 
     res.status(200).json({ checkIns });

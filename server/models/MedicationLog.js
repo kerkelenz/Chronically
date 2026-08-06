@@ -11,6 +11,9 @@ const MedicationLog = sequelize.define("MedicationLog", {
   takenAt:       { type: DataTypes.DATE, allowNull: true },
   status:        { type: DataTypes.ENUM("taken", "skipped", "missed"), allowNull: false },
   skipReason:    { type: DataTypes.STRING, allowNull: true },
+}, {
+  // logs are read per user and day (Today checklist, adherence dots)
+  indexes: [{ fields: ["userId", "date"] }],
 });
 
 User.hasMany(MedicationLog, { foreignKey: "userId", onDelete: "CASCADE" });

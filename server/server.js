@@ -1,5 +1,17 @@
 // dotenv has to be first so all the environment variables are loaded before anything else runs
 require("dotenv").config();
+
+// Sentry, errors-only and env-gated — a silent no-op when SENTRY_DSN is absent,
+// so local dev needs nothing. Initialised as early as possible so it can wrap
+// everything that follows. tracesSampleRate 0 = no performance data, errors only.
+const Sentry = require("@sentry/node");
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  enabled: !!process.env.SENTRY_DSN,
+  tracesSampleRate: 0,
+  environment: process.env.NODE_ENV,
+});
+
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -127,6 +139,10 @@ const startServer = async () => {
   app.use((req, res) => {
     res.status(404).json({ error: "Not found" });
   });
+
+  // capture unhandled 500s in Sentry before our own handler turns them into
+  // JSON — no-op without a DSN
+  Sentry.setupExpressErrorHandler(app);
 
   // final safety net so malformed JSON, oversized bodies, and anything a route
   // forgot to catch come back as JSON errors instead of HTML stack traces
