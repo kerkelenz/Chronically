@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, { Path, Circle, Line, Text as SvgText } from "react-native-svg";
-import { monotonePath } from "../lib/curve";
+import { catmullRomPath } from "../lib/curve";
 
 const CHART_HEIGHT = 200;
 const PAD = { left: 38, right: 10, top: 14, bottom: 22 };
@@ -44,7 +44,7 @@ export default function AdherenceLineChart({ data, width }) {
 
   // Build the path — no nulls in adherence data, always continuous
   const points = data.map((pt, i) => ({ x: xFn(i), y: yFn(pt.percentage) }));
-  const pathD = monotonePath(points);
+  const pathD = catmullRomPath(points);
 
   return (
     <View>
@@ -122,9 +122,9 @@ export default function AdherenceLineChart({ data, width }) {
         ))}
 
         {/* Data line */}
-        {pathD.trim() && (
+        {pathD && (
           <Path
-            d={pathD.trim()}
+            d={pathD}
             stroke={LINE_COLOR}
             strokeWidth={2}
             fill="none"

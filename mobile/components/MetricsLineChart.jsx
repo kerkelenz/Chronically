@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import Svg, { Path, Circle, Line, Text as SvgText } from "react-native-svg";
-import { monotonePath } from "../lib/curve";
+import { catmullRomPath } from "../lib/curve";
 
 const SERIES = [
   { key: "energy",   color: "#8FAF9B" },
@@ -94,6 +94,9 @@ export default function MetricsLineChart({ data, width }) {
 
         {/* Series: path with gaps at null values; single-point dot */}
         {SERIES.map(({ key, color }) => {
+          // Split each series into contiguous runs at null gaps, then draw a
+          // Catmull-Rom curve per run. Gaps stay broken; 2-point runs render
+          // as straight lines (handled inside catmullRomPath).
           const runs = [];
           let run = [];
           data.forEach((pt, i) => {
@@ -105,17 +108,21 @@ export default function MetricsLineChart({ data, width }) {
             }
           });
           if (run.length) runs.push(run);
-          const trimmed = runs.map((r) => monotonePath(r)).join(" ").trim();
+
+          const pathD = runs
+            .filter((r) => r.length > 1)
+            .map((r) => catmullRomPath(r))
+            .join(" ");
           const nonNullCount = runs.reduce((s, r) => s + r.length, 0);
-          const lastRun = runs[runs.length - 1] || [];
-          const lastPt = lastRun[lastRun.length - 1] || { x: 0, y: 0 };
-          const lastX = lastPt.x;
-          const lastY = lastPt.y;
+          const singlePoint = nonNullCount === 1
+            ? runs.find((r) => r.length === 1)[0]
+            : null;
+
           return (
             <React.Fragment key={key}>
-              {trimmed && nonNullCount > 1 && (
+              {pathD && (
                 <Path
-                  d={trimmed}
+                  d={pathD}
                   stroke={color}
                   strokeWidth={2}
                   fill="none"
@@ -123,8 +130,8 @@ export default function MetricsLineChart({ data, width }) {
                   strokeLinecap="round"
                 />
               )}
-              {nonNullCount === 1 && (
-                <Circle cx={lastX} cy={lastY} r={3} fill={color} />
+              {singlePoint && (
+                <Circle cx={singlePoint.x} cy={singlePoint.y} r={3} fill={color} />
               )}
             </React.Fragment>
           );

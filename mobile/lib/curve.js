@@ -1,7 +1,10 @@
+// SVG path builders for the trend charts.
+
 // Monotone cubic interpolation — a direct port of d3-shape's curveMonotoneX.
 // Takes an array of { x, y } points (x strictly increasing) and returns an
 // SVG path string. Produces the same gentle, non-overshooting curve the web
-// charts use via Recharts type="monotone".
+// charts use via Recharts type="monotone". Kept for comparison; the charts
+// now draw with catmullRomPath below.
 const f = (v) => v.toFixed(2);
 const sign = (x) => (x < 0 ? -1 : 1);
 
@@ -36,6 +39,52 @@ export function monotonePath(pts) {
     const c1x = pts[i].x + dx, c1y = pts[i].y + dx * t[i];
     const c2x = pts[i + 1].x - dx, c2y = pts[i + 1].y - dx * t[i + 1];
     d += ` C${f(c1x)},${f(c1y)} ${f(c2x)},${f(c2y)} ${f(pts[i + 1].x)},${f(pts[i + 1].y)}`;
+  }
+  return d;
+}
+
+// Number formatting matching d3-path's default (3 decimals) so a Catmull-Rom
+// path built here is byte-comparable to d3-shape's curveCatmullRom output.
+const cf = (v) => Number(v.toFixed(3));
+
+// Centripetal Catmull-Rom (alpha = 0.5) — port of d3-shape's curveCatmullRom.
+// Soft through local peaks with negligible overshoot. Interpolating: the curve
+// passes through every input point.
+export function catmullRomPath(pts, alpha = 0.5) {
+  const n = pts.length;
+  if (n === 0) return "";
+  if (n === 1) return `M${cf(pts[0].x)},${cf(pts[0].y)}`;
+  if (n === 2) return `M${cf(pts[0].x)},${cf(pts[0].y)}L${cf(pts[1].x)},${cf(pts[1].y)}`;
+
+  let d = `M${cf(pts[0].x)},${cf(pts[0].y)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = pts[i - 1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || p2;
+
+    const d01 = Math.pow(Math.hypot(p1.x - p0.x, p1.y - p0.y), alpha);
+    const d12 = Math.pow(Math.hypot(p2.x - p1.x, p2.y - p1.y), alpha);
+    const d23 = Math.pow(Math.hypot(p3.x - p2.x, p3.y - p2.y), alpha);
+
+    const d01_2 = d01 * d01;
+    const d12_2 = d12 * d12;
+    const d23_2 = d23 * d23;
+
+    let c1x = p1.x, c1y = p1.y, c2x = p2.x, c2y = p2.y;
+    if (d01 > 1e-12) {
+      const a = 2 * d01_2 + 3 * d01 * d12 + d12_2;
+      const b = 3 * d01 * (d01 + d12);
+      c1x = (a * p1.x - d12_2 * p0.x + d01_2 * p2.x) / b;
+      c1y = (a * p1.y - d12_2 * p0.y + d01_2 * p2.y) / b;
+    }
+    if (d23 > 1e-12) {
+      const a = 2 * d23_2 + 3 * d23 * d12 + d12_2;
+      const b = 3 * d23 * (d23 + d12);
+      c2x = (a * p2.x + d23_2 * p1.x - d12_2 * p3.x) / b;
+      c2y = (a * p2.y + d23_2 * p1.y - d12_2 * p3.y) / b;
+    }
+    d += `C${cf(c1x)},${cf(c1y)},${cf(c2x)},${cf(c2y)},${cf(p2.x)},${cf(p2.y)}`;
   }
   return d;
 }

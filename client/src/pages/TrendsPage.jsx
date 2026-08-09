@@ -5,6 +5,7 @@ import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
+import { curveCatmullRom } from "d3-shape";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import { adherenceStats } from "../utils/medicationHelpers";
 
@@ -200,11 +201,11 @@ function TrendsPage() {
                         return [labels[r] ?? value, name.charAt(0).toUpperCase() + name.slice(1)];
                       }}
                     />
-                    <Line type="monotone" dataKey="energy"   stroke="#8FAF9B" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="mood"     stroke="#C4A8C0" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="pain"     stroke="#7C6BAE" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="anxiety"  stroke="#9BAFC4" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="appetite" stroke="#C4A882" strokeWidth={2} dot={false} />
+                    <Line type={curveCatmullRom.alpha(0.5)} dataKey="energy"   stroke="#8FAF9B" strokeWidth={2} dot={false} />
+                    <Line type={curveCatmullRom.alpha(0.5)} dataKey="mood"     stroke="#C4A8C0" strokeWidth={2} dot={false} />
+                    <Line type={curveCatmullRom.alpha(0.5)} dataKey="pain"     stroke="#7C6BAE" strokeWidth={2} dot={false} />
+                    <Line type={curveCatmullRom.alpha(0.5)} dataKey="anxiety"  stroke="#9BAFC4" strokeWidth={2} dot={false} />
+                    <Line type={curveCatmullRom.alpha(0.5)} dataKey="appetite" stroke="#C4A882" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
                 <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-3">
@@ -318,7 +319,7 @@ function TrendsPage() {
                                 label={{ value: "90%", position: "right", fontSize: 8, fill: "#A9D8B4" }}
                               />
                               <Line
-                                type="monotone"
+                                type={curveCatmullRom.alpha(0.5)}
                                 dataKey="percentage"
                                 stroke="#8FAF9B"
                                 strokeWidth={2}
