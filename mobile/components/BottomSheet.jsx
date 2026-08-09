@@ -41,7 +41,7 @@ export default function BottomSheet({
               {children}
             </ScrollView>
           ) : (
-            <View style={{ flex: 1, paddingBottom: insets.bottom + 20 }}>{children}</View>
+            <View style={{ flexShrink: 1, paddingBottom: insets.bottom + 20 }}>{children}</View>
           )}
         </View>
       </KeyboardAvoidingView>
