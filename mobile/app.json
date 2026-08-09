@@ -50,15 +50,13 @@
           }
         }
       ],
-      [
-        "@sentry/react-native/expo",
-        {}
-      ]
+      ["@sentry/react-native/expo", {}]
     ],
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "9362e50f-8877-448a-99f9-de8eeff0a432"
+        "projectId": "1fa4486d-ef11-4650-a92f-c5c90d274449",
+        "owner": "team-chronically"
       }
     }
   }
