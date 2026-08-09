@@ -9,7 +9,6 @@ import {
   RefreshControl,
   useWindowDimensions,
   Modal,
-  Alert,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,6 +23,7 @@ import { COMMON_SYMPTOMS } from "../../theme/symptomCatalog";
 import { SymptomIcon } from "../../components/SymptomIcon";
 import MilestoneCelebration from "../../components/MilestoneCelebration";
 import WelcomeModal from "../../components/WelcomeModal";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import { MILESTONES, totalCheckInDays } from "../../lib/milestones";
 
 const BAR_HEIGHTS = [12, 16, 20, 24, 28];
@@ -126,6 +126,8 @@ export default function DashboardScreen() {
   const [editingCheckIn, setEditingCheckIn] = useState(null);
   const [celebration, setCelebration] = useState(null);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [deleteCheckInId, setDeleteCheckInId] = useState(null);
+  const [deletingCheckIn, setDeletingCheckIn] = useState(false);
   const isFirstLoadRef = useRef(true);
   const seededRef = useRef(false);
 
@@ -207,22 +209,20 @@ export default function DashboardScreen() {
     }
   }
 
-  const handleDeleteCheckIn = (id) => {
-    Alert.alert("Delete check-in?", "This can't be undone.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await api.delete(`/api/checkins/${id}`);
-            setCheckIns((prev) => prev.filter((c) => c.id !== id));
-          } catch (e) {
-            console.error("Delete check-in failed:", e);
-          }
-        },
-      },
-    ]);
+  const handleDeleteCheckIn = (id) => setDeleteCheckInId(id);
+
+  const confirmDeleteCheckIn = async () => {
+    if (!deleteCheckInId) return;
+    setDeletingCheckIn(true);
+    try {
+      await api.delete(`/api/checkins/${deleteCheckInId}`);
+      setCheckIns((prev) => prev.filter((c) => c.id !== deleteCheckInId));
+    } catch (e) {
+      console.error("Delete check-in failed:", e);
+    } finally {
+      setDeletingCheckIn(false);
+      setDeleteCheckInId(null);
+    }
   };
 
   const handleUpdateCheckIn = async () => {
@@ -620,6 +620,16 @@ export default function DashboardScreen() {
           onDismiss={() => setCelebration(null)}
         />
       )}
+
+      <ConfirmDialog
+        visible={!!deleteCheckInId}
+        title="Delete check-in?"
+        message="This can't be undone."
+        confirmLabel="Delete"
+        onCancel={() => setDeleteCheckInId(null)}
+        onConfirm={confirmDeleteCheckIn}
+        busy={deletingCheckIn}
+      />
     </ScreenBackground>
   );
 }

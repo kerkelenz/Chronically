@@ -7,7 +7,7 @@ import {
   FiSunrise, FiSun, FiMoon, FiClock, FiChevronDown, FiChevronRight,
 } from "react-icons/fi";
 import Navigation, { NavHamburger } from "../components/Navigation";
-import FormModal, { ModalFooter, labelClass } from "../components/FormModal";
+import FormModal, { ModalFooter, labelClass, ConfirmDialog } from "../components/FormModal";
 import {
   formatTime,
   resolvePattern,
@@ -1163,50 +1163,15 @@ function MedicationsPage() {
         />
       )}
 
-      {deleteConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.5)" }}
-        >
-          <div
-            className="w-full max-w-sm mx-4 p-6 rounded-2xl flex flex-col gap-4"
-            style={{
-              background: "rgba(255,255,255,0.2)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(255,255,255,0.3)",
-            }}
-          >
-            <div className="flex flex-col gap-1">
-              <p
-                className="font-medium"
-                style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}
-              >
-                Delete this medication?
-              </p>
-              <p className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
-                All associated logs will also be deleted. This cannot be undone.
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="flex-1 py-2 rounded-full text-sm"
-                style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.8)" }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(deleteConfirm)}
-                disabled={deleting}
-                className="flex-1 py-2 rounded-full text-sm text-white transition-all duration-200"
-                style={{ background: "#B07088", opacity: deleting ? 0.7 : 1 }}
-              >
-                {deleting ? "Deleting…" : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        title="Delete this medication?"
+        message="All associated logs will also be deleted. This cannot be undone."
+        confirmLabel="Delete"
+        onCancel={() => setDeleteConfirm(null)}
+        onConfirm={() => handleDelete(deleteConfirm)}
+        busy={deleting}
+      />
 
       <Navigation />
     </div>

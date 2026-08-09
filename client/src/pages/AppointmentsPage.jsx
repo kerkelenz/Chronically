@@ -8,7 +8,7 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import { exportDoctorReport } from "../utils/exportReport";
 import Navigation, { NavHamburger } from "../components/Navigation";
-import FormModal, { ModalFooter, labelClass } from "../components/FormModal";
+import FormModal, { ModalFooter, labelClass, ConfirmDialog } from "../components/FormModal";
 
 const EMPTY_FORM = {
   doctorName:   "",
@@ -1131,40 +1131,14 @@ function AppointmentsPage() {
       )}
 
       {/* Delete confirmation */}
-      {deleteConfirmId && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.5)" }}
-        >
-          <div
-            className="w-full max-w-sm p-6 rounded-2xl flex flex-col gap-4"
-            style={{ background: "white" }}
-          >
-            <div className="flex flex-col gap-1">
-              <p className="font-medium" style={{ color: "#2D2540", fontFamily: "Playfair Display, Georgia, serif" }}>
-                Delete appointment?
-              </p>
-              <p className="text-sm" style={{ color: "#6B5F7A" }}>This cannot be undone.</p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setDeleteConfirmId(null)}
-                className="flex-1 py-2 rounded-full text-sm transition-all duration-200"
-                style={{ background: "#F0EBF8", color: "#6B5F7A" }}
-              >
-                Keep
-              </button>
-              <button
-                onClick={() => handleDelete(deleteConfirmId)}
-                className="flex-1 py-2 rounded-full text-sm text-white font-medium transition-all duration-200"
-                style={{ background: "#B07088" }}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        title="Delete appointment?"
+        message="This cannot be undone."
+        confirmLabel="Delete"
+        onCancel={() => setDeleteConfirmId(null)}
+        onConfirm={() => handleDelete(deleteConfirmId)}
+      />
 
       <Navigation />
     </div>

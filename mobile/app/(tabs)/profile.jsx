@@ -7,7 +7,6 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Modal,
   KeyboardAvoidingView,
   Platform,
   Linking,
@@ -21,6 +20,7 @@ import api from "../../lib/api";
 import { track } from "../../lib/analytics";
 import MilestoneBadges from "../../components/MilestoneBadges";
 import BottomSheet from "../../components/BottomSheet";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function ProfileScreen() {
@@ -397,52 +397,16 @@ export default function ProfileScreen() {
       </BottomSheet>
 
       {/* ── Delete confirmation modal ─────────────────────────────────────── */}
-      <Modal
-        animationType="fade"
-        transparent
+      <ConfirmDialog
         visible={showDeleteModal}
-        onRequestClose={() => setShowDeleteModal(false)}
-      >
-        <View style={styles.deleteScrim}>
-          <View style={styles.deleteCard}>
-            <Text style={styles.deleteTitle}>Delete your account?</Text>
-            <Text style={styles.deleteBody}>
-              This will permanently delete your account and all your check-in
-              data. This cannot be undone.
-            </Text>
-
-            {!!deleteError && (
-              <Text style={styles.deleteError}>{deleteError}</Text>
-            )}
-
-            <View style={styles.deleteFooter}>
-              <TouchableOpacity
-                style={styles.deleteCancelBtn}
-                onPress={() => setShowDeleteModal(false)}
-                disabled={deleteLoading}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.deleteCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.deleteConfirmBtn,
-                  deleteLoading && styles.btnDisabled,
-                ]}
-                onPress={handleDeleteAccount}
-                disabled={deleteLoading}
-                activeOpacity={0.85}
-              >
-                {deleteLoading ? (
-                  <ActivityIndicator color="white" size="small" />
-                ) : (
-                  <Text style={styles.deleteConfirmText}>Delete account</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        title="Delete your account?"
+        message="This will permanently delete your account and all your check-in data. This cannot be undone."
+        confirmLabel="Delete account"
+        onCancel={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteAccount}
+        busy={deleteLoading}
+        error={deleteError}
+      />
     </ScreenBackground>
   );
 }
@@ -627,77 +591,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "rgba(255,150,150,0.9)",
     letterSpacing: 0.3,
-  },
-
-  // Delete modal
-  deleteScrim: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-  },
-  deleteCard: {
-    backgroundColor: "rgba(52,38,86,0.98)",
-    borderRadius: 20,
-    padding: 24,
-    width: "100%",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    gap: 12,
-  },
-  deleteTitle: {
-    fontFamily: "PlayfairDisplay_500Medium",
-    fontSize: 20,
-    color: "white",
-    textAlign: "center",
-  },
-  deleteBody: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.7)",
-    textAlign: "center",
-    lineHeight: 21,
-  },
-  deleteError: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 13,
-    color: "rgba(255,170,170,0.9)",
-    textAlign: "center",
-  },
-  deleteFooter: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 4,
-  },
-  deleteCancelBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
-  },
-  deleteCancelText: {
-    fontFamily: "Lato_700Bold",
-    fontSize: 15,
-    color: "rgba(255,255,255,0.8)",
-  },
-  deleteConfirmBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: "#B07088",
-  },
-  btnDisabled: {
-    opacity: 0.5,
-  },
-  deleteConfirmText: {
-    fontFamily: "Lato_700Bold",
-    fontSize: 15,
-    color: "white",
   },
 
   // Send feedback sheet

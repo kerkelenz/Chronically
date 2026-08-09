@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
-  Modal,
   TextInput,
   Alert,
   Platform,
@@ -15,6 +14,7 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import BottomSheet from "../../components/BottomSheet";
 import { SheetHeader, SheetFooter, formStyles } from "../../components/FormSheet";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../../components/ScreenBackground";
@@ -741,44 +741,6 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
   );
 }
 
-// ── DeleteModal ───────────────────────────────────────────────────────────────
-
-function DeleteModal({ visible, onCancel, onConfirm, deleting }) {
-  return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
-      <View style={styles.deleteScrim}>
-        <View style={styles.deleteCard}>
-          <Text style={styles.deleteTitle}>Delete this medication?</Text>
-          <Text style={styles.deleteBody}>
-            All associated logs will also be deleted. This cannot be undone.
-          </Text>
-          <View style={styles.deleteFooter}>
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={onCancel}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.deleteConfirmBtn, deleting && styles.saveBtnDisabled]}
-              onPress={onConfirm}
-              disabled={deleting}
-              activeOpacity={0.85}
-            >
-              {deleting ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <Text style={styles.deleteConfirmText}>Delete</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
 // ── MedicationsScreen ─────────────────────────────────────────────────────────
 
 export default function MedicationsScreen() {
@@ -1325,11 +1287,14 @@ export default function MedicationsScreen() {
         saveError={saveError}
       />
 
-      <DeleteModal
+      <ConfirmDialog
         visible={!!deleteConfirm}
+        title="Delete this medication?"
+        message="All associated logs will also be deleted. This cannot be undone."
+        confirmLabel="Delete"
         onCancel={() => setDeleteConfirm(null)}
         onConfirm={() => handleDelete(deleteConfirm)}
-        deleting={deleting}
+        busy={deleting}
       />
     </ScreenBackground>
   );
@@ -1873,71 +1838,5 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_700Bold",
     fontSize: 14,
     color: "#7C6BAE",
-  },
-
-  // DeleteModal footer buttons (shared by the delete confirm dialog)
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
-  },
-  cancelBtnText: {
-    fontFamily: "Lato_700Bold",
-    fontSize: 15,
-    color: "rgba(255,255,255,0.85)",
-  },
-  saveBtnDisabled: { opacity: 0.45 },
-
-  // ── DeleteModal ────────────────────────────────────────────────────────────
-
-  deleteScrim: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-  },
-  deleteCard: {
-    backgroundColor: "rgba(52,38,86,0.98)",
-    borderRadius: 20,
-    padding: 24,
-    width: "100%",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    gap: 12,
-  },
-  deleteTitle: {
-    fontFamily: "PlayfairDisplay_500Medium",
-    fontSize: 20,
-    color: "white",
-    textAlign: "center",
-  },
-  deleteBody: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.7)",
-    textAlign: "center",
-    lineHeight: 21,
-  },
-  deleteFooter: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 4,
-  },
-  deleteConfirmBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: "#B07088",
-  },
-  deleteConfirmText: {
-    fontFamily: "Lato_700Bold",
-    fontSize: 15,
-    color: "white",
   },
 });

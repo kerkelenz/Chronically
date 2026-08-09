@@ -8,7 +8,6 @@ import {
   Pressable,
   TouchableOpacity,
   RefreshControl,
-  Modal,
   TextInput,
   Platform,
   Alert,
@@ -17,6 +16,7 @@ import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import BottomSheet from "../../components/BottomSheet";
 import { SheetHeader, SheetFooter, formStyles } from "../../components/FormSheet";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import * as Print from "expo-print";
 import * as FileSystem from "expo-file-system/legacy";
@@ -1311,35 +1311,14 @@ export default function AppointmentsScreen() {
       </BottomSheet>
 
       {/* ── Delete confirm modal ──────────────────────────────────────────────── */}
-      <Modal
-        animationType="fade"
-        transparent
+      <ConfirmDialog
         visible={!!deleteConfirmId}
-        onRequestClose={() => setDeleteConfirmId(null)}
-      >
-        <View style={styles.deleteScrim}>
-          <View style={styles.deleteCard}>
-            <Text style={styles.deleteTitle}>Delete appointment?</Text>
-            <Text style={styles.deleteBody}>This cannot be undone.</Text>
-            <View style={styles.deleteFooter}>
-              <TouchableOpacity
-                style={styles.keepBtnWhite}
-                onPress={() => setDeleteConfirmId(null)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.keepBtnWhiteText}>Keep</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.deleteConfirmBtn}
-                onPress={() => handleDelete(deleteConfirmId)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.deleteConfirmText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        title="Delete appointment?"
+        message="This cannot be undone."
+        confirmLabel="Delete"
+        onCancel={() => setDeleteConfirmId(null)}
+        onConfirm={() => handleDelete(deleteConfirmId)}
+      />
     </ScreenBackground>
   );
 }
@@ -2062,62 +2041,5 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_400Regular",
     fontSize: 12,
     color: "rgba(255,255,255,0.85)",
-  },
-
-  // Delete confirm modal
-  deleteScrim: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-  },
-  deleteCard: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 24,
-    width: "100%",
-    gap: 10,
-  },
-  deleteTitle: {
-    fontFamily: "PlayfairDisplay_500Medium",
-    fontSize: 18,
-    color: "#2D2540",
-    textAlign: "center",
-  },
-  deleteBody: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 14,
-    color: "#6B5F7A",
-    textAlign: "center",
-  },
-  deleteFooter: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 4,
-  },
-  keepBtnWhite: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 20,
-    alignItems: "center",
-    backgroundColor: "#F0EBF8",
-  },
-  keepBtnWhiteText: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 14,
-    color: "#6B5F7A",
-  },
-  deleteConfirmBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 20,
-    alignItems: "center",
-    backgroundColor: "#B07088",
-  },
-  deleteConfirmText: {
-    fontFamily: "Lato_700Bold",
-    fontSize: 14,
-    color: "white",
   },
 });

@@ -11,6 +11,7 @@ import { SymptomIcon } from "../components/SymptomIcon";
 import Avatar from "../components/Avatar";
 import MilestoneCelebration from "../components/MilestoneCelebration";
 import WelcomeModal from "../components/WelcomeModal";
+import { ConfirmDialog } from "../components/FormModal";
 import { MILESTONES, totalCheckInDays } from "../utils/milestones";
 
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
@@ -62,15 +63,24 @@ function DashboardPage() {
     if (user && user.hasSeenWelcome === false) setShowWelcome(true);
   }, [user]);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this check-in?")) return;
+  const [deleteCheckInId, setDeleteCheckInId] = useState(null);
+  const [deletingCheckIn, setDeletingCheckIn] = useState(false);
+
+  const handleDelete = (id) => setDeleteCheckInId(id);
+
+  const confirmDelete = async () => {
+    if (!deleteCheckInId) return;
+    setDeletingCheckIn(true);
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL}/api/checkins/${id}`, {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/api/checkins/${deleteCheckInId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setCheckIns(checkIns.filter((c) => c.id !== id));
+      setCheckIns(checkIns.filter((c) => c.id !== deleteCheckInId));
     } catch (error) {
       console.error("Error deleting check-in:", error);
+    } finally {
+      setDeletingCheckIn(false);
+      setDeleteCheckInId(null);
     }
   };
 
@@ -757,6 +767,16 @@ function DashboardPage() {
       )}
 
       {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
+
+      <ConfirmDialog
+        open={!!deleteCheckInId}
+        title="Delete this check-in?"
+        message="This can't be undone."
+        confirmLabel="Delete"
+        onCancel={() => setDeleteCheckInId(null)}
+        onConfirm={confirmDelete}
+        busy={deletingCheckIn}
+      />
 
       {celebrationMilestone && (
         <MilestoneCelebration
