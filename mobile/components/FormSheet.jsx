@@ -76,7 +76,7 @@ export const formStyles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 12,
+    paddingBottom: 16,
   },
   title: {
     fontFamily: "Lato_700Bold",
@@ -97,7 +97,12 @@ export const formStyles = StyleSheet.create({
     color: "rgba(255,255,255,0.6)",
     letterSpacing: 0.8,
     textTransform: "uppercase",
-    marginBottom: 6,
+    // marginTop carries the between-group rhythm: every field group starts with
+    // a label, so this loosens group separation kit-wide (meds, appointments)
+    // without per-sheet overrides. (fieldGroup below isn't consumed by the
+    // sheets; the labels are.)
+    marginTop: 18,
+    marginBottom: 7,
   },
   input: {
     backgroundColor: "rgba(255,255,255,0.12)",
@@ -115,7 +120,7 @@ export const formStyles = StyleSheet.create({
     paddingTop: 12,
   },
   fieldGroup: {
-    marginBottom: 14,
+    marginBottom: 18,
   },
   chipRow: {
     flexDirection: "row",
@@ -126,7 +131,7 @@ export const formStyles = StyleSheet.create({
   // Footer
   footerWrap: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 18,
     borderTopWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
   },

@@ -67,7 +67,7 @@ export default function FormModal({
         {/* Body (scrolls; footer stays pinned) */}
         <div
           className={`${bodyClassName} overflow-y-auto`}
-          style={{ flex: "1 1 auto", minHeight: 0, paddingRight: 4 }}
+          style={{ flex: "1 1 auto", minHeight: 0 }}
         >
           {children}
         </div>
