@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "Chronically",
-    "slug": "chronically-mobile",
+    "owner": "team-chronically",
+    "slug": "chronically",
     "scheme": "chronically",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -55,8 +56,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "1fa4486d-ef11-4650-a92f-c5c90d274449",
-        "owner": "team-chronically"
+        "projectId": "1fa4486d-ef11-4650-a92f-c5c90d274449"
       }
     }
   }
