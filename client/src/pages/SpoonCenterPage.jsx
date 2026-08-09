@@ -7,6 +7,7 @@ import { BsPin, BsPinFill } from "react-icons/bs";
 import { useAuth } from "../hooks/useAuth";
 import { track } from "../lib/analytics";
 import Navigation, { NavHamburger } from "../components/Navigation";
+import FormModal, { ModalFooter } from "../components/FormModal";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -718,50 +719,34 @@ export default function SpoonCenterPage() {
 
       {/* ── Add Activity modal ──────────────────────────────────────────────── */}
       {showAdd && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.5)" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowAdd(false); }}
-        >
-          <div
-            className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden"
-            style={{
-              background: "rgba(90,75,130,0.97)",
-              border: "1px solid rgba(255,255,255,0.25)",
-              maxHeight: "85vh",
-            }}
-          >
-            {/* Modal header */}
-            <div className="flex justify-between items-center px-5 pt-5 pb-3 flex-shrink-0">
-              <p
-                className="font-medium text-white"
-                style={{ fontFamily: "Playfair Display, Georgia, serif" }}
+        <FormModal
+          open
+          onClose={() => setShowAdd(false)}
+          title="Add to day"
+          bodyClassName=""
+          right={
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setEditingCosts((v) => !v)}
+                className="px-3 py-1 rounded-full text-xs transition-all"
+                style={{
+                  background: editingCosts ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.15)",
+                  color: "rgba(255,255,255,0.85)",
+                }}
               >
-                Add to day
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setEditingCosts((v) => !v)}
-                  className="px-3 py-1 rounded-full text-xs transition-all"
-                  style={{
-                    background: editingCosts ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.15)",
-                    color: "rgba(255,255,255,0.85)",
-                  }}
-                >
-                  {editingCosts ? "Done editing" : "Edit costs"}
-                </button>
-                <button
-                  onClick={() => setShowAdd(false)}
-                  className="p-1.5 rounded-full hover:opacity-70"
-                  style={{ background: "rgba(255,255,255,0.15)" }}
-                >
-                  <FiX size={14} color="white" />
-                </button>
-              </div>
+                {editingCosts ? "Done editing" : "Edit costs"}
+              </button>
+              <button
+                onClick={() => setShowAdd(false)}
+                className="p-1.5 rounded-full hover:opacity-70"
+                style={{ background: "rgba(255,255,255,0.15)" }}
+              >
+                <FiX size={14} color="white" />
+              </button>
             </div>
-
+          }
+        >
             {/* Library list */}
-            <div className="overflow-y-auto flex-1">
               {hasPinned && (
                 <p
                   className="px-5 pt-3 pb-1 uppercase"
@@ -870,30 +855,28 @@ export default function SpoonCenterPage() {
                   Add &amp; save to library
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
+        </FormModal>
       )}
 
       {/* ── Baseline modal ──────────────────────────────────────────────────── */}
       {showBaseline && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center px-4"
-          style={{ background: "rgba(0,0,0,0.5)" }}
+        <FormModal
+          open
+          onClose={() => setShowBaseline(false)}
+          title="Your spoon baseline"
+          footer={
+            <ModalFooter
+              onCancel={() => setShowBaseline(false)}
+              onSave={saveBaseline}
+              saveLabel="Set my baseline"
+              canSave={!!baselineInput && parseInt(baselineInput) >= 1}
+            />
+          }
         >
-          <div
-            className="w-full max-w-sm rounded-3xl p-6 flex flex-col gap-4"
-            style={{ background: "rgba(90,75,130,0.97)", border: "1px solid rgba(255,255,255,0.25)" }}
-          >
-            <p
-              className="text-lg font-medium text-white"
-              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-            >
-              Your spoon baseline 🥄
-            </p>
+          <div className="flex flex-col gap-4 pb-1">
             <div className="flex flex-col gap-1.5">
               <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.8)" }}>
-                Spoon theory is the community's shorthand for limited daily energy — each activity spends some of today's spoons.
+                🥄 Spoon theory is the community's shorthand for limited daily energy — each activity spends some of today's spoons.
               </p>
               <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.6)" }}>
                 Examples (yours may differ): Shower 2 · Cooking a meal 2 · Errand 3 · Work meeting 2 · Social visit 3–4
@@ -919,43 +902,25 @@ export default function SpoonCenterPage() {
             <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
               Spoon Center will gently adjust your daily budget up or down based on how you feel each day.
             </p>
-            <button
-              onClick={saveBaseline}
-              disabled={!baselineInput || parseInt(baselineInput) < 1}
-              className="w-full py-2.5 rounded-full text-sm font-medium transition-all hover:opacity-90 disabled:opacity-40"
-              style={{ background: "white", color: "#7C6BAE" }}
-            >
-              Set my baseline
-            </button>
           </div>
-        </div>
+        </FormModal>
       )}
 
       {/* ── Budget edit modal ───────────────────────────────────────────────── */}
       {showBudgetEdit && day && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center px-4"
-          style={{ background: "rgba(0,0,0,0.5)" }}
+        <FormModal
+          open
+          onClose={() => setShowBudgetEdit(false)}
+          title="Adjust today's budget"
+          footer={
+            <ModalFooter
+              onCancel={() => setShowBudgetEdit(false)}
+              onSave={saveBudget}
+              canSave={!!budgetInput && parseInt(budgetInput) >= 1}
+            />
+          }
         >
-          <div
-            className="w-full max-w-sm rounded-3xl p-6 flex flex-col gap-4"
-            style={{ background: "rgba(90,75,130,0.97)", border: "1px solid rgba(255,255,255,0.25)" }}
-          >
-            <div className="flex justify-between items-center">
-              <p
-                className="font-medium text-white"
-                style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-              >
-                Adjust today's budget
-              </p>
-              <button
-                onClick={() => setShowBudgetEdit(false)}
-                className="p-1.5 rounded-full hover:opacity-70"
-                style={{ background: "rgba(255,255,255,0.15)" }}
-              >
-                <FiX size={14} color="white" />
-              </button>
-            </div>
+          <div className="flex flex-col gap-4 pb-1">
             <p className="text-xs" style={{ color: "rgba(255,255,255,0.55)" }}>
               Overrides the auto-computed budget for this day only. Future check-ins won't update it.
             </p>
@@ -969,36 +934,19 @@ export default function SpoonCenterPage() {
               style={frostedInput}
               autoFocus
             />
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowBudgetEdit(false)}
-                className="flex-1 py-2 rounded-full text-sm"
-                style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.8)" }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveBudget}
-                disabled={!budgetInput || parseInt(budgetInput) < 1}
-                className="flex-1 py-2 rounded-full text-sm font-medium hover:opacity-90 disabled:opacity-40"
-                style={{ background: "white", color: "#7C6BAE" }}
-              >
-                Save
-              </button>
-            </div>
             <button
               onClick={() => {
                 setShowBudgetEdit(false);
                 setBaselineInput(baseline != null ? String(baseline) : "");
                 setShowBaseline(true);
               }}
-              className="text-xs text-center hover:opacity-80 transition-opacity"
+              className="text-xs text-center self-center hover:opacity-80 transition-opacity"
               style={{ color: "rgba(255,255,255,0.5)", textDecoration: "underline" }}
             >
               Adjust my baseline instead
             </button>
           </div>
-        </div>
+        </FormModal>
       )}
 
       <Navigation />

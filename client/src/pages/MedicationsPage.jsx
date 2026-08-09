@@ -7,6 +7,7 @@ import {
   FiSunrise, FiSun, FiMoon, FiClock, FiChevronDown, FiChevronRight,
 } from "react-icons/fi";
 import Navigation, { NavHamburger } from "../components/Navigation";
+import FormModal, { ModalFooter, labelClass } from "../components/FormModal";
 import {
   formatTime,
   resolvePattern,
@@ -274,29 +275,23 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.5)" }}
+    <FormModal
+      open
+      onClose={onClose}
+      title={form.id ? "Edit Medication" : "Add Medication"}
+      footer={
+        <ModalFooter
+          onCancel={onClose}
+          onSave={onSave}
+          saving={saving}
+          canSave={canSave}
+        />
+      }
     >
-      <div
-        className="w-full max-w-sm mx-4 p-6 rounded-2xl flex flex-col gap-4 overflow-y-auto"
-        style={{
-          background: "rgba(255,255,255,0.2)",
-          backdropFilter: "blur(20px)",
-          border: "1px solid rgba(255,255,255,0.3)",
-          maxHeight: "90vh",
-        }}
-      >
-        <p
-          className="font-medium"
-          style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}
-        >
-          {form.id ? "Edit Medication" : "Add Medication"}
-        </p>
-
+      <div className="flex flex-col gap-4 pb-1">
         {/* Name */}
         <div>
-          <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>Name</p>
+          <p className={labelClass}>Name</p>
           <input
             type="text"
             value={form.name}
@@ -309,7 +304,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
 
         {/* Type */}
         <div>
-          <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>Type</p>
+          <p className={labelClass}>Type</p>
           <div className="flex gap-2">
             {[
               { value: "pill",       label: "Pill" },
@@ -336,7 +331,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
 
         {/* Dosage */}
         <div>
-          <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>Dosage (optional)</p>
+          <p className={labelClass}>Dosage (optional)</p>
           <input
             type="text"
             value={form.dosage}
@@ -349,7 +344,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
 
         {/* Schedule pattern */}
         <div>
-          <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>Schedule</p>
+          <p className={labelClass}>Schedule</p>
           <div className="flex flex-wrap gap-1.5">
             {PATTERN_OPTIONS.map((p) => (
               <button
@@ -371,7 +366,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
         {/* Specific days */}
         {form.pattern === "specific_days" && (
           <div>
-            <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>Which days?</p>
+            <p className={labelClass}>Which days?</p>
             <div className="flex gap-1">
               {DAY_CHIPS.map(({ d, label }) => (
                 <button
@@ -399,7 +394,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
         {/* Every N days */}
         {form.pattern === "every_n_days" && (
           <div>
-            <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>Every how many days?</p>
+            <p className={labelClass}>Every how many days?</p>
             <input
               type="number"
               min={1}
@@ -418,7 +413,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
         {/* Start date (every N days + monthly) */}
         {showStartDate && (
           <div>
-            <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>
+            <p className={labelClass}>
               {form.pattern === "monthly" ? "Starts on (sets the day of the month)" : "Starting from"}
             </p>
             <input
@@ -434,7 +429,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
         {/* Times — free-form 1–4, empty = anytime */}
         {showTimes && (
           <div>
-            <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>
+            <p className={labelClass}>
               Time{form.scheduledTimes.length === 1 ? "" : "s"} (optional — leave empty for anytime)
             </p>
             <div className="flex flex-col gap-2">
@@ -486,7 +481,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
 
         {/* Notes */}
         <div>
-          <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.8)" }}>Notes (optional)</p>
+          <p className={labelClass}>Notes (optional)</p>
           <textarea
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -497,25 +492,8 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
           />
         </div>
 
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2 rounded-full text-sm"
-            style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.8)" }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onSave}
-            disabled={!canSave}
-            className="flex-1 py-2 rounded-full text-sm text-white transition-all duration-200"
-            style={{ background: "#7C6BAE", opacity: canSave ? 1 : 0.6 }}
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-        </div>
       </div>
-    </div>
+    </FormModal>
   );
 }
 

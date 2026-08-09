@@ -8,6 +8,7 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import { exportDoctorReport } from "../utils/exportReport";
 import Navigation, { NavHamburger } from "../components/Navigation";
+import FormModal, { ModalFooter, labelClass } from "../components/FormModal";
 
 const EMPTY_FORM = {
   doctorName:   "",
@@ -533,7 +534,7 @@ function AppointmentsPage() {
                     </button>
                   </div>
 
-                  <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>
+                  <p className={labelClass}>
                     {formatApptDate(popoverAppointment.date)} at {formatApptTime(popoverAppointment.date)}
                   </p>
                   {popoverAppointment.location && (
@@ -926,32 +927,32 @@ function AppointmentsPage() {
 
       {/* Add / Edit modal */}
       {showModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.5)" }}
-          onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+        <FormModal
+          open
+          onClose={closeModal}
+          title={editingId ? "Edit Appointment" : "Add Appointment"}
+          right={editingId && (
+            <button
+              onClick={() => setDeleteConfirmId(editingId)}
+              aria-label="Delete appointment"
+              className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 hover:opacity-80"
+              style={{ background: "rgba(255,100,100,0.4)" }}
+            >
+              <FiTrash2 size={14} color="white" />
+            </button>
+          )}
+          footer={
+            <ModalFooter
+              onCancel={closeModal}
+              onSave={handleSave}
+              saving={saving}
+              canSave={!!form.doctorName.trim() && !!form.date}
+            />
+          }
         >
-          <div
-            className="w-full max-w-md rounded-2xl flex flex-col"
-            style={{
-              background: "rgba(100,85,145,0.92)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(255,255,255,0.25)",
-              maxHeight: "90vh",
-            }}
-          >
-            <div className="flex justify-between items-center px-5 pt-5 pb-3">
-              <p className="font-medium" style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}>
-                {editingId ? "Edit Appointment" : "Add Appointment"}
-              </p>
-              <button onClick={closeModal} className="p-1.5 rounded-full hover:opacity-70 transition-opacity" style={{ background: "rgba(255,255,255,0.15)" }}>
-                <FiX size={14} color="white" />
-              </button>
-            </div>
-
-            <div className="overflow-y-auto px-5 pb-5 flex flex-col gap-3">
+            <div className="flex flex-col gap-3 pb-1">
               <div>
-                <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Doctor name *</p>
+                <p className={labelClass}>Doctor name *</p>
                 <input
                   type="text"
                   value={form.doctorName}
@@ -962,7 +963,7 @@ function AppointmentsPage() {
                 />
               </div>
               <div>
-                <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Specialty</p>
+                <p className={labelClass}>Specialty</p>
                 <input
                   type="text"
                   value={form.specialty}
@@ -973,7 +974,7 @@ function AppointmentsPage() {
                 />
               </div>
               <div>
-                <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Date & time *</p>
+                <p className={labelClass}>Date & time *</p>
                 <input
                   type="datetime-local"
                   value={form.date}
@@ -983,7 +984,7 @@ function AppointmentsPage() {
                 />
               </div>
               <div>
-                <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Location</p>
+                <p className={labelClass}>Location</p>
                 <input
                   type="text"
                   value={form.location}
@@ -994,7 +995,7 @@ function AppointmentsPage() {
                 />
               </div>
               <div>
-                <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Reason for visit</p>
+                <p className={labelClass}>Reason for visit</p>
                 <input
                   type="text"
                   value={form.reason}
@@ -1005,7 +1006,7 @@ function AppointmentsPage() {
                 />
               </div>
               <div>
-                <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Notes before</p>
+                <p className={labelClass}>Notes before</p>
                 <textarea
                   rows={2}
                   value={form.notesBefore}
@@ -1016,7 +1017,7 @@ function AppointmentsPage() {
                 />
               </div>
               <div>
-                <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Status</p>
+                <p className={labelClass}>Status</p>
                 <select
                   value={form.status}
                   onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
@@ -1030,7 +1031,7 @@ function AppointmentsPage() {
               </div>
               {form.status === "completed" && (
                 <div>
-                  <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Notes after</p>
+                  <p className={labelClass}>Notes after</p>
                   <textarea
                     rows={2}
                     value={form.notesAfter}
@@ -1043,7 +1044,7 @@ function AppointmentsPage() {
               )}
               {form.status === "completed" && (
                 <div>
-                  <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Follow-up date</p>
+                  <p className={labelClass}>Follow-up date</p>
                   <input
                     type="date"
                     value={form.followUpDate}
@@ -1053,59 +1054,26 @@ function AppointmentsPage() {
                   />
                 </div>
               )}
-              <div className="flex gap-2 pt-1">
-                {editingId && (
-                  <button
-                    onClick={() => setDeleteConfirmId(editingId)}
-                    className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 hover:opacity-80"
-                    style={{ background: "rgba(255,100,100,0.4)" }}
-                  >
-                    <FiTrash2 size={14} color="white" />
-                  </button>
-                )}
-                <button
-                  onClick={closeModal}
-                  className="flex-1 py-2.5 rounded-full text-sm transition-all duration-200 hover:opacity-80"
-                  style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving || !form.doctorName.trim() || !form.date}
-                  className="flex-1 py-2.5 rounded-full text-sm font-medium transition-all duration-200 hover:opacity-90"
-                  style={{ background: "white", color: "#7C6BAE", opacity: (saving || !form.doctorName.trim() || !form.date) ? 0.5 : 1 }}
-                >
-                  {saving ? "Saving…" : "Save"}
-                </button>
-              </div>
             </div>
-          </div>
-        </div>
+        </FormModal>
       )}
 
       {/* Prepare-for-visit modal */}
       {prepFor && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.5)" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setPrepFor(null); }}
+        <FormModal
+          open
+          onClose={() => setPrepFor(null)}
+          title="Prepare for this visit"
+          subtitle={`${prepFor.doctorName}${prepFor.specialty ? ` — ${prepFor.specialty}` : ""}`}
+          footer={
+            <ModalFooter
+              onCancel={() => setPrepFor(null)}
+              onSave={savePrep}
+              saving={savingLifecycle}
+            />
+          }
         >
-          <div
-            className="w-full max-w-md rounded-2xl flex flex-col p-5 gap-3"
-            style={{ background: "rgba(100,85,145,0.92)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.25)" }}
-          >
-            <div className="flex justify-between items-center">
-              <p className="font-medium" style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}>
-                Prepare for this visit
-              </p>
-              <button onClick={() => setPrepFor(null)} className="p-1.5 rounded-full hover:opacity-70 transition-opacity" style={{ background: "rgba(255,255,255,0.15)" }}>
-                <FiX size={14} color="white" />
-              </button>
-            </div>
-            <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
-              {prepFor.doctorName}{prepFor.specialty ? ` — ${prepFor.specialty}` : ""}
-            </p>
+          <div className="pb-1">
             <textarea
               rows={4}
               value={prepText}
@@ -1115,51 +1083,29 @@ function AppointmentsPage() {
               style={inputStyle}
               autoFocus
             />
-            <div className="flex gap-2 pt-1">
-              <button
-                onClick={() => setPrepFor(null)}
-                className="flex-1 py-2.5 rounded-full text-sm transition-all duration-200 hover:opacity-80"
-                style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={savePrep}
-                disabled={savingLifecycle}
-                className="flex-1 py-2.5 rounded-full text-sm font-medium transition-all duration-200 hover:opacity-90"
-                style={{ background: "white", color: "#7C6BAE", opacity: savingLifecycle ? 0.5 : 1 }}
-              >
-                {savingLifecycle ? "Saving…" : "Save"}
-              </button>
-            </div>
           </div>
-        </div>
+        </FormModal>
       )}
 
       {/* How-did-it-go modal */}
       {outcomeFor && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.5)" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setOutcomeFor(null); }}
+        <FormModal
+          open
+          onClose={() => setOutcomeFor(null)}
+          title="How did it go?"
+          subtitle={`${outcomeFor.doctorName}${outcomeFor.specialty ? ` — ${outcomeFor.specialty}` : ""}`}
+          footer={
+            <ModalFooter
+              onCancel={() => setOutcomeFor(null)}
+              onSave={saveOutcome}
+              saving={savingLifecycle}
+              cancelLabel="Skip"
+            />
+          }
         >
-          <div
-            className="w-full max-w-md rounded-2xl flex flex-col p-5 gap-3"
-            style={{ background: "rgba(100,85,145,0.92)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.25)" }}
-          >
-            <div className="flex justify-between items-center">
-              <p className="font-medium" style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}>
-                How did it go?
-              </p>
-              <button onClick={() => setOutcomeFor(null)} className="p-1.5 rounded-full hover:opacity-70 transition-opacity" style={{ background: "rgba(255,255,255,0.15)" }}>
-                <FiX size={14} color="white" />
-              </button>
-            </div>
-            <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
-              {outcomeFor.doctorName}{outcomeFor.specialty ? ` — ${outcomeFor.specialty}` : ""}
-            </p>
+          <div className="flex flex-col gap-3 pb-1">
             <div>
-              <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Visit notes</p>
+              <p className={labelClass}>Visit notes</p>
               <textarea
                 rows={4}
                 value={outcomeText}
@@ -1171,7 +1117,7 @@ function AppointmentsPage() {
               />
             </div>
             <div>
-              <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Follow-up date (optional)</p>
+              <p className={labelClass}>Follow-up date (optional)</p>
               <input
                 type="date"
                 value={outcomeDate}
@@ -1180,25 +1126,8 @@ function AppointmentsPage() {
                 style={{ ...inputStyle, colorScheme: "dark" }}
               />
             </div>
-            <div className="flex gap-2 pt-1">
-              <button
-                onClick={() => setOutcomeFor(null)}
-                className="flex-1 py-2.5 rounded-full text-sm transition-all duration-200 hover:opacity-80"
-                style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
-              >
-                Skip
-              </button>
-              <button
-                onClick={saveOutcome}
-                disabled={savingLifecycle}
-                className="flex-1 py-2.5 rounded-full text-sm font-medium transition-all duration-200 hover:opacity-90"
-                style={{ background: "white", color: "#7C6BAE", opacity: savingLifecycle ? 0.5 : 1 }}
-              >
-                {savingLifecycle ? "Saving…" : "Save"}
-              </button>
-            </div>
           </div>
-        </div>
+        </FormModal>
       )}
 
       {/* Delete confirmation */}
