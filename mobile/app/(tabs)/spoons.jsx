@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomSheet from "../../components/BottomSheet";
+import { SheetHeader, SheetFooter, formStyles } from "../../components/FormSheet";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Circle } from "react-native-svg";
@@ -697,27 +698,29 @@ export default function SpoonCenterScreen() {
       {/* ── Add Activity Sheet ──────────────────────────────────────────────── */}
       <BottomSheet visible={showAdd} onClose={() => setShowAdd(false)} scrollable={false} cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}>
             {/* Sheet header */}
-            <View style={styles.sheetHeader}>
-              <Text style={styles.modalTitle}>Add to day</Text>
-              <View style={styles.sheetHeaderRight}>
-                <TouchableOpacity
-                  onPress={() => setEditingCosts((v) => !v)}
-                  style={[styles.editCostsBtn, editingCosts && styles.editCostsBtnActive]}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.editCostsBtnText}>
-                    {editingCosts ? "Done" : "Edit costs"}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setShowAdd(false)}
-                  style={styles.closeCircleBtn}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="close" size={16} color="white" />
-                </TouchableOpacity>
-              </View>
-            </View>
+            <SheetHeader
+              title="Add to day"
+              right={(
+                <View style={styles.sheetHeaderRight}>
+                  <TouchableOpacity
+                    onPress={() => setEditingCosts((v) => !v)}
+                    style={[styles.editCostsBtn, editingCosts && styles.editCostsBtnActive]}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.editCostsBtnText}>
+                      {editingCosts ? "Done" : "Edit costs"}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setShowAdd(false)}
+                    style={styles.closeCircleBtn}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="close" size={16} color="white" />
+                  </TouchableOpacity>
+                </View>
+              )}
+            />
 
             <ScrollView
               contentContainerStyle={{ paddingBottom: 12 }}
@@ -832,10 +835,13 @@ export default function SpoonCenterScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <View style={styles.dialog}>
-            <Text style={styles.modalTitle}>Your spoon baseline 🥄</Text>
+            <SheetHeader
+              title="Your spoon baseline"
+              style={{ paddingHorizontal: 0, paddingTop: 0, paddingBottom: 0 }}
+            />
             <View style={{ rowGap: 6 }}>
               <Text style={styles.explainerText}>
-                Spoon theory is the community's shorthand for limited daily energy —
+                🥄 Spoon theory is the community's shorthand for limited daily energy —
                 each activity spends some of today's spoons.
               </Text>
               <Text style={styles.exampleText}>
@@ -851,7 +857,7 @@ export default function SpoonCenterScreen() {
               How many spoons is a typical day for you?
             </Text>
             <TextInput
-              style={styles.textInput}
+              style={formStyles.input}
               keyboardType="number-pad"
               placeholder="e.g. 12"
               placeholderTextColor="rgba(255,255,255,0.3)"
@@ -862,17 +868,13 @@ export default function SpoonCenterScreen() {
             <Text style={styles.hintText}>
               Spoon Center will gently adjust your daily budget based on how you feel each day.
             </Text>
-            <TouchableOpacity
-              style={[
-                styles.primaryBtn,
-                (!baselineInput || parseInt(baselineInput, 10) < 1) && styles.btnDisabled,
-              ]}
-              onPress={saveBaseline}
-              disabled={!baselineInput || parseInt(baselineInput, 10) < 1}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.primaryBtnText}>Set my baseline</Text>
-            </TouchableOpacity>
+            <SheetFooter
+              onCancel={() => setShowBaseline(false)}
+              onSave={saveBaseline}
+              saveLabel="Set my baseline"
+              canSave={!!baselineInput && parseInt(baselineInput, 10) >= 1}
+              style={{ paddingHorizontal: 0 }}
+            />
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -889,47 +891,26 @@ export default function SpoonCenterScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <View style={styles.dialog}>
-            <View style={styles.dialogTitleRow}>
-              <Text style={styles.modalTitle}>Adjust today's budget</Text>
-              <TouchableOpacity
-                onPress={() => setShowBudget(false)}
-                style={styles.closeCircleBtn}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="close" size={16} color="white" />
-              </TouchableOpacity>
-            </View>
+            <SheetHeader
+              title="Adjust today's budget"
+              style={{ paddingHorizontal: 0, paddingTop: 0, paddingBottom: 0 }}
+            />
             <Text style={styles.hintText}>
               Overrides the auto-computed budget for this day only.
             </Text>
             <TextInput
-              style={styles.textInput}
+              style={formStyles.input}
               keyboardType="number-pad"
               value={budgetInput}
               onChangeText={setBudgetInput}
               autoFocus
             />
-            <View style={styles.btnRow}>
-              <TouchableOpacity
-                style={[styles.ghostBtn, { flex: 1 }]}
-                onPress={() => setShowBudget(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.ghostBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.primaryBtn,
-                  { flex: 1 },
-                  (!budgetInput || parseInt(budgetInput, 10) < 1) && styles.btnDisabled,
-                ]}
-                onPress={saveBudget}
-                disabled={!budgetInput || parseInt(budgetInput, 10) < 1}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.primaryBtnText}>Save</Text>
-              </TouchableOpacity>
-            </View>
+            <SheetFooter
+              onCancel={() => setShowBudget(false)}
+              onSave={saveBudget}
+              canSave={!!budgetInput && parseInt(budgetInput, 10) >= 1}
+              style={{ paddingHorizontal: 0 }}
+            />
             <TouchableOpacity
               onPress={() => {
                 setShowBudget(false);
@@ -1241,29 +1222,10 @@ const styles = StyleSheet.create({
     padding: 22,
     rowGap: 14,
   },
-  sheetHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.12)",
-  },
   sheetHeaderRight: {
     flexDirection: "row",
     alignItems: "center",
     columnGap: 8,
-  },
-  dialogTitleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  modalTitle: {
-    fontFamily: "PlayfairDisplay_500Medium",
-    fontSize: 17,
-    color: "white",
   },
   closeCircleBtn: {
     width: 30,
@@ -1392,17 +1354,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "rgba(255,255,255,0.75)",
   },
-  textInput: {
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
-    color: "white",
-    fontFamily: "Lato_400Regular",
-    fontSize: 15,
-  },
   explainerText: {
     fontFamily: "Lato_400Regular",
     fontSize: 13,
@@ -1436,21 +1387,6 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_700Bold",
     fontSize: 14,
     color: "#7C6BAE",
-  },
-  ghostBtn: {
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 20,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  ghostBtnText: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.8)",
-  },
-  btnRow: {
-    flexDirection: "row",
-    columnGap: 10,
   },
   baselineLink: {
     fontFamily: "Lato_400Regular",

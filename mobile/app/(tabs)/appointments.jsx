@@ -16,6 +16,7 @@ import {
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import BottomSheet from "../../components/BottomSheet";
+import { SheetHeader, SheetFooter, formStyles } from "../../components/FormSheet";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import * as Print from "expo-print";
 import * as FileSystem from "expo-file-system/legacy";
@@ -1013,26 +1014,33 @@ export default function AppointmentsScreen() {
 
       {/* ── Add / Edit modal ─────────────────────────────────────────────────── */}
       <BottomSheet visible={showModal} onClose={closeModal} scrollable={false} cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}>
-            {/* Modal header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editingId ? "Edit Appointment" : "Add Appointment"}
-              </Text>
-              <TouchableOpacity style={styles.modalCloseBtn} onPress={closeModal} hitSlop={8}>
-                <Ionicons name="close" size={15} color="white" />
-              </TouchableOpacity>
-            </View>
+            {/* Modal header (delete lives here, never in the footer) */}
+            <SheetHeader
+              title={editingId ? "Edit Appointment" : "Add Appointment"}
+              right={editingId ? (
+                <TouchableOpacity
+                  style={styles.headerDeleteBtn}
+                  onPress={() => setDeleteConfirmId(editingId)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete appointment"
+                >
+                  <Ionicons name="trash-outline" size={16} color="white" />
+                </TouchableOpacity>
+              ) : null}
+            />
 
             {/* Scrollable form */}
             <ScrollView
+              style={{ flexShrink: 1 }}
               contentContainerStyle={[styles.formContent, { paddingBottom: 12 }]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
               {/* Doctor name */}
-              <Text style={styles.fieldLabel}>Doctor name *</Text>
+              <Text style={formStyles.label}>Doctor name *</Text>
               <TextInput
-                style={styles.input}
+                style={formStyles.input}
                 value={form.doctorName}
                 onChangeText={(v) => setForm((f) => ({ ...f, doctorName: v }))}
                 placeholder="Dr. Smith"
@@ -1042,9 +1050,9 @@ export default function AppointmentsScreen() {
               />
 
               {/* Specialty */}
-              <Text style={styles.fieldLabel}>Specialty</Text>
+              <Text style={formStyles.label}>Specialty</Text>
               <TextInput
-                style={styles.input}
+                style={formStyles.input}
                 value={form.specialty}
                 onChangeText={(v) => setForm((f) => ({ ...f, specialty: v }))}
                 placeholder="Neurology"
@@ -1054,9 +1062,9 @@ export default function AppointmentsScreen() {
               />
 
               {/* Date & time */}
-              <Text style={styles.fieldLabel}>Date & time *</Text>
+              <Text style={formStyles.label}>Date & time *</Text>
               <TouchableOpacity
-                style={[styles.input, styles.pickerField]}
+                style={[formStyles.input, styles.pickerField]}
                 onPress={openDateTimePickerFn}
                 activeOpacity={0.8}
               >
@@ -1090,9 +1098,9 @@ export default function AppointmentsScreen() {
               )}
 
               {/* Location */}
-              <Text style={styles.fieldLabel}>Location</Text>
+              <Text style={formStyles.label}>Location</Text>
               <TextInput
-                style={styles.input}
+                style={formStyles.input}
                 value={form.location}
                 onChangeText={(v) => setForm((f) => ({ ...f, location: v }))}
                 placeholder="Hospital or clinic name"
@@ -1102,9 +1110,9 @@ export default function AppointmentsScreen() {
               />
 
               {/* Reason */}
-              <Text style={styles.fieldLabel}>Reason for visit</Text>
+              <Text style={formStyles.label}>Reason for visit</Text>
               <TextInput
-                style={styles.input}
+                style={formStyles.input}
                 value={form.reason}
                 onChangeText={(v) => setForm((f) => ({ ...f, reason: v }))}
                 placeholder="Annual checkup, follow-up, etc."
@@ -1114,9 +1122,9 @@ export default function AppointmentsScreen() {
               />
 
               {/* Notes before */}
-              <Text style={styles.fieldLabel}>Notes before</Text>
+              <Text style={formStyles.label}>Notes before</Text>
               <TextInput
-                style={[styles.input, styles.inputMultiline]}
+                style={[formStyles.input, formStyles.inputMultiline]}
                 value={form.notesBefore}
                 onChangeText={(v) => setForm((f) => ({ ...f, notesBefore: v }))}
                 placeholder="Questions to ask, things to mention..."
@@ -1128,7 +1136,7 @@ export default function AppointmentsScreen() {
               />
 
               {/* Status segmented */}
-              <Text style={styles.fieldLabel}>Status</Text>
+              <Text style={formStyles.label}>Status</Text>
               <View style={styles.segmented}>
                 {STATUS_OPTIONS.map(({ value, label }) => (
                   <TouchableOpacity
@@ -1155,9 +1163,9 @@ export default function AppointmentsScreen() {
               {/* Completed-only fields */}
               {form.status === "completed" && (
                 <>
-                  <Text style={styles.fieldLabel}>Notes after</Text>
+                  <Text style={formStyles.label}>Notes after</Text>
                   <TextInput
-                    style={[styles.input, styles.inputMultiline]}
+                    style={[formStyles.input, formStyles.inputMultiline]}
                     value={form.notesAfter}
                     onChangeText={(v) => setForm((f) => ({ ...f, notesAfter: v }))}
                     placeholder="What was discussed, next steps..."
@@ -1168,9 +1176,9 @@ export default function AppointmentsScreen() {
                     textAlignVertical="top"
                   />
 
-                  <Text style={styles.fieldLabel}>Follow-up date</Text>
+                  <Text style={formStyles.label}>Follow-up date</Text>
                   <TouchableOpacity
-                    style={[styles.input, styles.pickerField]}
+                    style={[formStyles.input, styles.pickerField]}
                     onPress={openFollowUpPickerFn}
                     activeOpacity={0.8}
                   >
@@ -1205,56 +1213,26 @@ export default function AppointmentsScreen() {
                 </>
               )}
 
-              {/* Button row */}
-              <View style={styles.modalBtnRow}>
-                {editingId && (
-                  <TouchableOpacity
-                    style={styles.trashBtn}
-                    onPress={() => setDeleteConfirmId(editingId)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="white" />
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  style={styles.modalCancelBtn}
-                  onPress={closeModal}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalSaveBtn, saveDisabled && styles.modalSaveBtnDisabled]}
-                  onPress={handleSave}
-                  disabled={saveDisabled}
-                  activeOpacity={0.85}
-                >
-                  {saving ? (
-                    <ActivityIndicator color="#7C6BAE" size="small" />
-                  ) : (
-                    <Text style={styles.modalSaveText}>Save</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
             </ScrollView>
+
+            {/* Footer (pinned) */}
+            <SheetFooter
+              onCancel={closeModal}
+              onSave={handleSave}
+              saving={saving}
+              canSave={!saveDisabled}
+            />
       </BottomSheet>
 
       {/* ── Prepare-for-visit sheet ──────────────────────────────────────────── */}
       <BottomSheet visible={!!prepFor} onClose={() => setPrepFor(null)}>
-        <View style={styles.lifecycleHeader}>
-          <Text style={styles.modalTitle}>Prepare for this visit</Text>
-          <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setPrepFor(null)} hitSlop={8}>
-            <Ionicons name="close" size={15} color="white" />
-          </TouchableOpacity>
-        </View>
-        {!!prepFor && (
-          <Text style={styles.lifecycleSubtitle}>
-            {prepFor.doctorName}
-            {prepFor.specialty ? ` — ${prepFor.specialty}` : ""}
-          </Text>
-        )}
+        <SheetHeader
+          title="Prepare for this visit"
+          subtitle={prepFor ? `${prepFor.doctorName}${prepFor.specialty ? ` — ${prepFor.specialty}` : ""}` : undefined}
+          style={{ paddingHorizontal: 0, paddingTop: 0 }}
+        />
         <TextInput
-          style={[styles.input, styles.inputMultiline, { marginTop: 12 }]}
+          style={[formStyles.input, formStyles.inputMultiline]}
           value={prepText}
           onChangeText={setPrepText}
           placeholder="Questions to ask, symptoms to mention, refills to request…"
@@ -1264,42 +1242,24 @@ export default function AppointmentsScreen() {
           autoCapitalize="sentences"
           textAlignVertical="top"
         />
-        <View style={styles.lifecycleBtnRow}>
-          <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setPrepFor(null)} activeOpacity={0.8}>
-            <Text style={styles.modalCancelText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.modalSaveBtn, savingLifecycle && styles.modalSaveBtnDisabled]}
-            onPress={savePrep}
-            disabled={savingLifecycle}
-            activeOpacity={0.85}
-          >
-            {savingLifecycle ? (
-              <ActivityIndicator color="#7C6BAE" size="small" />
-            ) : (
-              <Text style={styles.modalSaveText}>Save</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        <SheetFooter
+          onCancel={() => setPrepFor(null)}
+          onSave={savePrep}
+          saving={savingLifecycle}
+          style={{ paddingHorizontal: 0, marginTop: 16 }}
+        />
       </BottomSheet>
 
       {/* ── How-did-it-go sheet ──────────────────────────────────────────────── */}
       <BottomSheet visible={!!outcomeFor} onClose={() => setOutcomeFor(null)}>
-        <View style={styles.lifecycleHeader}>
-          <Text style={styles.modalTitle}>How did it go?</Text>
-          <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setOutcomeFor(null)} hitSlop={8}>
-            <Ionicons name="close" size={15} color="white" />
-          </TouchableOpacity>
-        </View>
-        {!!outcomeFor && (
-          <Text style={styles.lifecycleSubtitle}>
-            {outcomeFor.doctorName}
-            {outcomeFor.specialty ? ` — ${outcomeFor.specialty}` : ""}
-          </Text>
-        )}
-        <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Visit notes</Text>
+        <SheetHeader
+          title="How did it go?"
+          subtitle={outcomeFor ? `${outcomeFor.doctorName}${outcomeFor.specialty ? ` — ${outcomeFor.specialty}` : ""}` : undefined}
+          style={{ paddingHorizontal: 0, paddingTop: 0 }}
+        />
+        <Text style={formStyles.label}>Visit notes</Text>
         <TextInput
-          style={[styles.input, styles.inputMultiline]}
+          style={[formStyles.input, formStyles.inputMultiline]}
           value={outcomeText}
           onChangeText={setOutcomeText}
           placeholder="What was said, decisions, next steps…"
@@ -1309,9 +1269,9 @@ export default function AppointmentsScreen() {
           autoCapitalize="sentences"
           textAlignVertical="top"
         />
-        <Text style={styles.fieldLabel}>Follow-up date (optional)</Text>
+        <Text style={formStyles.label}>Follow-up date (optional)</Text>
         <TouchableOpacity
-          style={[styles.input, styles.pickerField]}
+          style={[formStyles.input, styles.pickerField]}
           onPress={openOutcomeDatePickerFn}
           activeOpacity={0.8}
         >
@@ -1341,23 +1301,13 @@ export default function AppointmentsScreen() {
             </TouchableOpacity>
           </View>
         )}
-        <View style={styles.lifecycleBtnRow}>
-          <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setOutcomeFor(null)} activeOpacity={0.8}>
-            <Text style={styles.modalCancelText}>Skip</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.modalSaveBtn, savingLifecycle && styles.modalSaveBtnDisabled]}
-            onPress={saveOutcome}
-            disabled={savingLifecycle}
-            activeOpacity={0.85}
-          >
-            {savingLifecycle ? (
-              <ActivityIndicator color="#7C6BAE" size="small" />
-            ) : (
-              <Text style={styles.modalSaveText}>Save</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        <SheetFooter
+          onCancel={() => setOutcomeFor(null)}
+          onSave={saveOutcome}
+          saving={savingLifecycle}
+          cancelLabel="Skip"
+          style={{ paddingHorizontal: 0, marginTop: 16 }}
+        />
       </BottomSheet>
 
       {/* ── Delete confirm modal ──────────────────────────────────────────────── */}
@@ -1950,23 +1900,6 @@ const styles = StyleSheet.create({
     color: "white",
   },
 
-  // Lifecycle sheets (prep / outcome)
-  lifecycleHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  lifecycleSubtitle: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.7)",
-    marginTop: 4,
-  },
-  lifecycleBtnRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 16,
-  },
 
   // Cancel inline confirm
   cancelConfirm: {
@@ -2012,55 +1945,17 @@ const styles = StyleSheet.create({
   },
 
   // Add / Edit modal
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.15)",
-  },
-  modalTitle: {
-    fontFamily: "PlayfairDisplay_500Medium",
-    fontSize: 18,
-    color: "white",
-  },
-  modalCloseBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.15)",
+  headerDeleteBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,100,100,0.35)",
     alignItems: "center",
     justifyContent: "center",
   },
   formContent: {
     padding: 20,
     paddingBottom: 8,
-  },
-  fieldLabel: {
-    fontFamily: "Lato_700Bold",
-    fontSize: 11,
-    color: "rgba(255,255,255,0.7)",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    marginTop: 14,
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontFamily: "Lato_400Regular",
-    fontSize: 14,
-    color: "white",
-  },
-  inputMultiline: {
-    minHeight: 66,
-    paddingTop: 11,
   },
   pickerField: {
     flexDirection: "row",
@@ -2126,46 +2021,6 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_700Bold",
     color: "#7C6BAE",
   },
-  modalBtnRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 20,
-    marginBottom: 12,
-  },
-  trashBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,100,100,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalCancelBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 16,
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.15)",
-  },
-  modalCancelText: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 15,
-    color: "white",
-  },
-  modalSaveBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 16,
-    alignItems: "center",
-    backgroundColor: "white",
-  },
-  modalSaveBtnDisabled: { opacity: 0.5 },
-  modalSaveText: {
-    fontFamily: "Lato_700Bold",
-    fontSize: 15,
-    color: "#7C6BAE",
-  },
-
   // Doctor report card
   reportCard: {
     backgroundColor: "rgba(255,255,255,0.15)",

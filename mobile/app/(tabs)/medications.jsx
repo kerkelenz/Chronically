@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import BottomSheet from "../../components/BottomSheet";
+import { SheetHeader, SheetFooter, formStyles } from "../../components/FormSheet";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../../components/ScreenBackground";
@@ -460,11 +461,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
   return (
     <BottomSheet visible={visible} onClose={onCancel} scrollable={false} cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}>
           {/* Header */}
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              {form.id ? "Edit Medication" : "Add Medication"}
-            </Text>
-          </View>
+          <SheetHeader title={form.id ? "Edit Medication" : "Add Medication"} />
 
           <ScrollView
             style={{ flexShrink: 1 }}
@@ -473,9 +470,9 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
             showsVerticalScrollIndicator={false}
           >
             {/* ── Name ── */}
-            <Text style={styles.fieldLabel}>Name *</Text>
+            <Text style={formStyles.label}>Name *</Text>
             <TextInput
-              style={styles.textInput}
+              style={formStyles.input}
               placeholder="e.g. Baclofen"
               placeholderTextColor="rgba(255,255,255,0.35)"
               value={form.name}
@@ -484,7 +481,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
             />
 
             {/* ── Type ── */}
-            <Text style={styles.fieldLabel}>Type</Text>
+            <Text style={formStyles.label}>Type</Text>
             <View style={styles.typeRow}>
               {TYPE_OPTIONS.map((t) => (
                 <TouchableOpacity
@@ -510,9 +507,9 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
             </View>
 
             {/* ── Dosage ── */}
-            <Text style={styles.fieldLabel}>Dosage (optional)</Text>
+            <Text style={formStyles.label}>Dosage (optional)</Text>
             <TextInput
-              style={styles.textInput}
+              style={formStyles.input}
               placeholder="e.g. 20mg"
               placeholderTextColor="rgba(255,255,255,0.35)"
               value={form.dosage}
@@ -521,7 +518,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
             />
 
             {/* ── Schedule pattern ── */}
-            <Text style={styles.fieldLabel}>Schedule</Text>
+            <Text style={formStyles.label}>Schedule</Text>
             <View style={styles.patternRow}>
               {PATTERN_OPTIONS.map((p) => (
                 <TouchableOpacity
@@ -548,7 +545,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
             {/* ── Specific days ── */}
             {form.pattern === "specific_days" && (
               <>
-                <Text style={styles.fieldLabel}>Which days?</Text>
+                <Text style={formStyles.label}>Which days?</Text>
                 <View style={styles.dayRow}>
                   {DAY_CHIPS.map(({ d, label }) => (
                     <TouchableOpacity
@@ -580,9 +577,9 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
             {/* ── Every N days ── */}
             {form.pattern === "every_n_days" && (
               <>
-                <Text style={styles.fieldLabel}>Every how many days?</Text>
+                <Text style={formStyles.label}>Every how many days?</Text>
                 <TextInput
-                  style={styles.textInput}
+                  style={formStyles.input}
                   keyboardType="number-pad"
                   value={String(form.intervalDays)}
                   onChangeText={(v) => {
@@ -601,7 +598,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
             {/* ── Start date (every N days + monthly) ── */}
             {showStartDate && (
               <>
-                <Text style={styles.fieldLabel}>
+                <Text style={formStyles.label}>
                   {form.pattern === "monthly" ? "Starts on (sets the day of the month)" : "Starting from"}
                 </Text>
                 <TouchableOpacity
@@ -643,7 +640,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
             {/* ── Times ── */}
             {showTimes && (
               <>
-                <Text style={styles.fieldLabel}>
+                <Text style={formStyles.label}>
                   Time{form.scheduledTimes.length === 1 ? "" : "s"} (optional — leave empty for anytime)
                 </Text>
                 {form.scheduledTimes.map((t, i) => (
@@ -719,9 +716,9 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
             )}
 
             {/* ── Notes ── */}
-            <Text style={styles.fieldLabel}>Notes (optional)</Text>
+            <Text style={formStyles.label}>Notes (optional)</Text>
             <TextInput
-              style={[styles.textInput, styles.textInputMulti]}
+              style={[formStyles.input, formStyles.inputMultiline]}
               placeholder="Any notes about this medication…"
               placeholderTextColor="rgba(255,255,255,0.35)"
               value={form.notes}
@@ -732,34 +729,14 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
             />
           </ScrollView>
 
-          {saveError ? (
-            <Text style={[styles.saveError, { paddingHorizontal: 20 }]}>
-              {saveError}
-            </Text>
-          ) : null}
-
           {/* ── Footer (pinned) ── */}
-          <View style={[styles.modalFooter, { paddingBottom: 12 }]}>
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={onCancel}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
-              onPress={onSave}
-              disabled={!canSave}
-              activeOpacity={0.85}
-            >
-              {saving ? (
-                <ActivityIndicator color="white" size="small" />
-              ) : (
-                <Text style={styles.saveBtnText}>Save</Text>
-              )}
-            </TouchableOpacity>
-          </View>
+          <SheetFooter
+            onCancel={onCancel}
+            onSave={onSave}
+            saving={saving}
+            canSave={canSave}
+            error={saveError}
+          />
     </BottomSheet>
   );
 }
@@ -1730,50 +1707,16 @@ const styles = StyleSheet.create({
 
   // ── MedModal ───────────────────────────────────────────────────────────────
 
-  modalHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 4,
-  },
-  modalTitle: {
-    fontFamily: "PlayfairDisplay_500Medium",
-    fontSize: 22,
-    color: "white",
-  },
   modalBody: {
     padding: 20,
     gap: 4,
     paddingBottom: 32,
-  },
-  fieldLabel: {
-    fontFamily: "Lato_700Bold",
-    fontSize: 11,
-    color: "rgba(255,255,255,0.55)",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginBottom: 6,
-    marginTop: 14,
   },
   fieldHint: {
     fontFamily: "Lato_400Regular",
     fontSize: 12,
     color: "rgba(255,255,255,0.55)",
     marginTop: 2,
-  },
-  textInput: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontFamily: "Lato_400Regular",
-    fontSize: 15,
-    color: "white",
-  },
-  textInputMulti: {
-    minHeight: 72,
-    paddingTop: 12,
   },
 
   // Type selector
@@ -1932,23 +1875,7 @@ const styles = StyleSheet.create({
     color: "#7C6BAE",
   },
 
-  saveError: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 13,
-    color: "rgba(255,180,180,0.9)",
-    textAlign: "center",
-    marginTop: 8,
-  },
-
-  // Shared footer buttons
-  modalFooter: {
-    flexDirection: "row",
-    gap: 10,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
+  // DeleteModal footer buttons (shared by the delete confirm dialog)
   cancelBtn: {
     flex: 1,
     paddingVertical: 14,
@@ -1963,19 +1890,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "rgba(255,255,255,0.85)",
   },
-  saveBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: "#7C6BAE",
-  },
   saveBtnDisabled: { opacity: 0.45 },
-  saveBtnText: {
-    fontFamily: "Lato_700Bold",
-    fontSize: 15,
-    color: "white",
-  },
 
   // ── DeleteModal ────────────────────────────────────────────────────────────
 
