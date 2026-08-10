@@ -736,15 +736,9 @@ export default function SpoonCenterPage() {
               >
                 {editingCosts ? "Done editing" : "Edit costs"}
               </button>
-              <button
-                onClick={() => setShowAdd(false)}
-                className="p-1.5 rounded-full hover:opacity-70"
-                style={{ background: "rgba(255,255,255,0.15)" }}
-              >
-                <FiX size={14} color="white" />
-              </button>
             </div>
           }
+          footer={<ModalFooter onSave={() => setShowAdd(false)} saveLabel="Done" />}
         >
             {/* Library list */}
               {hasPinned && (

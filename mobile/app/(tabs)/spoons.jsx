@@ -711,13 +711,6 @@ export default function SpoonCenterScreen() {
                       {editingCosts ? "Done" : "Edit costs"}
                     </Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => setShowAdd(false)}
-                    style={styles.closeCircleBtn}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="close" size={16} color="white" />
-                  </TouchableOpacity>
                 </View>
               )}
             />
@@ -821,6 +814,9 @@ export default function SpoonCenterScreen() {
                 </TouchableOpacity>
               </View>
             </ScrollView>
+
+            {/* Single-action footer — taps apply immediately, nothing to cancel */}
+            <SheetFooter onSave={() => setShowAdd(false)} saveLabel="Done" />
       </BottomSheet>
 
       {/* ── Baseline Modal ──────────────────────────────────────────────────── */}
@@ -1226,14 +1222,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     columnGap: 8,
-  },
-  closeCircleBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
   },
   editCostsBtn: {
     paddingVertical: 5,
