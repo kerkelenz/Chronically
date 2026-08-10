@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * Shared shell for the app's add/edit dialogs — the web twin of mobile's
@@ -7,12 +7,18 @@ import { useEffect } from "react";
  *  - Frosted card, title-left header with optional subtitle / right slot.
  *  - Scrollable body with the footer pinned below it.
  *
+ * On mobile browsers the sheet slides up through a scrim that fades in place,
+ * covers the tab bar (z-[70], above Navigation's z-50), and is sized in dvh so
+ * the URL bar can't clip its bottom. The card stays mounted through a ~260ms
+ * exit so dismiss gestures (overlay / Esc) slide back down before onClose fires.
+ *
  * Presentation only: no dialog changes which fields it has or how it saves.
  */
 
 const PRIMARY = "#7C6BAE";
 // Deep plum destructive treatment — visibly not the #7C6BAE save pill, no red.
 const PLUM = "#5A3A60";
+const EXIT_MS = 260;
 
 // Uppercase micro-label above an input — matches mobile's field-label contract.
 export const labelClass =
@@ -28,29 +34,71 @@ export default function FormModal({
   footer,
   bodyClassName = "px-5",
 }) {
+  // `mounted` keeps the card in the tree through its exit animation; `entered`
+  // drives the open pose one frame after mount so the CSS transition runs.
+  const [mounted, setMounted] = useState(open);
+  const [entered, setEntered] = useState(false);
+
   useEffect(() => {
-    if (!open) return undefined;
-    const onKey = (e) => { if (e.key === "Escape") onClose?.(); };
+    if (open && !mounted) setMounted(true);
+  }, [open, mounted]);
+
+  useEffect(() => {
+    if (!mounted) return undefined;
+    const raf = requestAnimationFrame(() =>
+      requestAnimationFrame(() => setEntered(true)),
+    );
+    return () => cancelAnimationFrame(raf);
+  }, [mounted]);
+
+  // if a consumer keeps this mounted and flips `open` to false, animate out.
+  useEffect(() => {
+    if (open || !mounted) return undefined;
+    setEntered(false);
+    const t = setTimeout(() => setMounted(false), EXIT_MS);
+    return () => clearTimeout(t);
+  }, [open, mounted]);
+
+  // dismiss gesture: slide/fade out first, then notify the parent (which may
+  // unmount us). Parent state stays intact during the exit, so nothing that the
+  // body reads goes null mid-animation.
+  const requestClose = () => {
+    setEntered(false);
+    setTimeout(() => onClose?.(), EXIT_MS);
+  };
+
+  useEffect(() => {
+    if (!mounted) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") requestClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted]);
 
-  if (!open) return null;
+  if (!mounted) return null;
+
+  const openAttr = entered ? "true" : "false";
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
-      style={{ background: "rgba(0,0,0,0.5)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
+      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) requestClose(); }}
     >
+      {/* scrim fades in place; pointer-events off so the flex parent catches taps */}
       <div
-        className="w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl flex flex-col"
+        className="dialog-scrim absolute inset-0 pointer-events-none"
+        data-open={openAttr}
+        style={{ background: "rgba(0,0,0,0.5)" }}
+        aria-hidden="true"
+      />
+      <div
+        className="form-modal-card relative w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl flex flex-col"
+        data-open={openAttr}
         style={{
           background: "rgba(52,38,86,0.98)",
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
           border: "1px solid rgba(255,255,255,0.18)",
-          maxHeight: "90vh",
         }}
       >
         {/* Header */}
@@ -72,9 +120,14 @@ export default function FormModal({
           {children}
         </div>
 
-        {/* Footer */}
+        {/* Footer — safe-area pad keeps buttons clear of the home indicator */}
         {footer ? (
-          <div className="flex-shrink-0 px-5 pt-3 pb-5">{footer}</div>
+          <div
+            className="flex-shrink-0 px-5 pt-3"
+            style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}
+          >
+            {footer}
+          </div>
         ) : null}
       </div>
     </div>
@@ -146,23 +199,53 @@ export function ConfirmDialog({
   busy = false,
   error,
 }) {
+  const [mounted, setMounted] = useState(open);
+  const [entered, setEntered] = useState(false);
+
   useEffect(() => {
-    if (!open) return undefined;
+    if (open && !mounted) setMounted(true);
+  }, [open, mounted]);
+
+  useEffect(() => {
+    if (!mounted) return undefined;
+    const raf = requestAnimationFrame(() =>
+      requestAnimationFrame(() => setEntered(true)),
+    );
+    return () => cancelAnimationFrame(raf);
+  }, [mounted]);
+
+  useEffect(() => {
+    if (open || !mounted) return undefined;
+    setEntered(false);
+    const t = setTimeout(() => setMounted(false), 200);
+    return () => clearTimeout(t);
+  }, [open, mounted]);
+
+  useEffect(() => {
+    if (!mounted) return undefined;
     const onKey = (e) => { if (e.key === "Escape") onCancel?.(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onCancel]);
+  }, [mounted, onCancel]);
 
-  if (!open) return null;
+  if (!mounted) return null;
+
+  const openAttr = entered ? "true" : "false";
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.5)" }}
+      className="fixed inset-0 z-[80] flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onCancel?.(); }}
     >
       <div
-        className="w-full max-w-sm rounded-3xl p-6 flex flex-col gap-4"
+        className="dialog-scrim absolute inset-0 pointer-events-none"
+        data-open={openAttr}
+        style={{ background: "rgba(0,0,0,0.5)" }}
+        aria-hidden="true"
+      />
+      <div
+        className="confirm-card relative w-full max-w-sm rounded-3xl p-6 flex flex-col gap-4"
+        data-open={openAttr}
         style={{
           background: "rgba(52,38,86,0.98)",
           backdropFilter: "blur(20px)",
