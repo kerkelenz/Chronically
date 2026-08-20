@@ -6,6 +6,29 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const ALLOWED_MILESTONES = [3, 7, 14, 30, 60, 90, 100, 180, 365];
 
+// getProfile handles GET /api/users/profile — returns the current user so a
+// client restoring a session from storage can refresh fields (e.g. an email
+// stored before it was persisted) instead of showing a stale/partial record.
+const getProfile = async (req, res) => {
+  try {
+    const user = await User.findOne({ where: { id: req.user.id } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.status(200).json({
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar || null,
+        celebratedMilestones: user.celebratedMilestones || [],
+        hasSeenWelcome: user.hasSeenWelcome || false,
+      },
+    });
+  } catch (error) {
+    console.error("Get profile error:", error);
+    res.status(500).json({ error: "Server error loading profile" });
+  }
+};
+
 const updateProfile = async (req, res) => {
   try {
     const { username, email } = req.body;
@@ -130,4 +153,4 @@ const markWelcomeSeen = async (req, res) => {
   }
 };
 
-module.exports = { updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen };
+module.exports = { getProfile, updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen };

@@ -102,7 +102,7 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Create account</Text>
+            <Text style={styles.cardTitle}>Welcome to Chronically</Text>
             <TextInput
               style={styles.input}
               value={username}
@@ -187,7 +187,7 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.footer}>
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity onPress={() => router.replace("/(auth)/login")}>
               <Text style={styles.link}>Already have an account? Sign in</Text>
             </TouchableOpacity>
           </View>

@@ -615,6 +615,9 @@ export default function AppointmentsScreen() {
               </>
             )}
           </TouchableOpacity>
+          <Text style={styles.reportBtnCaption}>
+            Opens your device's share options — save to Files or send it anywhere.
+          </Text>
           {exportError && (
             <Text style={styles.reportErrorText}>Failed to prepare report. Please try again.</Text>
           )}
@@ -2036,6 +2039,12 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_700Bold",
     fontSize: 13,
     color: "#7C6BAE",
+  },
+  reportBtnCaption: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.6)",
+    lineHeight: 16,
   },
   reportErrorText: {
     fontFamily: "Lato_400Regular",

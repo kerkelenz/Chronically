@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -30,6 +30,16 @@ export default function ProfileScreen() {
   const [username, setUsername] = useState(user?.username || "");
   const [email, setEmail] = useState(user?.email || "");
   const [saving, setSaving] = useState(false);
+
+  // Keep the fields in sync when the user record changes (e.g. the background
+  // refresh on boot fills in an email the stored session was missing). Keyed on
+  // the values themselves, so typing — which only touches local state — never
+  // triggers a reset mid-edit.
+  useEffect(() => {
+    setUsername(user?.username || "");
+    setEmail(user?.email || "");
+  }, [user?.username, user?.email]);
+
   const [saveError, setSaveError] = useState("");
   const [success, setSuccess] = useState("");
 

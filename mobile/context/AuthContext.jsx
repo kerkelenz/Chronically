@@ -56,8 +56,20 @@ export function AuthProvider({ children }) {
       // numeric id only — no email/name attached to error reports
       if (u?.id) Sentry.setUser({ id: u.id });
       trackSession();
-      // Optimistic restore — validate token in background
-      api.get("/api/protected").catch(() => signOut());
+      // Optimistic restore — validate the token AND refresh the user record in
+      // the background. Refreshing repairs stale stored users (e.g. an email
+      // saved before it was persisted) so fields hydrate correctly next boot.
+      api
+        .get("/api/users/profile")
+        .then((res) => {
+          const fresh = res.data?.user;
+          if (fresh) {
+            const merged = { ...u, ...fresh };
+            setUserState(merged);
+            saveUser(merged);
+          }
+        })
+        .catch(() => signOut());
       setIsLoading(false);
     }
 

@@ -1,8 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const authenticateToken = require("../middleware/auth");
-const { updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen } = require("../controllers/userController");
+const { getProfile, updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen } = require("../controllers/userController");
 
+router.get("/profile", authenticateToken, getProfile);
 router.put("/profile", authenticateToken, updateProfile);
 router.put("/avatar", authenticateToken, updateAvatar);
 router.delete("/avatar", authenticateToken, deleteAvatar);

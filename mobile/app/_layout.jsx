@@ -1,5 +1,5 @@
 import "../global.css";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
@@ -30,12 +30,16 @@ function AuthGate() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const segments = useSegments();
+  // true once a session has existed this run — lets us send a first-time
+  // visitor to the landing screen but an expired/logged-out user to login.
+  const wasAuthed = useRef(false);
 
   useEffect(() => {
     if (isLoading) return;
+    if (user) wasAuthed.current = true;
     const inAuth = segments[0] === "(auth)";
     if (!user && !inAuth) {
-      router.replace("/(auth)/login");
+      router.replace(wasAuthed.current ? "/(auth)/login" : "/(auth)/landing");
     } else if (user && inAuth) {
       router.replace("/(tabs)");
     }
