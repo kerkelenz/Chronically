@@ -168,13 +168,26 @@ export default function AppointmentsScreen() {
         // fall back to the original temp uri if the rename copy fails
       }
 
+      // The PDF now exists — generation is done. Stop the spinner and count the
+      // export here, BEFORE presenting the sheet: on iOS `shareAsync` never
+      // resolves when the sheet is dismissed without picking an activity, so
+      // anything awaited after it can hang forever. The spinner means
+      // "generating", not "sharing", so it must not depend on the sheet.
+      setExporting(false);
+      track("report_exported");
+
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(shareUri, {
-          mimeType: "application/pdf",
-          dialogTitle: "Doctor report",
-          UTI: "com.adobe.pdf",
-        });
-        track("report_exported");
+        try {
+          await Sharing.shareAsync(shareUri, {
+            mimeType: "application/pdf",
+            dialogTitle: "Doctor report",
+            UTI: "com.adobe.pdf",
+          });
+        } catch (shareErr) {
+          // a genuine share failure (not a user cancel) — surface it quietly
+          console.error("Share failed:", shareErr);
+          setExportError("Could not open the share sheet. Please try again.");
+        }
       } else {
         Alert.alert("Report ready", "Sharing isn't available on this device.");
       }
@@ -182,6 +195,7 @@ export default function AppointmentsScreen() {
       console.error("Export failed:", err);
       setExportError("Could not generate report. Please try again.");
     } finally {
+      // harmless backstop — already cleared after generation on the happy path
       setExporting(false);
     }
   };

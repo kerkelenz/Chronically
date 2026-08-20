@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   Animated,
   Easing,
   StyleSheet,
@@ -60,6 +61,19 @@ function Petal({ left, duration, delay, distance }) {
 
 export default function FloatingPetals() {
   const { height } = useWindowDimensions();
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  // respect the OS reduce-motion setting (same pattern as LavenderConfetti):
+  // when it's on, the gradient carries the mood and we drop the petals entirely
+  useEffect(() => {
+    let active = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((v) => { if (active) setReduceMotion(v); });
+    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    return () => { active = false; sub?.remove?.(); };
+  }, []);
+
+  if (reduceMotion) return null;
+
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {PETALS.map((p, i) => (

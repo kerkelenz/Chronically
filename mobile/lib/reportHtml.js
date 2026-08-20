@@ -21,7 +21,6 @@ const css = `
   }
 
   .page { padding: 28px 32px; }
-  .page-break { page-break-before: always; }
 
   .report-title {
     font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
@@ -30,12 +29,6 @@ const css = `
     color: #7C6BAE;
     margin-bottom: 5px;
   }
-  .page-title {
-    font-size: 12pt;
-    font-weight: 700;
-    color: #7C6BAE;
-    margin-bottom: 4px;
-  }
   .report-meta { font-size: 8pt; color: #6B5F7A; margin-bottom: 2px; }
 
   .section-title {
@@ -43,6 +36,8 @@ const css = `
     font-weight: 700;
     color: #7C6BAE;
     margin: 14px 0 6px;
+    /* a heading never strands alone at the bottom of a page */
+    page-break-after: avoid;
   }
 
   .glance {
@@ -53,6 +48,8 @@ const css = `
     grid-template-columns: 1fr 1fr;
     margin: 8px 0 12px;
     overflow: hidden;
+    /* small atomic block — keep the whole 2×2 together */
+    page-break-inside: avoid;
   }
   .glance-cell { padding: 10px 14px; }
   .glance-cell:nth-child(1),
@@ -64,7 +61,10 @@ const css = `
   .chart-wrap { margin: 6px 0 10px; }
   .no-data { font-size: 8pt; color: #6B5F7A; margin: 6px 0 12px; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 8pt; margin-bottom: 10px; }
+  /* tables split across pages, with the header row repeating and no row torn */
+  table { width: 100%; border-collapse: collapse; font-size: 8pt; margin-bottom: 10px; page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  thead { display: table-header-group; }
   thead th {
     background: rgb(124, 107, 174);
     color: #fff;
@@ -77,6 +77,8 @@ const css = `
   .center { text-align: center; }
   .muted   { color: #6B5F7A; }
 
+  /* small atomic strip — keep the averages row on one page */
+  .averages-table { page-break-inside: avoid; }
   .averages-table tbody td {
     font-size: 13pt;
     font-weight: 700;
@@ -105,14 +107,16 @@ const css = `
   }
 `;
 
-// Returns a complete HTML string for the doctor report (pages 1–3).
+// Returns a complete HTML string for the doctor report — one continuous
+// document (summary → medications & appointments → daily logs) that the print
+// engine paginates naturally, rather than fixed chapters on hard page breaks.
 export function buildReportHtml(data, username) {
   const {
     periodCheckIns, totalDaysTracked, dailyData,
     avgPain, avgMood, avgEnergy, avgAnxiety, avgAppetite,
     symptomStats, notableLines,
     glanceAdherenceText, glanceSevereText, glanceMostFreqSymptom,
-    periodStart, periodEnd, periodStartShort, periodEndShort, generatedDate,
+    periodStart, periodEnd, generatedDate,
     medications, prnTaken,
     medListHasNotes, medListRows, adherenceRows, medLogRows,
     dailyRows, adherenceByDay, skipReasonRows, recentAppts, upcomingAppts,
@@ -253,13 +257,8 @@ export function buildReportHtml(data, username) {
     </tbody>
   </table>
 
-  ${FOOTER}
-</div>
-
-<!-- ═══ PAGE 2: MEDICATIONS & APPOINTMENTS ═══ -->
-<div class="page page-break">
-  <div class="page-title">Medications &amp; Appointments</div>
-  <p class="report-meta">Patient: ${username}&nbsp;&nbsp;&nbsp;Period: ${periodStartShort} – ${periodEndShort}</p>
+  <!-- ═══ MEDICATIONS & APPOINTMENTS ═══ -->
+  <div class="section-title">Medications &amp; Appointments</div>
 
   <div class="section-title">Current Medications</div>
   <table>
@@ -342,13 +341,8 @@ export function buildReportHtml(data, username) {
     </tbody>
   </table>
 
-  ${FOOTER}
-</div>
-
-<!-- ═══ PAGE 3: DAILY LOGS ═══ -->
-<div class="page page-break">
-  <div class="page-title">Daily Logs</div>
-  <p class="report-meta">Patient: ${username}&nbsp;&nbsp;&nbsp;Period: ${periodStartShort} – ${periodEndShort}</p>
+  <!-- ═══ DAILY LOGS ═══ -->
+  <div class="section-title">Daily Logs</div>
 
   <div class="section-title">Daily Health Log</div>
   <table>
