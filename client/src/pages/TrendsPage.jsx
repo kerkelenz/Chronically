@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { curveCatmullRom } from "d3-shape";
 import Navigation, { NavHamburger } from "../components/Navigation";
+import HomeLogo from "../components/HomeLogo";
 import { adherenceStats } from "../utils/medicationHelpers";
 
 function TrendsPage() {
@@ -126,12 +127,15 @@ function TrendsPage() {
           className="px-6 py-4 flex justify-between items-center"
           style={{ maxWidth: "1024px", margin: "0 auto" }}
         >
-          <h1
-            className="text-white font-medium text-lg"
-            style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-          >
-            Trends
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <HomeLogo />
+            <h1
+              className="text-white font-medium text-lg"
+              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
+            >
+              Trends
+            </h1>
+          </div>
           <NavHamburger />
         </div>
       </div>

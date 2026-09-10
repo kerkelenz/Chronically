@@ -7,6 +7,7 @@ import {
   FiSunrise, FiSun, FiMoon, FiClock, FiChevronDown, FiChevronRight,
 } from "react-icons/fi";
 import Navigation, { NavHamburger } from "../components/Navigation";
+import HomeLogo from "../components/HomeLogo";
 import FormModal, { ModalFooter, labelClass, ConfirmDialog } from "../components/FormModal";
 import {
   formatTime,
@@ -913,12 +914,15 @@ function MedicationsPage() {
           className="px-6 py-4 flex justify-between items-center"
           style={{ maxWidth: "1024px", margin: "0 auto" }}
         >
-          <h1
-            className="text-white font-medium text-lg"
-            style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-          >
-            Medications
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <HomeLogo />
+            <h1
+              className="text-white font-medium text-lg"
+              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
+            >
+              Medications
+            </h1>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={openAdd}

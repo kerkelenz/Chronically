@@ -8,6 +8,7 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import { exportDoctorReport } from "../utils/exportReport";
 import Navigation, { NavHamburger } from "../components/Navigation";
+import HomeLogo from "../components/HomeLogo";
 import FormModal, { ModalFooter, labelClass, ConfirmDialog } from "../components/FormModal";
 
 const EMPTY_FORM = {
@@ -361,12 +362,15 @@ function AppointmentsPage() {
           className="px-6 py-4 flex justify-between items-center"
           style={{ maxWidth: "1024px", margin: "0 auto" }}
         >
-          <h1
-            className="text-white font-medium text-lg"
-            style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-          >
-            Appointments
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <HomeLogo />
+            <h1
+              className="text-white font-medium text-lg"
+              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
+            >
+              Appointments
+            </h1>
+          </div>
           <div className="flex items-center gap-3">
             <button
               onClick={openAdd}
