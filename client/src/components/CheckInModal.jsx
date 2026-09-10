@@ -417,10 +417,7 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
 
 function LevelButtons({ labels, selected, onSelect }) {
   return (
-    // padding gives the hover:scale-105 buttons room to grow on BOTH axes so they
-    // never overflow the scrollable step body into a scrollbar — horizontal room
-    // for the full-width level 5, vertical room for the top/bottom rows
-    <div className="grid grid-cols-2 gap-3 w-full px-2.5 py-1.5">
+    <div className="grid grid-cols-2 gap-3 w-full">
       {[1, 2, 3, 4].map((level) => (
         <button
           key={level}
@@ -610,7 +607,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
       {step === 8 && <LavenderConfetti />}
 
       <div
-        className="relative z-10 flex flex-col items-center gap-6 w-full max-w-sm px-6"
+        className="relative z-10 flex flex-col items-center gap-6 w-full max-w-md px-6"
         style={{ maxHeight: "90vh" }}
       >
 
@@ -626,8 +623,8 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
         {!toastMessage && <>
 
         <div
-          className="w-full overflow-y-auto"
-          style={{ flex: "1 1 auto", minHeight: 0, paddingRight: 4 }}
+          className="w-full overflow-y-auto px-3 py-2"
+          style={{ flex: "1 1 auto", minHeight: 0 }}
         >
 
         {/* Step 0 — Sleep (first check-in of the day only) */}
