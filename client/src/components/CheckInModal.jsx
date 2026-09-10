@@ -417,7 +417,9 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
 
 function LevelButtons({ labels, selected, onSelect }) {
   return (
-    <div className="grid grid-cols-2 gap-3 w-full">
+    // px gives the hover:scale-105 buttons (esp. the full-width level 5) room to
+    // grow without overflowing the scrollable step body into a horizontal scrollbar
+    <div className="grid grid-cols-2 gap-3 w-full px-2.5">
       {[1, 2, 3, 4].map((level) => (
         <button
           key={level}
