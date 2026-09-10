@@ -44,7 +44,7 @@ const EMPTY_FORM = {
   notes: "",
 };
 
-const TYPE_OPTIONS = ["pill", "injection", "infusion", "supplement", "sublingual"];
+const TYPE_OPTIONS = ["pill", "injection", "infusion", "supplement", "sublingual", "topical", "patch", "gummy", "drops"];
 
 const PATTERN_OPTIONS = [
   { key: "daily", label: "Every day" },
@@ -345,6 +345,9 @@ function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onD
           {!paused && nextDoseLabel(med, today) && (
             <Text style={styles.nextDoseLine}>{nextDoseLabel(med, today)}</Text>
           )}
+          {med.notes && med.notes.trim() !== "" && (
+            <Text style={styles.medCardNotes}>{med.notes}</Text>
+          )}
         </View>
         <View style={styles.medCardActions}>
           <TouchableOpacity
@@ -480,8 +483,8 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
               returnKeyType="done"
             />
 
-            {/* ── Type ── */}
-            <Text style={formStyles.label}>Type</Text>
+            {/* ── Form ── */}
+            <Text style={formStyles.label}>Form</Text>
             <View style={styles.typeRow}>
               {TYPE_OPTIONS.map((t) => (
                 <TouchableOpacity
@@ -1644,6 +1647,14 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.5)",
     marginTop: 2,
   },
+  medCardNotes: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    fontStyle: "italic",
+    color: "rgba(255,255,255,0.65)",
+    marginTop: 6,
+    lineHeight: 18,
+  },
   medCardActions: {
     flexDirection: "row",
     gap: 4,
@@ -1684,13 +1695,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Type selector
+  // Form selector — nine options wrap to two rows
   typeRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   typeBtn: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: "17%",
     alignItems: "center",
     paddingVertical: 12,
     borderRadius: 12,

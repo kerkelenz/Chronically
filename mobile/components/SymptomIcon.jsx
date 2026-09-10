@@ -1,4 +1,4 @@
-import { Svg, Path } from "react-native-svg";
+import { Svg, Path, Rect, Circle, Line } from "react-native-svg";
 import {
   Sleepy, Fever, Chills, Sweating, Virus, Symptom, Headache, Joints, BackPain,
   Spine, Arm, WalkSupported, Leg, Neurology, Heart, IntestinalPain, Eye, Confused,
@@ -50,12 +50,67 @@ const Lozenge = icon([
   { e: false, d: "M24 17C24.5523 17 25 17.4477 25 18V28C25 28.5523 24.5523 29 24 29C23.4477 29 23 28.5523 23 28V18C23 17.4477 23.4477 17 24 17Z" },
 ]);
 
+// Newer forms — hand-drawn line glyphs at the same 48 viewBox and outline
+// weight as the five above (stroked to match their evenodd-outline look).
+function medStroke(color) {
+  return { stroke: color, strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round", fill: "none" };
+}
+
+function Tube({ size = 20, color = "white" }) {
+  const s = medStroke(color);
+  return (
+    <Svg viewBox="0 0 48 48" width={size} height={size}>
+      <Rect x={20} y={7} width={8} height={5} rx={1.5} {...s} />
+      <Path d="M15 20 Q15 13 24 13 Q33 13 33 20 V38 H15 Z" {...s} />
+      <Line x1={15} y1={34} x2={33} y2={34} {...s} />
+    </Svg>
+  );
+}
+
+function PatchIcon({ size = 20, color = "white" }) {
+  const s = medStroke(color);
+  return (
+    <Svg viewBox="0 0 48 48" width={size} height={size}>
+      <Rect x={12} y={12} width={24} height={24} rx={4} {...s} />
+      <Path d="M30 12 L30 18 L36 18" {...s} />
+      <Path d="M30 18 L36 12" {...s} />
+      <Circle cx={19} cy={25} r={1.3} fill={color} />
+      <Circle cx={25} cy={29} r={1.3} fill={color} />
+      <Circle cx={18} cy={31} r={1.3} fill={color} />
+    </Svg>
+  );
+}
+
+function Gummy({ size = 20, color = "white" }) {
+  const s = medStroke(color);
+  return (
+    <Svg viewBox="0 0 48 48" width={size} height={size}>
+      <Path d="M13 34 Q13 15 24 15 Q35 15 35 34 Z" {...s} />
+      <Path d="M18 26 Q24 21 30 26" {...s} />
+    </Svg>
+  );
+}
+
+function Droplet({ size = 20, color = "white" }) {
+  const s = medStroke(color);
+  return (
+    <Svg viewBox="0 0 48 48" width={size} height={size}>
+      <Path d="M24 9 C24 9 32 20 32 28 A8 8 0 1 1 16 28 C16 20 24 9 24 9 Z" {...s} />
+      <Path d="M20 31 Q19 27 22 25" {...s} />
+    </Svg>
+  );
+}
+
 const MED_TYPE_ICONS = {
   pill: Pill1,
   injection: Syringe,
   infusion: IntravenousBag,
   supplement: MedicineBottle,
   sublingual: Lozenge,
+  topical: Tube,
+  patch: PatchIcon,
+  gummy: Gummy,
+  drops: Droplet,
 };
 
 // ── Symptom icons (healthicons, shared cross-platform with web) ───────────────

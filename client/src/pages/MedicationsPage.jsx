@@ -206,6 +206,14 @@ function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onD
                 {nextDoseLabel(med, today)}
               </p>
             )}
+            {med.notes && med.notes.trim() !== "" && (
+              <p
+                className="text-[13px] mt-1.5 whitespace-pre-line"
+                style={{ color: "rgba(255,255,255,0.65)" }}
+              >
+                {med.notes}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex gap-0.5 flex-shrink-0">
@@ -302,21 +310,25 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
           />
         </div>
 
-        {/* Type */}
+        {/* Form */}
         <div>
-          <p className={labelClass}>Type</p>
-          <div className="flex gap-2">
+          <p className={labelClass}>Form</p>
+          <div className="flex flex-wrap gap-2">
             {[
               { value: "pill",       label: "Pill" },
               { value: "injection",  label: "Injection" },
               { value: "infusion",   label: "Infusion" },
               { value: "supplement", label: "Supplement" },
               { value: "sublingual", label: "Sublingual" },
+              { value: "topical",    label: "Topical" },
+              { value: "patch",      label: "Patch" },
+              { value: "gummy",      label: "Gummy" },
+              { value: "drops",      label: "Drops" },
             ].map(({ value, label }) => (
               <button
                 key={value}
                 onClick={() => setForm({ ...form, type: value })}
-                className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200 flex flex-col items-center gap-0.5"
+                className="grow basis-[18%] py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200 flex flex-col items-center gap-0.5"
                 style={{
                   background: form.type === value ? "#7C6BAE" : "rgba(255,255,255,0.15)",
                   color: "white",
