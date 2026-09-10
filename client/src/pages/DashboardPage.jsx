@@ -5,7 +5,6 @@ import CheckInModal from "../components/CheckInModal";
 import { FiEdit2, FiTrash2, FiRotateCcw, FiCalendar, FiFileText } from "react-icons/fi";
 import { exportDoctorReport } from "../utils/exportReport";
 import Navigation, { NavHamburger } from "../components/Navigation";
-import HomeLogo from "../components/HomeLogo";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
 import { SymptomIcon } from "../components/SymptomIcon";
@@ -199,7 +198,6 @@ function DashboardPage() {
           style={{ maxWidth: "1024px", margin: "0 auto" }}
         >
           <div className="flex items-center gap-3">
-            <HomeLogo />
             <Avatar user={user} size={40} />
             <div>
               <h1
