@@ -287,17 +287,10 @@ export default function DashboardScreen() {
       vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
   }
 
-  // Sleep only earns a sixth ring once there's sleep data in the window — a
-  // 6-across row is tight on small phones, so a fresh account stays at five.
-  const hasSleepData = recent.some((c) => c.sleepLevel != null);
-  const ringMetrics = hasSleepData
-    ? METRICS
-    : METRICS.filter((m) => m.key !== "sleepLevel");
-  // dials across with 8px gaps; size shrinks to fit five or six on one row
-  const DIAL_SIZE = Math.max(
-    44,
-    Math.floor((width - 48 - 8 * (ringMetrics.length - 1)) / ringMetrics.length),
-  );
+  // All six metrics render as a fixed 3×2 grid — three dials per row, sized for
+  // three-across (with two 8px column gaps) and capped so they don't balloon on
+  // large phones/tablets. Sleep is always present; an empty average shows "—".
+  const DIAL_SIZE = Math.min(100, Math.floor((width - 48 - 8 * 2) / 3));
 
   // sleep is asked only on the first check-in of the day
   const todayStr = new Date().toLocaleDateString("en-CA");
@@ -436,7 +429,7 @@ export default function DashboardScreen() {
             <View style={styles.dialsSection}>
               <Text style={styles.cardTitle}>Last 14 days</Text>
               <View style={styles.dialsRow}>
-                {ringMetrics.map((m) => (
+                {METRICS.map((m) => (
                   <CircularDial
                     key={m.key}
                     value={averages[m.key]}
@@ -770,8 +763,10 @@ const styles = StyleSheet.create({
   },
   dialsRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    rowGap: 16,
+    columnGap: 8,
   },
 
   // Appointments reminder

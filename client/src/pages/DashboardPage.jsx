@@ -317,17 +317,16 @@ function DashboardPage() {
               const avgAppetite = recentAppetite.length > 0 ? recentAppetite.reduce((s, c) => s + c.appetiteLevel, 0) / recentAppetite.length : 0;
               const avgSleep    = recentSleep.length > 0    ? recentSleep.reduce((s, c) => s + c.sleepLevel, 0) / recentSleep.length : 0;
 
-              // Sleep earns a sixth ring only when the window has sleep data
+              // Six dials in a fixed 3×2 grid — Sleep is always present; an empty
+              // average renders the "—" state like any other metric with no data
               const dials = [
                 { label: "Pain",     value: avgPain,     color: "rgba(255,255,255,0.9)"   },
                 { label: "Mood",     value: avgMood,     color: "rgba(222,200,218,0.95)"  },
                 { label: "Energy",   value: avgEnergy,   color: "rgba(143,175,155,0.95)"  },
                 { label: "Anxiety",  value: avgAnxiety,  color: "rgba(155,175,196,0.95)"  },
                 { label: "Appetite", value: avgAppetite, color: "rgba(196,168,130,0.95)"  },
+                { label: "Sleep",    value: avgSleep,    color: "#9AD0C8"                 },
               ];
-              if (recentSleep.length > 0) {
-                dials.push({ label: "Sleep", value: avgSleep, color: "#9AD0C8" });
-              }
 
               return (
                 <>
@@ -336,10 +335,7 @@ function DashboardPage() {
                   </p>
                   <div className="flex flex-col gap-3">
                     {/* Circular progress dials */}
-                    <div
-                      className="grid gap-2 sm:gap-3 items-start py-3"
-                      style={{ gridTemplateColumns: `repeat(${dials.length}, minmax(0, 1fr))` }}
-                    >
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-x-2 gap-y-4 items-start py-3">
                       {dials.map(({ label, value, color }) => {
                         const percentage = value > 0 ? (value / 5) * 100 : 0;
                         return (
