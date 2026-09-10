@@ -9,7 +9,7 @@ import {
   Animated,
   ActivityIndicator,
 } from "react-native";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../components/ScreenBackground";
 import LavenderConfetti from "../components/LavenderConfetti";
@@ -209,12 +209,20 @@ function ReviewRow({ label, value, labelMap, onEdit }) {
 export default function CheckInScreen() {
   const router = useRouter();
 
+  // Sleep is asked only on the first check-in of the day. The launcher passes
+  // askSleep=false for a later same-day check-in; default true (skip is always
+  // available as the safety valve). Params arrive as strings.
+  const { askSleep: askSleepParam } = useLocalSearchParams();
+  const askSleep = askSleepParam !== "false";
+  const firstStep = askSleep ? 0 : 1;
+
   function dismiss() {
     if (router.canGoBack()) router.back();
     else router.replace("/(tabs)");
   }
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(firstStep);
+  const [sleepLevel, setSleepLevel] = useState(null);
   const [painLevel, setPainLevel] = useState(null);
   const [moodLevel, setMoodLevel] = useState(null);
   const [energyLevel, setEnergyLevel] = useState(null);
@@ -322,6 +330,7 @@ export default function CheckInScreen() {
         energyLevel,
         anxietyLevel,
         appetiteLevel,
+        sleepLevel,
         symptoms: symptoms.length > 0 ? symptoms : null,
         date: today,
       });
@@ -356,6 +365,42 @@ export default function CheckInScreen() {
             <View style={styles.outerWrap}>
               {/* ── Step content ───────────────────────────────────────── */}
               <View style={styles.stepWrap}>
+                {/* Step 0 — Sleep (first check-in of the day only) */}
+                {step === 0 && (
+                  <>
+                    <Text style={styles.heading}>How did you sleep?</Text>
+                    <LevelButtons
+                      labels={METRIC_LABELS.sleep}
+                      selected={sleepLevel}
+                      onSelect={(level) => {
+                        setSleepLevel(level);
+                        setPainLevel(null);
+                        setMoodLevel(null);
+                        setEnergyLevel(null);
+                        setAnxietyLevel(null);
+                        setAppetiteLevel(null);
+                        setSymptoms([]);
+                        showToast(getIndividualToast(getTier(level), "sleep"));
+                        setStep(1);
+                      }}
+                    />
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSleepLevel(null);
+                        setPainLevel(null);
+                        setMoodLevel(null);
+                        setEnergyLevel(null);
+                        setAnxietyLevel(null);
+                        setAppetiteLevel(null);
+                        setSymptoms([]);
+                        setStep(1);
+                      }}
+                    >
+                      <Text style={styles.skipLink}>Skip</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+
                 {/* Step 1 — Pain */}
                 {step === 1 && (
                   <>
@@ -483,6 +528,7 @@ export default function CheckInScreen() {
                           energyLevel,
                           anxietyLevel,
                           appetiteLevel,
+                          sleepLevel,
                         );
                         if (combo) showToast(combo);
                         setStep(7);
@@ -499,6 +545,23 @@ export default function CheckInScreen() {
                 {/* Step 7 — Review & Submit */}
                 {step === 7 && (
                   <>
+                    {sleepLevel !== null && (
+                      <ReviewRow
+                        label="Sleep"
+                        value={sleepLevel}
+                        labelMap={METRIC_LABELS.sleep}
+                        onEdit={() => {
+                          setSleepLevel(null);
+                          setPainLevel(null);
+                          setMoodLevel(null);
+                          setEnergyLevel(null);
+                          setAnxietyLevel(null);
+                          setAppetiteLevel(null);
+                          setSymptoms([]);
+                          setStep(0);
+                        }}
+                      />
+                    )}
                     <ReviewRow
                       label="Pain level"
                       value={painLevel}
@@ -644,7 +707,7 @@ export default function CheckInScreen() {
               {/* ── Back / Cancel (all steps except 8) ──────────────────── */}
               {step !== 8 && (
                 <View style={styles.navLinks}>
-                  {step > 1 && (
+                  {step > firstStep && (
                     <TouchableOpacity onPress={() => setStep(step - 1)}>
                       <Text style={styles.navLink}>back</Text>
                     </TouchableOpacity>
@@ -875,6 +938,12 @@ const styles = StyleSheet.create({
   addSymptomsLink: {
     fontFamily: "Lato_400Regular",
     fontSize: 13,
+    color: "rgba(255,255,255,0.55)",
+    textAlign: "center",
+  },
+  skipLink: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
     color: "rgba(255,255,255,0.55)",
     textAlign: "center",
   },

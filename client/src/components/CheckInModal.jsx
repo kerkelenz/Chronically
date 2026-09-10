@@ -27,6 +27,7 @@ const MOOD_LABELS    = { 1: "Very Low",   2: "Low",     3: "Okay",     4: "Good"
 const ENERGY_LABELS  = { 1: "Exhausted",  2: "Drained", 3: "Low",      4: "Good",     5: "Full" };
 const ANXIETY_LABELS = { 1: "Severe",     2: "High",    3: "Moderate", 4: "Mild",     5: "Calm" };
 const APPETITE_LABELS = { 1: "None",      2: "Poor",    3: "Fair",     4: "Good",     5: "Great" };
+const SLEEP_LABELS   = { 1: "Barely slept", 2: "Poorly", 3: "Okay",    4: "Well",     5: "Wonderfully" };
 
 const getTier = (level) => {
   if (level === 5) return "best";
@@ -162,6 +163,20 @@ const TOAST_MESSAGES = {
       "Even small amounts of food count. Every bit helps. 💜",
       "Hard appetite days don't last forever. This one will pass too. 💜",
       "Taking note of how your appetite feels is caring for yourself. 💜",
+    ],
+    sleep: [
+      "Rough night. Be extra kind to yourself today. 💜",
+      "Running on empty sleep is so hard. Small steps today. 💜",
+      "A sleepless night takes a real toll. You showed up anyway. 💜",
+      "Poor sleep makes everything heavier. Go gently today. 💜",
+      "Your body missed the rest it needed. Give it grace. 💜",
+      "Hard nights drain you in ways others don't see. We see it. 💜",
+      "Rest whenever you can today. You've earned it. 💜",
+      "A bad night doesn't have to mean a bad day. Take it slow. 💜",
+      "Sleep this rough is exhausting. Be patient with yourself. 💜",
+      "You made it through the night. That counts for something. 💜",
+      "Low sleep on top of everything else is a lot to carry. 💜",
+      "Tonight can be different. For now, rest however you can. 💜",
     ],
   },
 };
@@ -450,8 +465,12 @@ function ReviewRow({ label, value, labels, onEdit }) {
   );
 }
 
-function CheckInModal({ onClose, onComplete }) {
-  const [step, setStep] = useState(1);
+function CheckInModal({ onClose, onComplete, askSleep = true }) {
+  // Sleep is asked only on the first check-in of the day (askSleep); a later
+  // same-day check-in skips step 0 entirely. Skip is always available.
+  const firstStep = askSleep ? 0 : 1;
+  const [step, setStep] = useState(firstStep);
+  const [sleepLevel, setSleepLevel] = useState(null);
   const [painLevel, setPainLevel] = useState(null);
   const [moodLevel, setMoodLevel] = useState(null);
   const [energyLevel, setEnergyLevel] = useState(null);
@@ -502,13 +521,14 @@ function CheckInModal({ onClose, onComplete }) {
     return pickRandom(TOAST_MESSAGES[tier]);
   };
 
-  const getComboToast = (pain, mood, energy, anxiety, appetite) => {
+  const getComboToast = (pain, mood, energy, anxiety, appetite, sleep) => {
     const tiers = [
       pain     ? getTier(pain)            : null,
       mood     ? getTier(mood)              : null,
       energy   ? getTier(energy)            : null,
       anxiety  ? getTier(anxiety)          : null,
       appetite ? getTier(appetite)          : null,
+      sleep    ? getTier(sleep)             : null,
     ].filter(Boolean);
 
     const count = (t) => tiers.filter((x) => x === t).length;
@@ -561,6 +581,7 @@ function CheckInModal({ onClose, onComplete }) {
           energyLevel,
           anxietyLevel,
           appetiteLevel,
+          sleepLevel,
           symptoms: symptoms.length > 0 ? symptoms : null,
           date: today,
         },
@@ -605,6 +626,45 @@ function CheckInModal({ onClose, onComplete }) {
           className="w-full overflow-y-auto"
           style={{ flex: "1 1 auto", minHeight: 0, paddingRight: 4 }}
         >
+
+        {/* Step 0 — Sleep (first check-in of the day only) */}
+        {step === 0 && (
+          <div className="flex flex-col items-center gap-6 w-full">
+            <p className="text-white text-2xl font-medium text-center" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
+              How did you sleep?
+            </p>
+            <LevelButtons
+              labels={SLEEP_LABELS}
+              selected={sleepLevel}
+              onSelect={(level) => {
+                setSleepLevel(level);
+                setPainLevel(null);
+                setMoodLevel(null);
+                setEnergyLevel(null);
+                setAnxietyLevel(null);
+                setAppetiteLevel(null);
+                setSymptoms([]);
+                showToast(getIndividualToast(getTier(level), "sleep"));
+                setStep(1);
+              }}
+            />
+            <button
+              onClick={() => {
+                setSleepLevel(null);
+                setPainLevel(null);
+                setMoodLevel(null);
+                setEnergyLevel(null);
+                setAnxietyLevel(null);
+                setAppetiteLevel(null);
+                setSymptoms([]);
+                setStep(1);
+              }}
+              className="text-white/50 text-xs hover:text-white/80 transition-colors"
+            >
+              Skip
+            </button>
+          </div>
+        )}
 
         {/* Step 1 — Pain */}
         {step === 1 && (
@@ -728,7 +788,7 @@ function CheckInModal({ onClose, onComplete }) {
             />
             <button
               onClick={() => {
-                const combo = getComboToast(painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel);
+                const combo = getComboToast(painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel);
                 if (combo) showToast(combo);
                 setStep(7);
               }}
@@ -743,6 +803,9 @@ function CheckInModal({ onClose, onComplete }) {
         {/* Step 7 — Review & Submit */}
         {step === 7 && (
           <div className="flex flex-col gap-3 w-full">
+            {sleepLevel !== null && (
+              <ReviewRow label="Sleep" value={sleepLevel} labels={SLEEP_LABELS} onEdit={() => { setSleepLevel(null); setPainLevel(null); setMoodLevel(null); setEnergyLevel(null); setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(0); }} />
+            )}
             <ReviewRow label="Pain level"     value={painLevel}     labels={PAIN_LABELS}     onEdit={() => { setPainLevel(null);     setMoodLevel(null); setEnergyLevel(null); setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(1); }} />
             <ReviewRow label="Mood level"     value={moodLevel}     labels={MOOD_LABELS}     onEdit={() => { setMoodLevel(null);     setEnergyLevel(null); setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(2); }} />
             <ReviewRow label="Energy level"   value={energyLevel}   labels={ENERGY_LABELS}   onEdit={() => { setEnergyLevel(null);   setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(3); }} />
@@ -809,7 +872,7 @@ function CheckInModal({ onClose, onComplete }) {
 
         {step !== 8 && (
           <div className="flex items-center gap-5">
-            {step > 1 && (
+            {step > firstStep && (
               <button
                 onClick={() => setStep(step - 1)}
                 className="text-white/50 text-xs hover:text-white/80 transition-colors"

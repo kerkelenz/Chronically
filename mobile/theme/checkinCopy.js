@@ -142,6 +142,20 @@ export const TOAST_MESSAGES = {
       "Hard appetite days don't last forever. This one will pass too. 💜",
       "Taking note of how your appetite feels is caring for yourself. 💜",
     ],
+    sleep: [
+      "Rough night. Be extra kind to yourself today. 💜",
+      "Running on empty sleep is so hard. Small steps today. 💜",
+      "A sleepless night takes a real toll. You showed up anyway. 💜",
+      "Poor sleep makes everything heavier. Go gently today. 💜",
+      "Your body missed the rest it needed. Give it grace. 💜",
+      "Hard nights drain you in ways others don't see. We see it. 💜",
+      "Rest whenever you can today. You've earned it. 💜",
+      "A bad night doesn't have to mean a bad day. Take it slow. 💜",
+      "Sleep this rough is exhausting. Be patient with yourself. 💜",
+      "You made it through the night. That counts for something. 💜",
+      "Low sleep on top of everything else is a lot to carry. 💜",
+      "Tonight can be different. For now, rest however you can. 💜",
+    ],
   },
 };
 
@@ -233,13 +247,14 @@ export const getIndividualToast = (tier, metric) => {
   return pickRandom(TOAST_MESSAGES[tier]);
 };
 
-export const getComboToast = (pain, mood, energy, anxiety, appetite) => {
+export const getComboToast = (pain, mood, energy, anxiety, appetite, sleep) => {
   const tiers = [
     pain     ? getTier(pain)     : null,
     mood     ? getTier(mood)     : null,
     energy   ? getTier(energy)   : null,
     anxiety  ? getTier(anxiety)  : null,
     appetite ? getTier(appetite) : null,
+    sleep    ? getTier(sleep)    : null,
   ].filter(Boolean);
 
   const count = (t) => tiers.filter((x) => x === t).length;

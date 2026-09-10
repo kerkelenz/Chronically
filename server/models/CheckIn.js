@@ -43,6 +43,13 @@ const CheckIn = sequelize.define("CheckIn", {
     allowNull: true,
     validate: { min: 1, max: 5 },
   },
+  // asked only on the first check-in of the day, skippable even then —
+  // null = not asked (a later same-day check-in) or skipped
+  sleepLevel: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    validate: { min: 1, max: 5 },
+  },
   symptoms: {
     type: DataTypes.JSON,
     allowNull: true,

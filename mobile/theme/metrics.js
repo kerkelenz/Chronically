@@ -4,6 +4,7 @@ export const METRIC_LABELS = {
   energy:   { 1: "Exhausted",   2: "Drained",   3: "Low",      4: "Good",   5: "Full" },
   anxiety:  { 1: "Severe",      2: "High",      3: "Moderate", 4: "Mild",   5: "Calm" },
   appetite: { 1: "None",        2: "Poor",      3: "Fair",     4: "Good",   5: "Great" },
+  sleep:    { 1: "Barely slept", 2: "Poorly",   3: "Okay",     4: "Well",   5: "Wonderfully" },
 };
 
 // dial order + colors mirror the web dashboard
@@ -13,4 +14,5 @@ export const METRICS = [
   { key: "energyLevel",   label: "Energy",   color: "rgba(143,175,155,0.95)" },
   { key: "anxietyLevel",  label: "Anxiety",  color: "rgba(155,175,196,0.95)" },
   { key: "appetiteLevel", label: "Appetite", color: "rgba(196,168,130,0.95)" },
+  { key: "sleepLevel",    label: "Sleep",    color: "#9AD0C8" },
 ];

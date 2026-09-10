@@ -113,7 +113,7 @@ const css = `
 export function buildReportHtml(data, username) {
   const {
     periodCheckIns, totalDaysTracked, dailyData,
-    avgPain, avgMood, avgEnergy, avgAnxiety, avgAppetite,
+    avgPain, avgMood, avgEnergy, avgAnxiety, avgAppetite, avgSleep,
     symptomStats, notableLines,
     glanceAdherenceText, glanceSevereText, glanceMostFreqSymptom,
     periodStart, periodEnd, generatedDate,
@@ -186,6 +186,9 @@ export function buildReportHtml(data, username) {
 
   // ── Assemble ──────────────────────────────────────────────────────────────
 
+  // Sleep joins the averages row only when the period actually has sleep data
+  const hasSleep = avgSleep !== "-";
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -229,10 +232,10 @@ export function buildReportHtml(data, username) {
   <div class="section-title">30-Day Averages</div>
   <table class="averages-table">
     <thead>
-      <tr><th>Pain</th><th>Mood</th><th>Energy</th><th>Anxiety</th><th>Appetite</th></tr>
+      <tr><th>Pain</th><th>Mood</th><th>Energy</th><th>Anxiety</th><th>Appetite</th>${hasSleep ? "<th>Sleep</th>" : ""}</tr>
     </thead>
     <tbody>
-      <tr><td>${avgPain}</td><td>${avgMood}</td><td>${avgEnergy}</td><td>${avgAnxiety}</td><td>${avgAppetite}</td></tr>
+      <tr><td>${avgPain}</td><td>${avgMood}</td><td>${avgEnergy}</td><td>${avgAnxiety}</td><td>${avgAppetite}</td>${hasSleep ? `<td>${avgSleep}</td>` : ""}</tr>
     </tbody>
   </table>
 

@@ -2,12 +2,16 @@ const { Op } = require("sequelize");
 const CheckIn = require("../models/CheckIn");
 const User = require("../models/User");
 
+// clamp an optional 1–5 metric: a clean integer in range or null (ignore junk)
+const validLevel = (v) =>
+  Number.isInteger(v) && v >= 1 && v <= 5 ? v : null;
+
 // createCheckIn handles POST /api/checkins
 // saves a new daily check-in to the database for the logged in user
 const createCheckIn = async (req, res) => {
   try {
     // pull the check-in data out of the request body
-    const { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, symptoms, followUpData, date } = req.body;
+    const { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel, symptoms, followUpData, date } = req.body;
 
     // pain and mood are required - can't save a check-in without them
     if (!painLevel || !moodLevel) {
@@ -23,6 +27,9 @@ const createCheckIn = async (req, res) => {
       energyLevel: energyLevel || null,
       anxietyLevel: anxietyLevel || null,
       appetiteLevel: appetiteLevel || null,
+      // sleep is asked only on the first check-in of the day and is skippable;
+      // out-of-range values are ignored (stored null) rather than rejected
+      sleepLevel: validLevel(sleepLevel),
       symptoms: symptoms || null,
       date: date || new Date(),
       followUpData: followUpData || null,
@@ -127,7 +134,7 @@ const updateCheckIn = async (req, res) => {
     }
 
     // grab whatever fields the user wants to update from the request body
-    const { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, symptoms, followUpData } = req.body;
+    const { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel, symptoms, followUpData } = req.body;
 
     await checkIn.update({
       painLevel: painLevel || checkIn.painLevel,
@@ -135,6 +142,7 @@ const updateCheckIn = async (req, res) => {
       energyLevel: energyLevel !== undefined ? energyLevel : checkIn.energyLevel,
       anxietyLevel: anxietyLevel !== undefined ? anxietyLevel : checkIn.anxietyLevel,
       appetiteLevel: appetiteLevel !== undefined ? appetiteLevel : checkIn.appetiteLevel,
+      sleepLevel: sleepLevel !== undefined ? validLevel(sleepLevel) : checkIn.sleepLevel,
       symptoms: symptoms !== undefined ? symptoms : checkIn.symptoms,
       followUpData: followUpData || checkIn.followUpData,
     });

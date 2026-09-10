@@ -9,6 +9,7 @@ const SERIES = [
   { key: "pain",     color: "#7C6BAE" },
   { key: "anxiety",  color: "#9BAFC4" },
   { key: "appetite", color: "#C4A882" },
+  { key: "sleep",    color: "#9AD0C8" },
 ];
 
 const CHART_HEIGHT = 240;

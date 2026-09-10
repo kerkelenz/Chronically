@@ -43,12 +43,14 @@ function getChartData(checkIns, timeframe) {
           energies: [],
           anxieties: [],
           appetites: [],
+          sleeps: [],
         };
       byDate[c.date].pains.push(c.painLevel);
       byDate[c.date].moods.push(c.moodLevel);
       if (c.energyLevel)   byDate[c.date].energies.push(c.energyLevel);
       if (c.anxietyLevel)  byDate[c.date].anxieties.push(c.anxietyLevel);
       if (c.appetiteLevel) byDate[c.date].appetites.push(c.appetiteLevel);
+      if (c.sleepLevel)    byDate[c.date].sleeps.push(c.sleepLevel);
     });
 
   const avg = (arr) =>
@@ -63,6 +65,7 @@ function getChartData(checkIns, timeframe) {
       energy:   d.energies.length   ? avg(d.energies)   : null,
       anxiety:  d.anxieties.length  ? avg(d.anxieties)  : null,
       appetite: d.appetites.length  ? avg(d.appetites)  : null,
+      sleep:    d.sleeps.length     ? avg(d.sleeps)     : null,
     }));
 }
 
@@ -248,7 +251,7 @@ export default function TrendsScreen() {
         ) : checkIns.length > 0 ? (
           <View style={styles.card}>
             <Text style={styles.cardSubtitle}>
-              Energy · Mood · Pain · Anxiety · Appetite
+              Energy · Mood · Pain · Anxiety · Appetite · Sleep
             </Text>
             <MetricsLineChart data={chartData} width={chartWidth} />
           </View>

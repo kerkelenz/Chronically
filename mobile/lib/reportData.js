@@ -14,8 +14,8 @@ export const DARK          = [45,  37,  64];
 export const GRAY          = [107, 95,  122];
 export const LAVENDER_FILL = [240, 235, 248];
 
-export const METRIC_KEYS  = ["painLevel", "moodLevel", "energyLevel", "anxietyLevel", "appetiteLevel"];
-export const METRIC_NAMES = { painLevel: "Pain", moodLevel: "Mood", energyLevel: "Energy", anxietyLevel: "Anxiety", appetiteLevel: "Appetite" };
+export const METRIC_KEYS  = ["painLevel", "moodLevel", "energyLevel", "anxietyLevel", "appetiteLevel", "sleepLevel"];
+export const METRIC_NAMES = { painLevel: "Pain", moodLevel: "Mood", energyLevel: "Energy", anxietyLevel: "Anxiety", appetiteLevel: "Appetite", sleepLevel: "Sleep" };
 
 export const CHART_METRICS = [
   { key: "pain",     color: "#7C6BAE", label: "Pain"     },
@@ -23,6 +23,7 @@ export const CHART_METRICS = [
   { key: "energy",   color: "#8FAF9B", label: "Energy"   },
   { key: "anxiety",  color: "#9BAFC4", label: "Anxiety"  },
   { key: "appetite", color: "#C4A882", label: "Appetite" },
+  { key: "sleep",    color: "#9AD0C8", label: "Sleep"    },
 ];
 
 export const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -58,6 +59,7 @@ export const buildDailyAverages = (periodCheckIns, thirtyDaysAgo) => {
       energy:   metricAvg("energyLevel"),
       anxiety:  metricAvg("anxietyLevel"),
       appetite: metricAvg("appetiteLevel"),
+      sleep:    metricAvg("sleepLevel"),
     });
   }
   return result;
@@ -73,6 +75,11 @@ export function buildTrendChartSvg(dailyData) {
   const toX = (i) => plotLeft + (i / 30) * plotW;
   const toY = (v) => plotBottom - ((v - 1) / 4) * plotH;
   const p   = (n) => n.toFixed(2);
+
+  // keep the original five always; add Sleep only when the period has any
+  const activeMetrics = CHART_METRICS.filter(
+    (m) => m.key !== "sleep" || dailyData.some((d) => d.sleep != null),
+  );
 
   const parts = [];
 
@@ -98,7 +105,7 @@ export function buildTrendChartSvg(dailyData) {
   }
 
   // Lines + dots per metric — break line at gaps, never interpolate across nulls
-  for (const { key, color } of CHART_METRICS) {
+  for (const { key, color } of activeMetrics) {
     let d = "";
     let prev = false;
     for (let i = 0; i <= 30; i++) {
@@ -120,10 +127,10 @@ export function buildTrendChartSvg(dailyData) {
 
   // Centered legend row below plot
   const legendItemW  = 160;
-  const legendStartX = (1200 - CHART_METRICS.length * legendItemW) / 2;
+  const legendStartX = (1200 - activeMetrics.length * legendItemW) / 2;
   const legendY      = plotBottom + 28;
-  for (let i = 0; i < CHART_METRICS.length; i++) {
-    const { color, label } = CHART_METRICS[i];
+  for (let i = 0; i < activeMetrics.length; i++) {
+    const { color, label } = activeMetrics[i];
     const x = legendStartX + i * legendItemW;
     parts.push(`<line x1="${p(x)}" y1="${legendY}" x2="${p(x + 24)}" y2="${legendY}" stroke="${color}" stroke-width="3"/>`);
     parts.push(`<text x="${p(x + 30)}" y="${legendY}" dominant-baseline="middle" fill="#2D2540" font-size="16" font-family="sans-serif">${label}</text>`);
@@ -159,6 +166,7 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
   const avgEnergy   = avg(periodCheckIns, "energyLevel");
   const avgAnxiety  = avg(periodCheckIns, "anxietyLevel");
   const avgAppetite = avg(periodCheckIns, "appetiteLevel");
+  const avgSleep    = avg(periodCheckIns, "sleepLevel");
 
   // Symptom frequency
   const symptomStats = SYMPTOM_LIST.map((symptom) => {
@@ -298,7 +306,7 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
     // Check-in data
     periodCheckIns, totalDaysTracked, dailyData,
     // Metric averages
-    avgPain, avgMood, avgEnergy, avgAnxiety, avgAppetite,
+    avgPain, avgMood, avgEnergy, avgAnxiety, avgAppetite, avgSleep,
     // Symptoms
     symptomStats,
     // Med data

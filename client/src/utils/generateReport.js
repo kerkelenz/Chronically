@@ -14,8 +14,8 @@ const DARK          = [45,  37,  64];
 const GRAY          = [107, 95,  122];
 const LAVENDER_FILL = [240, 235, 248];
 
-const METRIC_KEYS  = ["painLevel", "moodLevel", "energyLevel", "anxietyLevel", "appetiteLevel"];
-const METRIC_NAMES = { painLevel: "Pain", moodLevel: "Mood", energyLevel: "Energy", anxietyLevel: "Anxiety", appetiteLevel: "Appetite" };
+const METRIC_KEYS  = ["painLevel", "moodLevel", "energyLevel", "anxietyLevel", "appetiteLevel", "sleepLevel"];
+const METRIC_NAMES = { painLevel: "Pain", moodLevel: "Mood", energyLevel: "Energy", anxietyLevel: "Anxiety", appetiteLevel: "Appetite", sleepLevel: "Sleep" };
 
 const formatApptDatePdf = (dateStr) => {
   if (!dateStr) return "—";
@@ -53,6 +53,7 @@ const buildDailyAverages = (periodCheckIns, thirtyDaysAgo) => {
       energy:   metricAvg("energyLevel"),
       anxiety:  metricAvg("anxietyLevel"),
       appetite: metricAvg("appetiteLevel"),
+      sleep:    metricAvg("sleepLevel"),
     });
   }
   return result;
@@ -64,6 +65,7 @@ const CHART_METRICS = [
   { key: "energy",   color: "#8FAF9B", label: "Energy"   },
   { key: "anxiety",  color: "#9BAFC4", label: "Anxiety"  },
   { key: "appetite", color: "#C4A882", label: "Appetite" },
+  { key: "sleep",    color: "#9AD0C8", label: "Sleep"    },
 ];
 
 // Draws a 1200×360 trend chart on an off-screen canvas and returns a PNG data URL.
@@ -85,6 +87,11 @@ const drawTrendChart = (dailyData) => {
 
   const toX = (i) => plotLeft + (i / 30) * plotW;
   const toY = (v) => plotBottom - ((v - 1) / 4) * plotH;
+
+  // keep the original five always; add Sleep only when the period has any
+  const activeMetrics = CHART_METRICS.filter(
+    (m) => m.key !== "sleep" || dailyData.some((d) => d.sleep != null),
+  );
 
   // Gridlines at 1, 3, 5
   ctx.strokeStyle = "#EEEAF5";
@@ -115,7 +122,7 @@ const drawTrendChart = (dailyData) => {
   }
 
   // Lines + dots per metric (break line at gaps — never interpolate)
-  CHART_METRICS.forEach(({ key, color }) => {
+  activeMetrics.forEach(({ key, color }) => {
     ctx.strokeStyle = color;
     ctx.lineWidth   = 3;
     ctx.lineJoin    = "round";
@@ -144,12 +151,12 @@ const drawTrendChart = (dailyData) => {
 
   // Centered legend row below plot
   const legendItemW  = 160;
-  const legendStartX = (1200 - CHART_METRICS.length * legendItemW) / 2;
+  const legendStartX = (1200 - activeMetrics.length * legendItemW) / 2;
   const legendY      = plotBottom + 28;
   ctx.textBaseline = "middle";
   ctx.font         = "16px sans-serif";
   ctx.textAlign    = "left";
-  CHART_METRICS.forEach(({ color, label }, i) => {
+  activeMetrics.forEach(({ color, label }, i) => {
     const x = legendStartX + i * legendItemW;
     ctx.strokeStyle = color;
     ctx.lineWidth   = 3;
@@ -190,6 +197,7 @@ export function generateReport(checkIns, username, medications = [], medicationL
   const avgEnergy   = avg(periodCheckIns, "energyLevel");
   const avgAnxiety  = avg(periodCheckIns, "anxietyLevel");
   const avgAppetite = avg(periodCheckIns, "appetiteLevel");
+  const avgSleep    = avg(periodCheckIns, "sleepLevel");
 
   // Symptom frequency
   const symptomStats = SYMPTOM_LIST.map((symptom) => {
@@ -338,16 +346,22 @@ export function generateReport(checkIns, username, medications = [], medicationL
     y += chartH + gap;
   }
 
-  // ── 30-Day Averages ──
+  // ── 30-Day Averages ── (Sleep column only when the period has sleep data)
   sectionTitle(doc, "30-Day Averages", y, margin);
   y += 3;
+  const avgHead = ["Pain", "Mood", "Energy", "Anxiety", "Appetite"];
+  const avgBody = [avgPain, avgMood, avgEnergy, avgAnxiety, avgAppetite];
+  if (avgSleep !== "-") { avgHead.push("Sleep"); avgBody.push(avgSleep); }
+  const avgColW = avgHead.length > 5 ? 31 : 38;
+  const avgColStyles = {};
+  avgHead.forEach((_, i) => { avgColStyles[i] = { cellWidth: avgColW }; });
   autoTable(doc, {
     startY: y,
-    head: [["Pain", "Mood", "Energy", "Anxiety", "Appetite"]],
-    body: [[avgPain, avgMood, avgEnergy, avgAnxiety, avgAppetite]],
+    head: [avgHead],
+    body: [avgBody],
     headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, halign: "center", cellPadding: 2 },
     bodyStyles: { textColor: DARK, fontSize: 13, fontStyle: "bold", halign: "center", cellPadding: 2 },
-    columnStyles: { 0: { cellWidth: 38 }, 1: { cellWidth: 38 }, 2: { cellWidth: 38 }, 3: { cellWidth: 38 }, 4: { cellWidth: 38 } },
+    columnStyles: avgColStyles,
     margin: { left: margin, right: margin },
     theme: "grid",
   });

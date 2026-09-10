@@ -85,12 +85,12 @@ function DashboardPage() {
   };
 
   const handleUpdate = async (
-    id, painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, symptoms,
+    id, painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel, symptoms,
   ) => {
     try {
       const response = await axios.put(
         `${import.meta.env.VITE_API_URL}/api/checkins/${id}`,
-        { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, symptoms },
+        { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel, symptoms },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       setCheckIns(checkIns.map((c) => (c.id === id ? response.data.checkIn : c)));
@@ -288,6 +288,7 @@ function DashboardPage() {
               const recentEnergy   = recent.filter((c) => c.energyLevel);
               const recentAnxiety  = recent.filter((c) => c.anxietyLevel);
               const recentAppetite = recent.filter((c) => c.appetiteLevel);
+              const recentSleep    = recent.filter((c) => c.sleepLevel);
               const uniqueSymptomDays = [
                 ...new Set(
                   recent
@@ -314,6 +315,19 @@ function DashboardPage() {
               const avgEnergy   = recentEnergy.length > 0   ? recentEnergy.reduce((s, c) => s + c.energyLevel, 0) / recentEnergy.length : 0;
               const avgAnxiety  = recentAnxiety.length > 0  ? recentAnxiety.reduce((s, c) => s + c.anxietyLevel, 0) / recentAnxiety.length : 0;
               const avgAppetite = recentAppetite.length > 0 ? recentAppetite.reduce((s, c) => s + c.appetiteLevel, 0) / recentAppetite.length : 0;
+              const avgSleep    = recentSleep.length > 0    ? recentSleep.reduce((s, c) => s + c.sleepLevel, 0) / recentSleep.length : 0;
+
+              // Sleep earns a sixth ring only when the window has sleep data
+              const dials = [
+                { label: "Pain",     value: avgPain,     color: "rgba(255,255,255,0.9)"   },
+                { label: "Mood",     value: avgMood,     color: "rgba(222,200,218,0.95)"  },
+                { label: "Energy",   value: avgEnergy,   color: "rgba(143,175,155,0.95)"  },
+                { label: "Anxiety",  value: avgAnxiety,  color: "rgba(155,175,196,0.95)"  },
+                { label: "Appetite", value: avgAppetite, color: "rgba(196,168,130,0.95)"  },
+              ];
+              if (recentSleep.length > 0) {
+                dials.push({ label: "Sleep", value: avgSleep, color: "#9AD0C8" });
+              }
 
               return (
                 <>
@@ -322,14 +336,11 @@ function DashboardPage() {
                   </p>
                   <div className="flex flex-col gap-3">
                     {/* Circular progress dials */}
-                    <div className="grid grid-cols-5 gap-2 sm:gap-3 items-start py-3">
-                      {[
-                        { label: "Pain",     value: avgPain,     color: "rgba(255,255,255,0.9)"   },
-                        { label: "Mood",     value: avgMood,     color: "rgba(222,200,218,0.95)"  },
-                        { label: "Energy",   value: avgEnergy,   color: "rgba(143,175,155,0.95)"  },
-                        { label: "Anxiety",  value: avgAnxiety,  color: "rgba(155,175,196,0.95)"  },
-                        { label: "Appetite", value: avgAppetite, color: "rgba(196,168,130,0.95)"  },
-                      ].map(({ label, value, color }) => {
+                    <div
+                      className="grid gap-2 sm:gap-3 items-start py-3"
+                      style={{ gridTemplateColumns: `repeat(${dials.length}, minmax(0, 1fr))` }}
+                    >
+                      {dials.map(({ label, value, color }) => {
                         const percentage = value > 0 ? (value / 5) * 100 : 0;
                         return (
                           <div key={label} className="flex flex-col items-center gap-1">
@@ -500,6 +511,7 @@ function DashboardPage() {
                                 { label: "Appetite", value: c.appetiteLevel ?? null,  colors: COLORS_BETTER },
                                 { label: "Pain",     value: c.painLevel,              colors: COLORS_BETTER },
                                 { label: "Anxiety",  value: c.anxietyLevel  ?? null,  colors: COLORS_BETTER },
+                                { label: "Sleep",    value: c.sleepLevel    ?? null,  colors: COLORS_BETTER },
                               ]
                                 .filter(({ value }) => value !== null)
                                 .map(({ label, value, colors }) => (
@@ -668,6 +680,24 @@ function DashboardPage() {
               </div>
             </div>
             <div>
+              <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>Sleep</p>
+              <div className="flex gap-2">
+                {[[5,"Wonderfully"],[4,"Well"],[3,"Okay"],[2,"Poorly"],[1,"Barely slept"]].map(([level, label]) => (
+                  <button
+                    key={level}
+                    onClick={() => setEditingCheckIn({ ...editingCheckIn, sleepLevel: level })}
+                    className="flex-1 py-2 rounded-xl text-[10px] font-medium leading-tight transition-all duration-200"
+                    style={{
+                      background: editingCheckIn.sleepLevel === level ? "#7C6BAE" : "rgba(255,255,255,0.15)",
+                      color: "white",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
               <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>Symptoms</p>
               <div className="flex flex-wrap gap-2">
                 {[
@@ -716,6 +746,7 @@ function DashboardPage() {
                     editingCheckIn.energyLevel,
                     editingCheckIn.anxietyLevel,
                     editingCheckIn.appetiteLevel,
+                    editingCheckIn.sleepLevel,
                     editingCheckIn.symptoms?.length > 0 ? editingCheckIn.symptoms : null,
                   )
                 }
@@ -732,6 +763,7 @@ function DashboardPage() {
       {/* check-in modal */}
       {showCheckIn && (
         <CheckInModal
+          askSleep={!checkIns.some((c) => c.date === new Date().toLocaleDateString("en-CA"))}
           onClose={() => setShowCheckIn(false)}
           onComplete={async () => {
             setShowCheckIn(false);

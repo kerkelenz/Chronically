@@ -2,9 +2,12 @@ import { router } from "expo-router";
 
 let deliberate = false;
 
-export function openCheckIn() {
+export function openCheckIn(askSleep = true) {
   deliberate = true;
-  router.push("/checkin");
+  router.push({
+    pathname: "/checkin",
+    params: { askSleep: askSleep ? "true" : "false" },
+  });
 }
 
 export function consumeDeliberateOpen() {

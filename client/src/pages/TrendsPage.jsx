@@ -27,23 +27,25 @@ function TrendsPage() {
       .filter((c) => c.date >= cutoffStr)
       .forEach((c) => {
         if (!byDate[c.date])
-          byDate[c.date] = { pains: [], moods: [], energies: [], anxieties: [], appetites: [] };
+          byDate[c.date] = { pains: [], moods: [], energies: [], anxieties: [], appetites: [], sleeps: [] };
         byDate[c.date].pains.push(c.painLevel);
         byDate[c.date].moods.push(c.moodLevel);
         if (c.energyLevel)   byDate[c.date].energies.push(c.energyLevel);
         if (c.anxietyLevel)  byDate[c.date].anxieties.push(c.anxietyLevel);
         if (c.appetiteLevel) byDate[c.date].appetites.push(c.appetiteLevel);
+        if (c.sleepLevel)    byDate[c.date].sleeps.push(c.sleepLevel);
       });
 
     return Object.entries(byDate)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, { pains, moods, energies, anxieties, appetites }]) => ({
+      .map(([date, { pains, moods, energies, anxieties, appetites, sleeps }]) => ({
         date,
         pain:     parseFloat((pains.reduce((s, v) => s + v, 0) / pains.length).toFixed(1)),
         mood:     parseFloat((moods.reduce((s, v) => s + v, 0) / moods.length).toFixed(1)),
         energy:   energies.length   ? parseFloat((energies.reduce((s, v) => s + v, 0)   / energies.length).toFixed(1))   : null,
         anxiety:  anxieties.length  ? parseFloat((anxieties.reduce((s, v) => s + v, 0)  / anxieties.length).toFixed(1))  : null,
         appetite: appetites.length  ? parseFloat((appetites.reduce((s, v) => s + v, 0)  / appetites.length).toFixed(1))  : null,
+        sleep:    sleeps.length     ? parseFloat((sleeps.reduce((s, v) => s + v, 0)     / sleeps.length).toFixed(1))     : null,
       }));
   };
 
@@ -163,7 +165,7 @@ function TrendsPage() {
               >
                 <div className="flex justify-between items-center mb-4">
                   <p className="text-sm font-medium" style={{ color: "white" }}>
-                    Energy · Mood · Pain · Anxiety · Appetite
+                    Energy · Mood · Pain · Anxiety · Appetite · Sleep
                   </p>
                   <div className="flex gap-2">
                     {TIMEFRAME_TABS.map((t) => (
@@ -206,6 +208,7 @@ function TrendsPage() {
                     <Line type={curveCatmullRom.alpha(0.5)} dataKey="pain"     stroke="#7C6BAE" strokeWidth={2} dot={false} />
                     <Line type={curveCatmullRom.alpha(0.5)} dataKey="anxiety"  stroke="#9BAFC4" strokeWidth={2} dot={false} />
                     <Line type={curveCatmullRom.alpha(0.5)} dataKey="appetite" stroke="#C4A882" strokeWidth={2} dot={false} />
+                    <Line type={curveCatmullRom.alpha(0.5)} dataKey="sleep"    stroke="#9AD0C8" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
                 <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-3">
@@ -215,6 +218,7 @@ function TrendsPage() {
                     { key: "pain",     color: "#7C6BAE" },
                     { key: "anxiety",  color: "#9BAFC4" },
                     { key: "appetite", color: "#C4A882" },
+                    { key: "sleep",    color: "#9AD0C8" },
                   ].map(({ key, color }) => (
                     <span key={key} className="flex items-center gap-1 text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
                       <span style={{ display: "inline-block", width: 16, height: 2, background: color, borderRadius: 1 }} />

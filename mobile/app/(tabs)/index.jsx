@@ -33,6 +33,7 @@ const BAR_COLORS = {
   energyLevel: "#4FB882",
   anxietyLevel: "#6E9DE0",
   appetiteLevel: "#DDA53F",
+  sleepLevel: "#9AD0C8",
 };
 
 function CheckInRow({ checkIn, onEdit, onDelete, isLatest }) {
@@ -130,9 +131,6 @@ export default function DashboardScreen() {
   const [deletingCheckIn, setDeletingCheckIn] = useState(false);
   const isFirstLoadRef = useRef(true);
   const seededRef = useRef(false);
-
-  // 5 dials across, 24px side padding each, 8px between each dial (4 gaps)
-  const DIAL_SIZE = Math.max(50, Math.floor((width - 48 - 32) / 5));
 
   useFocusEffect(
     useCallback(() => {
@@ -234,6 +232,7 @@ export default function DashboardScreen() {
         energyLevel: editingCheckIn.energyLevel,
         anxietyLevel: editingCheckIn.anxietyLevel,
         appetiteLevel: editingCheckIn.appetiteLevel,
+        sleepLevel: editingCheckIn.sleepLevel,
         symptoms:
           editingCheckIn.symptoms?.length > 0 ? editingCheckIn.symptoms : null,
       });
@@ -287,6 +286,22 @@ export default function DashboardScreen() {
     averages[key] =
       vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
   }
+
+  // Sleep only earns a sixth ring once there's sleep data in the window — a
+  // 6-across row is tight on small phones, so a fresh account stays at five.
+  const hasSleepData = recent.some((c) => c.sleepLevel != null);
+  const ringMetrics = hasSleepData
+    ? METRICS
+    : METRICS.filter((m) => m.key !== "sleepLevel");
+  // dials across with 8px gaps; size shrinks to fit five or six on one row
+  const DIAL_SIZE = Math.max(
+    44,
+    Math.floor((width - 48 - 8 * (ringMetrics.length - 1)) / ringMetrics.length),
+  );
+
+  // sleep is asked only on the first check-in of the day
+  const todayStr = new Date().toLocaleDateString("en-CA");
+  const askSleep = !checkIns.some((c) => c.date === todayStr);
 
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   const recentCheckIns = checkIns.filter(
@@ -393,7 +408,7 @@ export default function DashboardScreen() {
             <Text style={styles.checkInPromptSub}>It only takes a moment.</Text>
             <TouchableOpacity
               style={styles.checkInPromptBtn}
-              onPress={openCheckIn}
+              onPress={() => openCheckIn(askSleep)}
               activeOpacity={0.85}
             >
               <Text style={styles.checkInPromptBtnText}>Start Check-in</Text>
@@ -407,7 +422,7 @@ export default function DashboardScreen() {
             <Text style={styles.recheckText}>Feeling different than earlier?</Text>
             <TouchableOpacity
               style={styles.recheckBtn}
-              onPress={openCheckIn}
+              onPress={() => openCheckIn(askSleep)}
               activeOpacity={0.85}
             >
               <Text style={styles.recheckBtnText}>Check in now</Text>
@@ -421,7 +436,7 @@ export default function DashboardScreen() {
             <View style={styles.dialsSection}>
               <Text style={styles.cardTitle}>Last 14 days</Text>
               <View style={styles.dialsRow}>
-                {METRICS.map((m) => (
+                {ringMetrics.map((m) => (
                   <CircularDial
                     key={m.key}
                     value={averages[m.key]}
