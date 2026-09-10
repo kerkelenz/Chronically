@@ -26,6 +26,7 @@ const spoonRoutes = require("./routes/spoonRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const accountDeletionRoutes = require("./routes/accountDeletionRoutes");
 const eventRoutes = require("./routes/eventRoutes");
+const insightRoutes = require("./routes/insightRoutes");
 const rateLimit = require("express-rate-limit");
 
 // importing the models here so Sequelize knows about them before we call sync
@@ -125,6 +126,7 @@ const startServer = async () => {
   app.use("/api/medications", medicationRoutes);
   app.use("/api/appointments", appointmentRoutes);
   app.use("/api/spoons", spoonRoutes);
+  app.use("/api/insights", insightRoutes);
   app.use("/api/feedback", emailLimiter, feedbackRoutes);
   app.use("/api/account-deletion", emailLimiter, accountDeletionRoutes);
 

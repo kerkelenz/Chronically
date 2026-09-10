@@ -17,6 +17,19 @@ function TrendsPage() {
   const [medLogs, setMedLogs] = useState([]);
   const [timeframe, setTimeframe] = useState(2);
   const [loading, setLoading] = useState(true);
+  const [insights, setInsights] = useState(null);
+
+  // Insights are fetched independently and silent-fail: on error the section
+  // simply doesn't render.
+  useEffect(() => {
+    if (!token) return;
+    axios
+      .get(`${import.meta.env.VITE_API_URL}/api/insights`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => setInsights(res.data))
+      .catch(() => setInsights(null));
+  }, [token]);
 
   const getChartData = () => {
     const cutoff = new Date();
@@ -155,6 +168,40 @@ function TrendsPage() {
           </div>
         ) : (
           <>
+            {/* Insights */}
+            {insights && (
+              <div className="flex flex-col gap-3">
+                <p className="text-xs uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>
+                  Insights
+                </p>
+                {insights.cards.length > 0 ? (
+                  insights.cards.map((card) => (
+                    <div
+                      key={card.id}
+                      className="p-4 rounded-2xl"
+                      style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
+                    >
+                      <p className="font-bold text-white" style={{ fontSize: "15px" }}>{card.headline}</p>
+                      <p className="mt-1" style={{ fontSize: "14px", color: "rgba(255,255,255,0.8)" }}>{card.body}</p>
+                      <p className="mt-1.5" style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)" }}>{card.evidence}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div
+                    className="p-4 rounded-2xl"
+                    style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
+                  >
+                    <p style={{ fontSize: "14px", color: "rgba(255,255,255,0.8)" }}>{insights.meta.message}</p>
+                  </div>
+                )}
+                {insights.meta.sleepHint && (
+                  <p className="text-center" style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)" }}>
+                    Answering the sleep question unlocks sleep insights.
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Health metrics chart */}
             {checkIns.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">

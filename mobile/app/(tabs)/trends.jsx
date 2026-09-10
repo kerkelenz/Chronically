@@ -103,12 +103,19 @@ export default function TrendsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [timeframe, setTimeframe] = useState(2);
+  const [insights, setInsights] = useState(null);
   const isFirstLoadRef = useRef(true);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
       if (isFirstLoadRef.current) setLoading(true);
+
+      // Insights fetch is independent + silent-fail: on error the section hides
+      api
+        .get("/api/insights")
+        .then((res) => { if (active) setInsights(res.data); })
+        .catch(() => { if (active) setInsights(null); });
 
       (async () => {
         try {
@@ -238,6 +245,31 @@ export default function TrendsScreen() {
             <TouchableOpacity style={styles.retryBtn} onPress={onRefresh}>
               <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── Insights ─────────────────────────────────────────────────────── */}
+        {insights && (
+          <View style={styles.insightsSection}>
+            <Text style={styles.adherenceHeader}>Insights</Text>
+            {insights.cards.length > 0 ? (
+              insights.cards.map((card) => (
+                <View key={card.id} style={styles.card}>
+                  <Text style={styles.insightHeadline}>{card.headline}</Text>
+                  <Text style={styles.insightBody}>{card.body}</Text>
+                  <Text style={styles.insightEvidence}>{card.evidence}</Text>
+                </View>
+              ))
+            ) : (
+              <View style={styles.card}>
+                <Text style={styles.insightBody}>{insights.meta.message}</Text>
+              </View>
+            )}
+            {insights.meta.sleepHint && (
+              <Text style={styles.insightHint}>
+                Answering the sleep question unlocks sleep insights.
+              </Text>
+            )}
           </View>
         )}
 
@@ -417,5 +449,33 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     marginTop: 4,
     marginBottom: 10,
+  },
+  insightsSection: {
+    marginBottom: 4,
+  },
+  insightHeadline: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 15,
+    color: "white",
+  },
+  insightBody: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.8)",
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  insightEvidence: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.5)",
+    marginTop: 6,
+  },
+  insightHint: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.5)",
+    textAlign: "center",
+    marginBottom: 12,
   },
 });
