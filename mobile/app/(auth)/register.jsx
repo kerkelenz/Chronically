@@ -9,13 +9,13 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  Linking,
 } from "react-native";
 import { useRouter } from "expo-router";
 import ScreenBackground from "../../components/ScreenBackground";
 import FloatingPetals from "../../components/FloatingPetals";
 import BrandWordmark from "../../components/BrandWordmark";
 import { useAuth } from "../../context/AuthContext";
+import { openLink } from "../../lib/openLink";
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState("");
@@ -171,14 +171,14 @@ export default function RegisterScreen() {
               By creating an account, you agree to our{" "}
               <Text
                 style={styles.agreementLink}
-                onPress={() => Linking.openURL("https://mychronically.app/terms")}
+                onPress={() => openLink("https://mychronically.app/terms")}
               >
                 Terms of Service
               </Text>{" "}
               and{" "}
               <Text
                 style={styles.agreementLink}
-                onPress={() => Linking.openURL("https://mychronically.app/privacy")}
+                onPress={() => openLink("https://mychronically.app/privacy")}
               >
                 Privacy Policy
               </Text>

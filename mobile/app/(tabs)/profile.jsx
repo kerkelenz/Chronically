@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Linking,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -22,6 +21,7 @@ import MilestoneBadges from "../../components/MilestoneBadges";
 import BottomSheet from "../../components/BottomSheet";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { openLink } from "../../lib/openLink";
 
 export default function ProfileScreen() {
   const { user, signOut, updateUser } = useAuth();
@@ -296,7 +296,7 @@ export default function ProfileScreen() {
               </View>
               <TouchableOpacity
                 style={styles.supportBtn}
-                onPress={() => Linking.openURL("https://buymeacoffee.com/chronicallyapp")}
+                onPress={() => openLink("https://buymeacoffee.com/chronicallyapp")}
                 activeOpacity={0.85}
               >
                 <Text style={styles.supportBtnText}>Support Chronically</Text>
@@ -310,14 +310,14 @@ export default function ProfileScreen() {
 
             <TouchableOpacity
               style={styles.legalRow}
-              onPress={() => Linking.openURL("https://mychronically.app/privacy")}
+              onPress={() => openLink("https://mychronically.app/privacy")}
               activeOpacity={0.7}
             >
               <Text style={styles.legalText}>Privacy Policy</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.legalRow}
-              onPress={() => Linking.openURL("https://mychronically.app/terms")}
+              onPress={() => openLink("https://mychronically.app/terms")}
               activeOpacity={0.7}
             >
               <Text style={styles.legalText}>Terms of Service</Text>

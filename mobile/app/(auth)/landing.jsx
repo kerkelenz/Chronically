@@ -1,8 +1,9 @@
-import { View, Text, TouchableOpacity, StyleSheet, Linking } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import ScreenBackground from "../../components/ScreenBackground";
 import FloatingPetals from "../../components/FloatingPetals";
 import BrandWordmark from "../../components/BrandWordmark";
+import { openLink } from "../../lib/openLink";
 
 /**
  * First screen for an unauthenticated launch — the mobile twin of the web
@@ -45,13 +46,13 @@ export default function LandingScreen() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          onPress={() => Linking.openURL("https://mychronically.app/privacy")}
+          onPress={() => openLink("https://mychronically.app/privacy")}
         >
           <Text style={styles.footerLink}>Privacy Policy</Text>
         </TouchableOpacity>
         <Text style={styles.footerDot}>·</Text>
         <TouchableOpacity
-          onPress={() => Linking.openURL("https://mychronically.app/terms")}
+          onPress={() => openLink("https://mychronically.app/terms")}
         >
           <Text style={styles.footerLink}>Terms of Service</Text>
         </TouchableOpacity>
