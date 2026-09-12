@@ -6,6 +6,7 @@ import LavenderConfetti from "./LavenderConfetti";
 import { FiEdit2 } from "react-icons/fi";
 import { COMMON_SYMPTOMS, SYMPTOM_CATALOG } from "../utils/symptomCatalog";
 import { SymptomIcon } from "./SymptomIcon";
+import { METRIC_LABELS } from "../utils/metricLabels";
 
 const AFFIRMATIONS = [
   { title: "Well done 🌟", message: "You showed up today. That matters." },
@@ -22,12 +23,6 @@ const AFFIRMATIONS = [
   { title: "You're not alone 🫂", message: "Millions of people live with chronic illness. You're tracking, and that's taking charge." },
 ];
 
-const PAIN_LABELS    = { 1: "Very Severe", 2: "Severe",  3: "Moderate", 4: "Light",    5: "Very Light" };
-const MOOD_LABELS    = { 1: "Very Low",   2: "Low",     3: "Okay",     4: "Good",     5: "Great" };
-const ENERGY_LABELS  = { 1: "Exhausted",  2: "Drained", 3: "Low",      4: "Good",     5: "Full" };
-const ANXIETY_LABELS = { 1: "Severe",     2: "High",    3: "Moderate", 4: "Mild",     5: "Calm" };
-const APPETITE_LABELS = { 1: "None",      2: "Poor",    3: "Fair",     4: "Good",     5: "Great" };
-const SLEEP_LABELS   = { 1: "Barely slept", 2: "Poorly", 3: "Okay",    4: "Well",     5: "Wonderfully" };
 
 const getTier = (level) => {
   if (level === 5) return "best";
@@ -634,7 +629,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
               How did you sleep?
             </p>
             <LevelButtons
-              labels={SLEEP_LABELS}
+              labels={METRIC_LABELS.sleep}
               selected={sleepLevel}
               onSelect={(level) => {
                 setSleepLevel(level);
@@ -673,7 +668,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
               How is your pain right now?
             </p>
             <LevelButtons
-              labels={PAIN_LABELS}
+              labels={METRIC_LABELS.pain}
               selected={painLevel}
               onSelect={(level) => {
                 setPainLevel(level);
@@ -696,7 +691,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
               How is your mood right now?
             </p>
             <LevelButtons
-              labels={MOOD_LABELS}
+              labels={METRIC_LABELS.mood}
               selected={moodLevel}
               onSelect={(level) => {
                 setMoodLevel(level);
@@ -718,7 +713,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
               How is your energy right now?
             </p>
             <LevelButtons
-              labels={ENERGY_LABELS}
+              labels={METRIC_LABELS.energy}
               selected={energyLevel}
               onSelect={(level) => {
                 setEnergyLevel(level);
@@ -739,7 +734,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
               How is your anxiety right now?
             </p>
             <LevelButtons
-              labels={ANXIETY_LABELS}
+              labels={METRIC_LABELS.anxiety}
               selected={anxietyLevel}
               onSelect={(level) => {
                 setAnxietyLevel(level);
@@ -759,7 +754,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
               How is your appetite right now?
             </p>
             <LevelButtons
-              labels={APPETITE_LABELS}
+              labels={METRIC_LABELS.appetite}
               selected={appetiteLevel}
               onSelect={(level) => {
                 setAppetiteLevel(level);
@@ -804,13 +799,13 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
         {step === 7 && (
           <div className="flex flex-col gap-3 w-full">
             {sleepLevel !== null && (
-              <ReviewRow label="Sleep" value={sleepLevel} labels={SLEEP_LABELS} onEdit={() => { setSleepLevel(null); setPainLevel(null); setMoodLevel(null); setEnergyLevel(null); setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(0); }} />
+              <ReviewRow label="Sleep" value={sleepLevel} labels={METRIC_LABELS.sleep} onEdit={() => { setSleepLevel(null); setPainLevel(null); setMoodLevel(null); setEnergyLevel(null); setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(0); }} />
             )}
-            <ReviewRow label="Pain level"     value={painLevel}     labels={PAIN_LABELS}     onEdit={() => { setPainLevel(null);     setMoodLevel(null); setEnergyLevel(null); setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(1); }} />
-            <ReviewRow label="Mood level"     value={moodLevel}     labels={MOOD_LABELS}     onEdit={() => { setMoodLevel(null);     setEnergyLevel(null); setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(2); }} />
-            <ReviewRow label="Energy level"   value={energyLevel}   labels={ENERGY_LABELS}   onEdit={() => { setEnergyLevel(null);   setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(3); }} />
-            <ReviewRow label="Anxiety level"  value={anxietyLevel}  labels={ANXIETY_LABELS}  onEdit={() => { setAnxietyLevel(null);  setAppetiteLevel(null); setSymptoms([]); setStep(4); }} />
-            <ReviewRow label="Appetite level" value={appetiteLevel} labels={APPETITE_LABELS} onEdit={() => { setAppetiteLevel(null); setSymptoms([]); setStep(5); }} />
+            <ReviewRow label="Pain level"     value={painLevel}     labels={METRIC_LABELS.pain}     onEdit={() => { setPainLevel(null);     setMoodLevel(null); setEnergyLevel(null); setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(1); }} />
+            <ReviewRow label="Mood level"     value={moodLevel}     labels={METRIC_LABELS.mood}     onEdit={() => { setMoodLevel(null);     setEnergyLevel(null); setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(2); }} />
+            <ReviewRow label="Energy level"   value={energyLevel}   labels={METRIC_LABELS.energy}   onEdit={() => { setEnergyLevel(null);   setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(3); }} />
+            <ReviewRow label="Anxiety level"  value={anxietyLevel}  labels={METRIC_LABELS.anxiety}  onEdit={() => { setAnxietyLevel(null);  setAppetiteLevel(null); setSymptoms([]); setStep(4); }} />
+            <ReviewRow label="Appetite level" value={appetiteLevel} labels={METRIC_LABELS.appetite} onEdit={() => { setAppetiteLevel(null); setSymptoms([]); setStep(5); }} />
             {symptoms.length > 0 ? (
               <div
                 className="w-full p-3 rounded-2xl relative"

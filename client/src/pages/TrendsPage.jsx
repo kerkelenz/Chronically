@@ -9,6 +9,7 @@ import { curveCatmullRom } from "d3-shape";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import HomeLogo from "../components/HomeLogo";
 import { adherenceStats } from "../utils/medicationHelpers";
+import { METRIC_LABELS } from "../utils/metricLabels";
 
 function TrendsPage() {
   const { user, token } = useAuth();
@@ -250,8 +251,9 @@ function TrendsPage() {
                     <Tooltip
                       formatter={(value, name) => {
                         const r = Math.round(value);
-                        const labels = { 1: "Very Low", 2: "Low", 3: "Mid", 4: "High", 5: "Very High" };
-                        return [labels[r] ?? value, name.charAt(0).toUpperCase() + name.slice(1)];
+                        // per-metric wording (5 = best), so pain/anxiety read correctly
+                        const label = METRIC_LABELS[name]?.[r] ?? r;
+                        return [label, name.charAt(0).toUpperCase() + name.slice(1)];
                       }}
                     />
                     <Line type={curveCatmullRom.alpha(0.5)} dataKey="energy"   stroke="#8FAF9B" strokeWidth={2} dot={false} />
