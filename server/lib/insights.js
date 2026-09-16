@@ -1,10 +1,14 @@
-// Correlation-insights engine — pure and test-ready: computeInsights(checkIns)
-// takes the user's last-90-days check-ins and returns voiced headline cards plus
-// a teaching-state meta. No req/res, no DB. Honesty rules are hard-coded below.
+// Correlation-insights engine — pure and test-ready:
+//   computeInsights({ checkIns, medLogs = [], spoonDays = [] })
+// takes the user's last-90-days data and returns voiced headline cards plus a
+// teaching-state meta. No req/res, no DB. Honesty rules are hard-coded below.
 //
-// Phase 1 families:
+// Families:
 //   F1 — symptom ↔ metric (worsening only)
 //   F2 — sleep ↔ same-day metrics (one card, strongest metric)
+//   F3 — skipped doses ↔ that day's metrics (one card) — observational only:
+//        bad days likely cause skipped doses, not the reverse, so never advice
+//   F4 — over-budget spoon day ↔ the NEXT day (one card, energy then pain)
 //   F5 — weekday pattern (one card, hardest weekday)
 //
 // All five daytime metrics are on a 1–5 scale where 5 = best, so "worse" always
@@ -38,6 +42,15 @@ const slug = (s) =>
 
 // pain reads as "worse", every other metric reads as "lower"
 const worseWord = (metricKey) => (metricKey === "pain" ? "worse" : "lower");
+
+// the calendar day before a "YYYY-MM-DD" string (noon avoids TZ edge shifts)
+const ymd = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const prevDateStr = (dateStr) => {
+  const p = new Date(dateStr + "T12:00:00");
+  p.setDate(p.getDate() - 1);
+  return ymd(p);
+};
 
 function f1Headline(symptom, metricKey) {
   switch (metricKey) {
@@ -188,17 +201,100 @@ function familyF5(days) {
   return best ? [best] : [];
 }
 
+// ── F3: skipped doses ↔ that day's metrics (one card) ─────────────────────────
+// Uses explicitly LOGGED skips only (no schedule math, which lives client-side).
+// Bucket A = days with ≥1 skipped log; Bucket B = days with ≥1 taken and 0 skips.
+function familyF3(days, medLogs) {
+  if (!medLogs || medLogs.length === 0) return [];
+  const skippedAny = new Set();
+  const takenAny = new Set();
+  for (const l of medLogs) {
+    if (!l.date) continue;
+    if (l.status === "skipped") skippedAny.add(l.date);
+    else if (l.status === "taken") takenAny.add(l.date);
+  }
+  const dayByDate = Object.fromEntries(days.map((d) => [d.date, d]));
+  const aDates = [...skippedAny];
+  const bDates = [...takenAny].filter((dt) => !skippedAny.has(dt));
+
+  let best = null;
+  for (const { key, label } of METRICS) {
+    const a = aDates.map((dt) => dayByDate[dt]?.[key]).filter((v) => v != null);
+    const b = bDates.map((dt) => dayByDate[dt]?.[key]).filter((v) => v != null);
+    if (a.length < MIN_BUCKET_DAYS || b.length < MIN_BUCKET_DAYS) continue;
+    const effect = mean(b) - mean(a); // >0 → worse on skipped-dose days
+    if (effect < MIN_EFFECT) continue;
+    if (!best || effect > best.effect) {
+      const X = round1(effect).toFixed(1);
+      best = {
+        id: `f3-${key}`,
+        family: "adherence",
+        headline: "Skipped doses land on harder days",
+        body: `On days you skipped a dose, your ${label} averages ${X} ${worseWord(key)} than on days everything was logged.`,
+        evidence: `Across ${a.length} days with a skipped dose`,
+        effect,
+      };
+    }
+  }
+  return best ? [best] : [];
+}
+
+// ── F4: over-budget spoon day ↔ the NEXT day (one card) ───────────────────────
+// spoonDays: [{ date, budget, spent, entries }]. Over budget = spent > budget on
+// a day that actually has entries. We compare TODAY's metrics split by the
+// PREVIOUS day's budget state — energy first, then pain.
+function familyF4(days, spoonDays) {
+  if (!spoonDays || spoonDays.length === 0) return [];
+  const spoonByDate = {};
+  for (const s of spoonDays) if (s.date) spoonByDate[s.date] = s;
+
+  const budgetState = (dateStr) => {
+    const s = spoonByDate[dateStr];
+    if (!s || !(s.entries > 0)) return null; // must exist and have entries
+    return s.spent > s.budget ? "over" : "within";
+  };
+
+  const dayByDate = Object.fromEntries(days.map((d) => [d.date, d]));
+  const aDates = []; // today, where YESTERDAY was over budget
+  const bDates = []; // today, where YESTERDAY was within budget
+  for (const d of days) {
+    const st = budgetState(prevDateStr(d.date));
+    if (st === "over") aDates.push(d.date);
+    else if (st === "within") bDates.push(d.date);
+  }
+
+  for (const key of ["energy", "pain"]) {
+    const a = aDates.map((dt) => dayByDate[dt]?.[key]).filter((v) => v != null);
+    const b = bDates.map((dt) => dayByDate[dt]?.[key]).filter((v) => v != null);
+    if (a.length < MIN_BUCKET_DAYS || b.length < MIN_BUCKET_DAYS) continue;
+    const effect = mean(b) - mean(a); // >0 → worse the day after over-budget
+    if (effect < MIN_EFFECT) continue;
+    const X = round1(effect).toFixed(1);
+    return [{
+      id: `f4-${key}`,
+      family: "spoons",
+      headline: "Overspending spoons echoes into tomorrow",
+      body: `The day after you go over your spoon budget, your ${key} averages ${X} ${worseWord(key)}.`,
+      evidence: `Across ${a.length} days after going over budget`,
+      effect,
+    }];
+  }
+  return [];
+}
+
 // ── Public entry point ────────────────────────────────────────────────────────
-function computeInsights(checkIns) {
+function computeInsights({ checkIns, medLogs = [], spoonDays = [] } = {}) {
   const days = buildDays(checkIns || []);
   const dayCount = days.length;
 
   const byEffect = (a, b) => Math.abs(b.effect) - Math.abs(a.effect);
   const f1 = familyF1(days).sort(byEffect).slice(0, MAX_PER_FAMILY);
   const f2 = familyF2(days).slice(0, MAX_PER_FAMILY);
+  const f3 = familyF3(days, medLogs).slice(0, MAX_PER_FAMILY);
+  const f4 = familyF4(days, spoonDays).slice(0, MAX_PER_FAMILY);
   const f5 = familyF5(days).slice(0, MAX_PER_FAMILY);
 
-  const cards = [...f1, ...f2, ...f5]
+  const cards = [...f1, ...f2, ...f3, ...f4, ...f5]
     .sort(byEffect)
     .slice(0, MAX_CARDS)
     .map((c) => ({ ...c, effect: round1(c.effect) }));
