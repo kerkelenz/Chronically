@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import {
-  FiPlus, FiCheck, FiX, FiChevronLeft, FiChevronRight,
+  FiPlus, FiCheck, FiX, FiChevronLeft, FiChevronRight, FiChevronDown, FiChevronUp,
 } from "react-icons/fi";
 import { BsPin, BsPinFill } from "react-icons/bs";
 import { useAuth } from "../hooks/useAuth";
@@ -33,6 +33,42 @@ function formatDateLabel(dateStr) {
   return parseDateStr(dateStr).toLocaleDateString("en-US", {
     weekday: "short", month: "short", day: "numeric",
   });
+}
+
+function formatFullDate(dateStr) {
+  return parseDateStr(dateStr).toLocaleDateString("en-US", {
+    weekday: "long", month: "long", day: "numeric", year: "numeric",
+  });
+}
+
+// ── Month helpers (a month key is "YYYY-MM") ─────────────────────────────────
+
+function monthOf(dateStr) {
+  return dateStr.slice(0, 7);
+}
+
+function shiftMonth(month, delta) {
+  const [year, mon] = month.split("-").map(Number);
+  const d = new Date(year, mon - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatMonthLabel(month) {
+  const [year, mon] = month.split("-").map(Number);
+  return new Date(year, mon - 1, 1).toLocaleDateString("en-US", {
+    month: "long", year: "numeric",
+  });
+}
+
+// the calendar starts expanded; collapsing it is remembered across visits
+const CAL_OPEN_KEY = "spoonCalendarOpen";
+
+function readCalOpenPref() {
+  try {
+    return localStorage.getItem(CAL_OPEN_KEY) !== "0";
+  } catch {
+    return true;
+  }
 }
 
 const frostedInput = {
@@ -99,48 +135,198 @@ function BudgetRing({ spent, budget }) {
   );
 }
 
-// ── 7-day memory strip ────────────────────────────────────────────────────────
-function DayMarker({ date, spent, budget, hasEntries, isToday, onClick }) {
-  const over = hasEntries && budget > 0 && spent > budget;
-  const ratio = budget > 0 ? Math.min(spent / budget, 1) : 0;
-  const weekday = parseDateStr(date).toLocaleDateString("en-US", { weekday: "long" });
-  const label = hasEntries
-    ? `${weekday}: ${spent} of ${budget} spoons`
-    : `${weekday}: no plan`;
+// ── Month calendar ────────────────────────────────────────────────────────────
 
-  let circleStyle;
-  if (isToday) circleStyle = { border: "2px solid #B7A6D9" };
-  else if (!hasEntries) circleStyle = { border: "1.5px solid rgba(255,255,255,0.25)" };
-  else if (over) circleStyle = { background: "#E6C79A" };
-  else circleStyle = { background: "#B7A6D9" };
+const WEEKDAY_INITIALS = ["S", "M", "T", "W", "T", "F", "S"];
+
+// the grid a month is drawn on, Sunday-first, padded with nulls so every row is
+// full - blank cells render as gaps rather than the neighbouring months' days
+function buildMonthGrid(month) {
+  const [year, mon] = month.split("-").map(Number);
+  const lead = new Date(year, mon - 1, 1).getDay(); // 0 = Sunday
+  const daysInMonth = new Date(year, mon, 0).getDate();
+  const cells = Array(lead).fill(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push(`${month}-${String(d).padStart(2, "0")}`);
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+// one day cell: the date, plus a bar showing how full that day is
+function CalendarDay({ date, summary, isSelected, isToday, isFuture, onSelect }) {
+  const planned = !!summary && summary.planned > 0;
+  const over = planned && summary.budget > 0 && summary.spent > summary.budget;
+  const ratio =
+    planned && summary.budget > 0 ? Math.min(summary.spent / summary.budget, 1) : 0;
+
+  const label = `${formatFullDate(date)}${
+    planned
+      ? `: ${summary.spent} of ${summary.budget} spoons ${isFuture ? "planned" : "used"}`
+      : ": nothing planned"
+  }`;
+
+  // a past or current day's bar reads as spoons spent; a future day's as spoons
+  // pencilled in. the deep purple stays legible against the light card, where
+  // a lighter lavender would wash out
+  const barColor = over ? "#E6C79A" : isFuture ? "#4F4178" : "white";
 
   return (
     <button
-      onClick={onClick}
+      onClick={() => onSelect(date)}
       aria-label={label}
+      aria-current={isSelected ? "date" : undefined}
       title={label}
-      className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity"
+      className="flex flex-col items-center justify-center gap-1 rounded-lg transition-all hover:opacity-80"
+      style={{
+        height: 42,
+        background: isSelected ? "rgba(255,255,255,0.9)" : "transparent",
+        border: isToday && !isSelected ? "1.5px solid #B7A6D9" : "1.5px solid transparent",
+      }}
     >
       <span
         style={{
-          width: 16, height: 16, borderRadius: 8,
-          overflow: "hidden", boxSizing: "border-box",
-          display: "flex", flexDirection: "column", justifyContent: "flex-end",
-          ...circleStyle,
+          fontSize: 13,
+          lineHeight: 1,
+          color: isSelected
+            ? "#7C6BAE"
+            : planned
+              ? "white"
+              : "rgba(255,255,255,0.62)",
+          fontWeight: isToday || isSelected ? 600 : 400,
         }}
       >
-        {isToday && ratio > 0 && (
+        {Number(date.slice(8))}
+      </span>
+      {/* fullness bar - hidden entirely on days with no plan */}
+      <span
+        style={{
+          width: 18,
+          height: 3,
+          borderRadius: 2,
+          overflow: "hidden",
+          background: planned
+            ? isSelected
+              ? "rgba(124,107,174,0.25)"
+              : "rgba(255,255,255,0.22)"
+            : "transparent",
+        }}
+      >
+        {planned && (
           <span
             style={{
-              display: "block", width: "100%",
-              height: `${Math.round(ratio * 100)}%`,
-              background: "rgba(183,166,217,0.65)",
+              display: "block",
+              height: "100%",
+              width: `${Math.max(Math.round(ratio * 100), 12)}%`,
+              background: isSelected && !over ? "#7C6BAE" : barColor,
             }}
           />
         )}
       </span>
-      <span style={{ fontSize: 9, color: "rgba(255,255,255,0.45)" }}>{weekday[0]}</span>
     </button>
+  );
+}
+
+function MonthCalendar({
+  month,
+  monthDays,
+  selectedDate,
+  today,
+  loading,
+  onSelectDate,
+  onMoveMonth,
+  onJumpToMonth,
+}) {
+  const cells = buildMonthGrid(month);
+  const viewingOtherMonth = month !== today.slice(0, 7);
+
+  return (
+    <div>
+      {/* Month header */}
+      <div className="flex items-center justify-between mb-2">
+        <button
+          onClick={() => onMoveMonth(-1)}
+          aria-label="Previous month"
+          className="p-1.5 rounded-full hover:opacity-70 transition-opacity"
+          style={{ background: "rgba(255,255,255,0.15)" }}
+        >
+          <FiChevronLeft size={14} color="white" />
+        </button>
+        <div className="flex items-center gap-2">
+          <span
+            className="text-white text-sm"
+            style={{ fontFamily: "Playfair Display, Georgia, serif" }}
+          >
+            {formatMonthLabel(month)}
+          </span>
+          {viewingOtherMonth && (
+            <button
+              onClick={onJumpToMonth}
+              className="px-2 py-0.5 rounded-full text-xs hover:opacity-80 transition-opacity"
+              style={{ background: "rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.85)" }}
+            >
+              This month
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => onMoveMonth(1)}
+          aria-label="Next month"
+          className="p-1.5 rounded-full hover:opacity-70 transition-opacity"
+          style={{ background: "rgba(255,255,255,0.15)" }}
+        >
+          <FiChevronRight size={14} color="white" />
+        </button>
+      </div>
+
+      {/* Weekday header */}
+      <div className="grid grid-cols-7 mb-1">
+        {WEEKDAY_INITIALS.map((w, i) => (
+          <span
+            key={i}
+            className="text-center"
+            style={{ fontSize: 10, color: "rgba(255,255,255,0.45)" }}
+          >
+            {w}
+          </span>
+        ))}
+      </div>
+
+      {/* Day grid */}
+      <div className="grid grid-cols-7 gap-1" style={{ opacity: loading ? 0.5 : 1 }}>
+        {cells.map((date, i) =>
+          date ? (
+            <CalendarDay
+              key={date}
+              date={date}
+              summary={monthDays?.[date]}
+              isSelected={date === selectedDate}
+              isToday={date === today}
+              isFuture={date > today}
+              onSelect={onSelectDate}
+            />
+          ) : (
+            <span key={`pad-${i}`} />
+          )
+        )}
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mt-3">
+        <LegendItem color="white" label="Spoons used" />
+        <LegendItem color="#4F4178" label="Planned ahead" />
+        <LegendItem color="#E6C79A" label="Over budget" />
+      </div>
+    </div>
+  );
+}
+
+function LegendItem({ color, label }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span style={{ width: 12, height: 3, borderRadius: 2, background: color }} />
+      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>{label}</span>
+    </span>
   );
 }
 
@@ -156,8 +342,14 @@ export default function SpoonCenterPage() {
   const [baseline,     setBaseline]       = useState(null);
   const [loading,      setLoading]        = useState(true);
 
-  // last 7 days for the memory strip + yesterday's entries for copy-forward
-  const [stripDays,    setStripDays]      = useState(null);
+  // calendar: the month on screen, its per-day summaries, and whether it's open
+  const [calMonth,     setCalMonth]       = useState(monthOf(todayDateStr()));
+  // { month, days: { [date]: summary } } — the key travels with the map so a
+  // map from the previous month is never mistaken for the one on screen
+  const [monthDays,    setMonthDays]      = useState(null);
+  const [calOpen,      setCalOpen]        = useState(readCalOpenPref);
+
+  // the previous day's entries, offered as a starting point on an empty day
   const [prevEntries,  setPrevEntries]    = useState([]);
 
   // modal visibility
@@ -171,6 +363,9 @@ export default function SpoonCenterPage() {
   const [customName,    setCustomName]    = useState("");
   const [customCost,    setCustomCost]    = useState("");
   const [editingCosts,  setEditingCosts]  = useState(false);
+
+  // loadDay's closure predates the month fetch, so it reads the map through a ref
+  const monthDaysRef = useRef(null);
 
   const baselinePromptedRef = useRef(false);
   // once per session: a removed auto-filled entry must not come back on revisit
@@ -223,15 +418,28 @@ export default function SpoonCenterPage() {
         }
       }
 
-      // the empty state offers to copy yesterday's plan, so peek at it
+      // the empty state offers to copy the previous day's plan, so peek at it -
+      // but only when the month view doesn't already know that day is empty.
+      // GET /day creates the row it returns, so skipping the call also keeps
+      // browsing the calendar from seeding days nobody planned
       if (currentEntries.length === 0) {
         const prev = parseDateStr(date);
         prev.setDate(prev.getDate() - 1);
-        const prevRes = await axios.get(
-          `${API}/api/spoons/day?date=${prev.toLocaleDateString("en-CA")}`,
-          { headers: hdrs },
-        );
-        setPrevEntries(prevRes.data.entries || []);
+        const prevDate = prev.toLocaleDateString("en-CA");
+        const known = monthDaysRef.current;
+        const knownEmpty =
+          known &&
+          known.month === monthOf(prevDate) &&
+          !(known.days[prevDate]?.planned > 0);
+        if (knownEmpty) {
+          setPrevEntries([]);
+        } else {
+          const prevRes = await axios.get(
+            `${API}/api/spoons/day?date=${prevDate}`,
+            { headers: hdrs },
+          );
+          setPrevEntries(prevRes.data.entries || []);
+        }
       } else {
         setPrevEntries([]);
       }
@@ -255,44 +463,59 @@ export default function SpoonCenterPage() {
     })();
   }, [token, selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // the memory strip always covers the last 7 days ending today, whatever day
-  // is being viewed; fetched in parallel once per visit, cached in state
+  // one request per month for the calendar. the endpoint is read-only, so
+  // paging through months never creates day rows the user hasn't opened.
+  // re-runs when the viewed day changes too, so a day that was edited and then
+  // navigated away from keeps its bar in the grid
   useEffect(() => {
     if (!token) return;
+    let active = true;
     (async () => {
       try {
-        const today = todayDateStr();
-        const dates = Array.from({ length: 7 }, (_, i) => {
-          const d = parseDateStr(today);
-          d.setDate(d.getDate() + i - 6);
-          return d.toLocaleDateString("en-CA");
+        const res = await axios.get(`${API}/api/spoons/month?month=${calMonth}`, {
+          headers: hdrs,
         });
-        const results = await Promise.all(
-          dates.map((dt) => axios.get(`${API}/api/spoons/day?date=${dt}`, { headers: hdrs }))
-        );
-        setStripDays(
-          results.map((res, i) => {
-            const dayEntries = res.data.entries || [];
-            return {
-              date: dates[i],
-              spent: dayEntries.reduce((s, e) => s + e.cost, 0),
-              budget: res.data.day?.budget ?? 0,
-              hasEntries: dayEntries.length > 0,
-            };
-          })
-        );
+        if (!active) return;
+        const days = {};
+        for (const d of res.data.days || []) days[d.date] = d;
+        const next = { month: calMonth, days };
+        monthDaysRef.current = next;
+        setMonthDays(next);
       } catch (err) {
-        console.error("Week strip fetch failed:", err);
+        console.error("Month fetch failed:", err);
+        if (active) {
+          const next = { month: calMonth, days: {} };
+          monthDaysRef.current = next;
+          setMonthDays(next);
+        }
       }
     })();
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { active = false; };
+  }, [token, calMonth, selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // remember whether the calendar is expanded between visits
+  useEffect(() => {
+    try {
+      localStorage.setItem(CAL_OPEN_KEY, calOpen ? "1" : "0");
+    } catch {
+      // private mode / storage disabled - the preference just won't stick
+    }
+  }, [calOpen]);
 
   // ── Date nav ────────────────────────────────────────────────────────────────
+
+  // every path that changes the day goes through here so the calendar's month
+  // always follows the day being viewed
+  const selectDate = (date) => {
+    if (date === selectedDate) return;
+    setSelectedDate(date);
+    setCalMonth(monthOf(date));
+  };
 
   const moveDay = (delta) => {
     const d = parseDateStr(selectedDate);
     d.setDate(d.getDate() + delta);
-    setSelectedDate(d.toLocaleDateString("en-CA"));
+    selectDate(d.toLocaleDateString("en-CA"));
   };
 
   // ── Entry actions ───────────────────────────────────────────────────────────
@@ -403,17 +626,18 @@ export default function SpoonCenterPage() {
     }
   };
 
-  const copyYesterday = async () => {
-    if (!day || prevEntries.length === 0) return;
+  // add a batch of {name, cost} onto the selected day, skipping anything already
+  // on it - shared by "copy the previous day" and "add my routine"
+  const addEntries = async (items) => {
+    if (!day || items.length === 0) return;
     try {
-      // skip names already on the day (e.g. the pinned routine just auto-filled)
       const existing = new Set(entries.map((e) => e.name));
       const created = [];
-      for (const e of prevEntries) {
-        if (existing.has(e.name)) continue;
+      for (const item of items) {
+        if (existing.has(item.name)) continue;
         const res = await axios.post(
           `${API}/api/spoons/day/${day.id}/entries`,
-          { name: e.name, cost: e.cost },
+          { name: item.name, cost: item.cost },
           { headers: hdrs },
         );
         created.push(res.data.entry);
@@ -421,9 +645,17 @@ export default function SpoonCenterPage() {
       if (entries.length === 0 && created.length > 0) track("spoon_day_planned");
       if (created.length > 0) setEntries((prev) => [...prev, ...created]);
     } catch (err) {
-      console.error("Copy yesterday failed:", err);
+      console.error("Bulk add failed:", err);
     }
   };
+
+  const copyPreviousDay = () => addEntries(prevEntries);
+
+  // the pinned routine auto-fills today only; this puts it on any other day
+  const addRoutine = () =>
+    addEntries(
+      [...pinnedActivities].sort((a, b) => a.name.localeCompare(b.name))
+    );
 
   // ── Baseline & budget ───────────────────────────────────────────────────────
 
@@ -459,9 +691,13 @@ export default function SpoonCenterPage() {
 
   // ── Derived ─────────────────────────────────────────────────────────────────
 
-  const spent = entries.reduce((s, e) => s + e.cost, 0);
-  const over  = day ? spent > day.budget : false;
-  const isToday = selectedDate === todayDateStr();
+  const today   = todayDateStr();
+  const spent   = entries.reduce((s, e) => s + e.cost, 0);
+  const over    = day ? spent > day.budget : false;
+  const isToday = selectedDate === today;
+  const isPast  = selectedDate < today;
+  const isFuture = selectedDate > today;
+  const pinnedActivities = activities.filter((a) => a.pinned);
 
   // library sorted routine-first, then alphabetical
   const sortedActivities = [...activities].sort((a, b) => {
@@ -470,14 +706,24 @@ export default function SpoonCenterPage() {
   });
   const hasPinned = sortedActivities.some((a) => a.pinned);
 
-  // the viewed day's marker reflects live state, not the cached strip fetch
-  const displayStrip = stripDays
-    ? stripDays.map((d) =>
-        d.date === selectedDate && day
-          ? { ...d, spent, budget: day.budget, hasEntries: entries.length > 0 }
-          : d
-      )
-    : null;
+  // the grid draws the fetched month, with the day being viewed overlaid from
+  // live state so edits land in its cell without waiting for a refetch
+  const calendarDays =
+    monthDays && monthDays.month === calMonth
+      ? day && day.date === selectedDate && monthOf(selectedDate) === calMonth
+        ? {
+            ...monthDays.days,
+            [selectedDate]: {
+              date: selectedDate,
+              budget: day.budget,
+              budgetEdited: day.budgetEdited,
+              spent,
+              planned: entries.length,
+              completed: entries.filter((e) => e.completed).length,
+            },
+          }
+        : monthDays.days
+      : null;
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -554,7 +800,7 @@ export default function SpoonCenterPage() {
           </button>
           {!isToday && (
             <button
-              onClick={() => setSelectedDate(todayDateStr())}
+              onClick={() => selectDate(today)}
               className="px-3 py-1 rounded-full text-xs hover:opacity-80 transition-opacity"
               style={{ background: "rgba(255,255,255,0.25)", color: "white", border: "1px solid rgba(255,255,255,0.4)" }}
             >
@@ -563,15 +809,15 @@ export default function SpoonCenterPage() {
           )}
         </div>
 
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-3">
+        {loading || !day ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
             <div
               className="w-8 h-8 rounded-full border-2 animate-spin"
               style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "white" }}
             />
             <p className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>Loading…</p>
           </div>
-        ) : day ? (
+        ) : (
           <>
             {/* Budget ring card */}
             <div
@@ -587,29 +833,63 @@ export default function SpoonCenterPage() {
                     Adjusted from your baseline ({baseline}) after today's check-in
                   </p>
                 )}
-              {displayStrip && (
-                <div className="flex gap-3.5">
-                  {displayStrip.map((d) => (
-                    <DayMarker
-                      key={d.date}
-                      {...d}
-                      isToday={d.date === todayDateStr()}
-                      onClick={() => {
-                        if (d.date !== selectedDate) setSelectedDate(d.date);
-                      }}
-                    />
-                  ))}
-                </div>
+              {isFuture && day.budgetEdited === false && (
+                <p className="text-xs text-center" style={{ color: "rgba(255,255,255,0.65)" }}>
+                  Planning ahead — this budget will adjust once you check in that day.
+                </p>
               )}
               <button
                 onClick={() => { setBudgetInput(String(day.budget)); setShowBudgetEdit(true); }}
                 className="text-xs hover:opacity-80 transition-opacity"
                 style={{ color: "rgba(255,255,255,0.55)", textDecoration: "underline" }}
               >
-                Adjust today's budget
+                {isToday ? "Adjust today's budget" : "Adjust this day's budget"}
               </button>
             </div>
+          </>
+        )}
 
+        {/* Calendar — outside the day's loading branch so switching days never
+            takes the grid away mid-navigation */}
+        <div
+          className="rounded-2xl px-5 py-4"
+          style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
+        >
+          <button
+            onClick={() => setCalOpen((v) => !v)}
+            aria-expanded={calOpen}
+            className="w-full flex items-center justify-between hover:opacity-80 transition-opacity"
+          >
+            <span className="text-sm text-white">Calendar</span>
+            <span className="flex items-center gap-2">
+              {!calOpen && (
+                <span className="text-xs" style={{ color: "rgba(255,255,255,0.55)" }}>
+                  {formatMonthLabel(calMonth)}
+                </span>
+              )}
+              {calOpen
+                ? <FiChevronUp size={16} color="rgba(255,255,255,0.7)" />
+                : <FiChevronDown size={16} color="rgba(255,255,255,0.7)" />}
+            </span>
+          </button>
+          {calOpen && (
+            <div className="mt-3">
+              <MonthCalendar
+                month={calMonth}
+                monthDays={calendarDays}
+                selectedDate={selectedDate}
+                today={today}
+                loading={!calendarDays}
+                onSelectDate={selectDate}
+                onMoveMonth={(delta) => setCalMonth((m) => shiftMonth(m, delta))}
+                onJumpToMonth={() => setCalMonth(monthOf(today))}
+              />
+            </div>
+          )}
+        </div>
+
+        {loading || !day ? null : (
+          <>
             {/* Over-budget nudge */}
             {over && (
               <div
@@ -630,7 +910,11 @@ export default function SpoonCenterPage() {
               {entries.length === 0 ? (
                 <div className="px-5 py-8 flex flex-col items-center gap-4 text-center">
                   <p className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
-                    No activities planned yet — add the first one for your day.
+                    {isPast
+                      ? "Nothing was planned for this day — you can still fill it in."
+                      : isFuture
+                        ? `Nothing planned for ${formatDateLabel(selectedDate)} yet — sketch the day out ahead of time.`
+                        : "No activities planned yet — add the first one for your day."}
                   </p>
                   <button
                     onClick={() => { setShowAdd(true); setEditingCosts(false); }}
@@ -639,9 +923,11 @@ export default function SpoonCenterPage() {
                   >
                     + Add activity
                   </button>
-                  {prevEntries.length > 0 && (
+                  {/* the auto-plan only runs for today, so any other day gets the
+                      routine on request instead */}
+                  {!isToday && pinnedActivities.length > 0 && (
                     <button
-                      onClick={copyYesterday}
+                      onClick={addRoutine}
                       className="px-5 py-2 rounded-full text-sm transition-all hover:opacity-90"
                       style={{
                         background: "rgba(255,255,255,0.15)",
@@ -649,7 +935,22 @@ export default function SpoonCenterPage() {
                         border: "1px solid rgba(255,255,255,0.3)",
                       }}
                     >
-                      Copy yesterday's plan ({prevEntries.length}{" "}
+                      Add my routine ({pinnedActivities.length}{" "}
+                      {pinnedActivities.length === 1 ? "activity" : "activities"})
+                    </button>
+                  )}
+                  {prevEntries.length > 0 && (
+                    <button
+                      onClick={copyPreviousDay}
+                      className="px-5 py-2 rounded-full text-sm transition-all hover:opacity-90"
+                      style={{
+                        background: "rgba(255,255,255,0.15)",
+                        color: "rgba(255,255,255,0.85)",
+                        border: "1px solid rgba(255,255,255,0.3)",
+                      }}
+                    >
+                      Copy {isToday ? "yesterday's" : "the day before's"} plan (
+                      {prevEntries.length}{" "}
                       {prevEntries.length === 1 ? "activity" : "activities"})
                     </button>
                   )}
@@ -718,7 +1019,7 @@ export default function SpoonCenterPage() {
               )}
             </div>
           </>
-        ) : null}
+        )}
       </div>
 
       {/* ── Add Activity modal ──────────────────────────────────────────────── */}
@@ -909,7 +1210,7 @@ export default function SpoonCenterPage() {
         <FormModal
           open
           onClose={() => setShowBudgetEdit(false)}
-          title="Adjust today's budget"
+          title={isToday ? "Adjust today's budget" : "Adjust this day's budget"}
           footer={
             <ModalFooter
               onCancel={() => setShowBudgetEdit(false)}
