@@ -4,19 +4,21 @@ A calm, private health-tracking app for people living with chronic illness — t
 
 Chronically turns the daily reality of managing a chronic condition into something gentle: quick check-ins, honest tracking, and clear reports, with no ads, no third-party trackers, and no judgment. It ships as a web app, an iOS/Android mobile app, and a shared REST API — all in this monorepo.
 
-**Live:** [mychronically.app](https://mychronically.app)
+**Live:** [mychronically.app](https://mychronically.app) · [iOS App Store](https://apps.apple.com/app/id0000000000) · Android
 
 ---
 
 ## Features
 
-- **Daily check-ins** — log energy, pain, mood, anxiety, and appetite in under a minute, plus symptoms and notes. Gentle streaks encourage showing up without guilting rest days.
+- **Daily check-ins** — log pain, mood, energy, anxiety, appetite and symptoms in under a minute; sleep is asked once a day and is always skippable. Multiple check-ins per day are supported, because a body can change by lunchtime. Gentle streaks encourage showing up without guilting rest days.
+- **A symptom catalog that adapts to you** — 60+ icon-backed symptoms, searchable, with your own recent symptoms surfaced first and anything you type added permanently. Remove suggestions you don't want; history is never rewritten.
+- **Insights** — plain-spoken correlations drawn from your own data ("Brain fog costs you energy", "Sleep sets the day"), with minimum sample sizes, effect thresholds, and visible day counts. Nothing is claimed as causal, and weak patterns stay quiet.
 - **Spoon Center** — plan the day around available energy using spoon theory, with pinnable routines, a copy-yesterday shortcut, and a 7-day history view.
-- **Medications** — a Today checklist (grouped morning/afternoon/evening, plus an as-needed lane) and a Medicine Cabinet with human-readable schedules, 7-day adherence dots, and five scheduling patterns (daily, specific weekdays, every N days, monthly, as-needed).
+- **Medications** — a Today checklist (grouped by time of day, plus an as-needed lane) and a Medicine Cabinet with human-readable schedules, 7-day adherence dots, six scheduling patterns, and nine dosage forms including patches, topicals, gummies and drops. Missed doses are _computed_, never written, so history stays honest.
 - **Appointments** — a lightweight visit lifecycle: prep notes, mark-completed prompts, outcome capture, and follow-up chaining.
-- **Doctor reports** — export a shareable PDF summary of recent metrics, symptoms, and medication adherence to bring to a visit.
-- **Trends** — see how symptoms, medications, mood, and energy move together over time.
-- **Private by design** — first-party usage events only (no third-party analytics), data stays on the project's own servers, and full account + data deletion is available in-app.
+- **Doctor reports** — export a PDF summary of metrics, symptoms, medications, adherence and observed patterns to bring to a visit.
+- **Trends** — six metrics over time with press-and-hold value inspection on mobile, plus medication adherence breakdowns.
+- **Private by design** — first-party usage events only (no third-party analytics, no ad SDKs, no data sold), data stays on the project's own servers, and full account + data deletion is available in-app.
 
 ---
 
@@ -32,7 +34,8 @@ chronically/
 ```
 
 - **server** exposes a JSON REST API with JWT auth; `client` and `mobile` are independent front ends that both consume it.
-- Medication scheduling logic is shared as a byte-identical helper between web (`client/src/utils/medicationHelpers.js`) and mobile (`mobile/theme/medications.js`) so both platforms compute schedules and adherence identically.
+- Medication scheduling logic is shared as a **byte-identical** helper between web (`client/src/utils/medicationHelpers.js`) and mobile (`mobile/theme/medications.js`) so both platforms compute schedules and adherence identically. The same discipline applies to the symptom catalog and metric label maps — paired files are diffed, not trusted.
+- The **insights engine** (`server/lib/insights.js`) is a pure function computed server-side, so correlation logic exists exactly once and is unit-testable without a database.
 
 ### Tech stack
 
@@ -40,7 +43,8 @@ chronically/
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | API    | Node.js, Express, Sequelize, PostgreSQL, JWT (`jsonwebtoken`), `bcrypt`, `helmet`, `express-rate-limit`, Resend (transactional email) |
 | Web    | React, Vite, React Router, Tailwind CSS, Axios, Recharts                                                                              |
-| Mobile | Expo (SDK 54), React Native, Expo Router, `expo-secure-store`, `react-native-svg`                                                     |
+| Mobile | Expo (SDK 54), React Native, Expo Router, `expo-secure-store`, `react-native-svg`, `expo-web-browser`, `healthicons-react-native`     |
+| Shared | Sentry (errors only, no PII beyond a numeric user id) on all three deployables                                                        |
 
 ---
 
@@ -108,6 +112,7 @@ server/
   controllers/     Route handlers
   routes/          Express routers
   middleware/      Auth, etc.
+  lib/             Insights engine (pure, unit-tested)
   config/          DB connection
 client/
   src/
@@ -128,7 +133,7 @@ mobile/
 
 - **Privacy:** Chronically collects only first-party usage events (feature usage, app opens) stored on its own database, never shared or sold, and deleted with the user's account. It is a personal wellness journal — not a medical device — and does not provide medical advice or diagnosis.
 - **Deployment:** the API and web app deploy independently; the database is hosted PostgreSQL. Mobile builds are produced with EAS.
-- **Status:** actively developed. Web is live; mobile is in pre-release.
+- **Status:** actively developed and live on web, iOS and Android.
 
 ## License
 
