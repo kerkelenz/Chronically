@@ -1,8 +1,14 @@
+const { Op } = require("sequelize");
 const User = require("../models/User");
 const CheckIn = require("../models/CheckIn");
 const SpoonActivity = require("../models/SpoonActivity");
 const SpoonDay = require("../models/SpoonDay");
 const SpoonEntry = require("../models/SpoonEntry");
+const {
+  isMonthKey,
+  monthRange,
+  summarizeMonth,
+} = require("../lib/spoonCalendar");
 
 const DEFAULT_BASELINE = 12;
 
@@ -189,6 +195,35 @@ const getDay = async (req, res) => {
   }
 };
 
+// the calendar's month view: one summary per day the user has actually planned.
+// deliberately read-only - unlike getDay it never creates SpoonDay rows, so
+// paging back and forth through months doesn't litter the table with empty days
+const getMonth = async (req, res) => {
+  try {
+    const month = req.query.month || todayStr().slice(0, 7);
+    if (!isMonthKey(month)) {
+      return res.status(400).json({ error: "month must be in YYYY-MM format" });
+    }
+    const { start, end } = monthRange(month);
+
+    const days = await SpoonDay.findAll({
+      where: { userId: req.user.id, date: { [Op.between]: [start, end] } },
+      order: [["date", "ASC"]],
+    });
+
+    const entries = days.length
+      ? await SpoonEntry.findAll({
+          where: { spoonDayId: { [Op.in]: days.map((d) => d.id) } },
+        })
+      : [];
+
+    res.json({ month, days: summarizeMonth({ days, entries }) });
+  } catch (error) {
+    console.error("Error getting spoon month:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
 const updateDayBudget = async (req, res) => {
   try {
     const day = await SpoonDay.findOne({
@@ -267,6 +302,7 @@ module.exports = {
   updateActivity,
   deleteActivity,
   getDay,
+  getMonth,
   updateDayBudget,
   addEntry,
   updateEntry,

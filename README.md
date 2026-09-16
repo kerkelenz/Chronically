@@ -13,7 +13,7 @@ Chronically turns the daily reality of managing a chronic condition into somethi
 - **Daily check-ins** — log pain, mood, energy, anxiety, appetite and symptoms in under a minute; sleep is asked once a day and is always skippable. Multiple check-ins per day are supported, because a body can change by lunchtime. Gentle streaks encourage showing up without guilting rest days.
 - **A symptom catalog that adapts to you** — 60+ icon-backed symptoms, searchable, with your own recent symptoms surfaced first and anything you type added permanently. Remove suggestions you don't want; history is never rewritten.
 - **Insights** — plain-spoken correlations drawn from your own data ("Brain fog costs you energy", "Sleep sets the day"), with minimum sample sizes, effect thresholds, and visible day counts. Nothing is claimed as causal, and weak patterns stay quiet.
-- **Spoon Center** — plan the day around available energy using spoon theory, with pinnable routines, a copy-yesterday shortcut, and a 7-day history view.
+- **Spoon Center** — plan the day around available energy using spoon theory, with pinnable routines, a copy-yesterday shortcut, and a month calendar for revisiting past days and planning future ones.
 - **Medications** — a Today checklist (grouped by time of day, plus an as-needed lane) and a Medicine Cabinet with human-readable schedules, 7-day adherence dots, six scheduling patterns, and nine dosage forms including patches, topicals, gummies and drops. Missed doses are _computed_, never written, so history stays honest.
 - **Appointments** — a lightweight visit lifecycle: prep notes, mark-completed prompts, outcome capture, and follow-up chaining.
 - **Doctor reports** — export a PDF summary of metrics, symptoms, medications, adherence and observed patterns to bring to a visit.
@@ -112,7 +112,7 @@ server/
   controllers/     Route handlers
   routes/          Express routers
   middleware/      Auth, etc.
-  lib/             Insights engine (pure, unit-tested)
+  lib/             Insights engine + spoon calendar helpers (pure, unit-tested)
   config/          DB connection
 client/
   src/

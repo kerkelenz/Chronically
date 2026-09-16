@@ -9,6 +9,7 @@ const {
   updateActivity,
   deleteActivity,
   getDay,
+  getMonth,
   updateDayBudget,
   addEntry,
   updateEntry,
@@ -25,6 +26,7 @@ router.put("/activities/:id", authenticateToken, updateActivity);
 router.delete("/activities/:id", authenticateToken, deleteActivity);
 
 router.get("/day", authenticateToken, getDay);
+router.get("/month", authenticateToken, getMonth);
 router.put("/day/:id", authenticateToken, updateDayBudget);
 router.post("/day/:id/entries", authenticateToken, addEntry);
 
