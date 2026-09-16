@@ -2,6 +2,11 @@ import { buildTrendChartSvg, formatApptDatePdf, DOW_LABELS } from "./reportData"
 
 const FOOTER = `<div class="footer">Self-reported data recorded by the patient via Chronically (mychronically.app)</div>`;
 
+// Free-text the patient typed (notes, names) lands in an HTML document — escape
+// it so a stray < or & can't break the report.
+const esc = (s) =>
+  String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
 // Build <tbody> rows from a 2D array. centerCols: 0-indexed columns that get class="center".
 const trows = (rows, centerCols = []) =>
   rows.map((cells) =>
@@ -31,6 +36,21 @@ const css = `
   }
   .report-meta { font-size: 8pt; color: #6B5F7A; margin-bottom: 2px; }
 
+  /* Brand lockup: the C-and-sprig mark on a purple tile, as the app's own
+     header shows it. The artwork is white, so on paper it needs the tile —
+     without it the mark would print as nothing. */
+  .report-head { display: flex; align-items: center; gap: 10px; }
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+    flex: none;
+    border-radius: 8px;
+    background: rgb(124, 107, 174);
+    text-align: center;
+    line-height: 34px;
+  }
+  .brand-mark img { width: 23px; height: 23px; vertical-align: middle; }
+
   .section-title {
     font-size: 11pt;
     font-weight: 700;
@@ -55,6 +75,13 @@ const css = `
   .glance-cell:nth-child(1),
   .glance-cell:nth-child(2) { border-bottom: 1px solid rgba(107,95,122,0.2); }
   .glance-cell:nth-child(odd) { border-right: 1px solid rgba(107,95,122,0.2); }
+  /* a full-width cell closes the block, so it draws its own top rule rather
+     than relying on the 2-up cells above it */
+  .glance-cell.full {
+    grid-column: 1 / -1;
+    border-right: none;
+    border-top: 1px solid rgba(107,95,122,0.2);
+  }
   .glance-label { font-size: 7pt; color: #6B5F7A; margin-bottom: 3px; }
   .glance-value { font-size: 10pt; font-weight: 700; color: #2D2540; }
 
@@ -90,6 +117,26 @@ const css = `
   .notable-table td { border: none; }
   .notable-cell { padding: 3px 0; font-size: 8pt; }
 
+  /* Observed Patterns — borderless cards, one per row so none is torn */
+  .framing { font-size: 7.5pt; font-style: italic; color: #6B5F7A; margin-bottom: 6px; }
+  .patterns-table { border: none; }
+  .patterns-table td { border: none; }
+  .pattern-cell { padding: 4px 0 6px; }
+  .pattern-headline { font-size: 9pt; font-weight: 700; color: #2D2540; }
+  .pattern-body { font-size: 8pt; color: #2D2540; margin-top: 1px; }
+  .pattern-evidence { font-size: 7pt; color: #6B5F7A; margin-top: 1px; }
+
+  /* medication notes sit under their row, full width, so nothing is truncated */
+  .note-row td {
+    font-size: 7.5pt;
+    font-style: italic;
+    color: #6B5F7A;
+    border-top: none;
+    padding: 2px 6px 4px 10px;
+  }
+  /* each medication and its note stay together across a page break */
+  tbody.med-group { page-break-inside: avoid; }
+
   .dow-table tbody td {
     font-size: 11pt;
     font-weight: 700;
@@ -110,7 +157,7 @@ const css = `
 // Returns a complete HTML string for the doctor report — one continuous
 // document (summary → medications & appointments → daily logs) that the print
 // engine paginates naturally, rather than fixed chapters on hard page breaks.
-export function buildReportHtml(data, username) {
+export function buildReportHtml(data, username, insights = null, logoUri = null) {
   const {
     periodCheckIns, totalDaysTracked, dailyData,
     avgPain, avgMood, avgEnergy, avgAnxiety, avgAppetite, avgSleep,
@@ -118,7 +165,7 @@ export function buildReportHtml(data, username) {
     glanceAdherenceText, glanceSevereText, glanceMostFreqSymptom,
     periodStart, periodEnd, generatedDate,
     medications, prnTaken,
-    medListHasNotes, medListRows, adherenceRows, medLogRows,
+    medListRows, medListNotes, adherenceRows, medLogRows,
     dailyRows, adherenceByDay, skipReasonRows, recentAppts, upcomingAppts,
   } = data;
 
@@ -141,12 +188,19 @@ export function buildReportHtml(data, username) {
 
   // ── Page 2 helpers ────────────────────────────────────────────────────────
 
-  const medListHeadCols = ["Name", "Type", "Dosage", "Schedule", "Status"];
-  if (medListHasNotes) medListHeadCols.push("Notes");
-  const medListHeadHtml = medListHeadCols.map((h) => `<th>${h}</th>`).join("");
+  const MED_COLS = ["Name", "Type", "Dosage", "Schedule", "Status"];
+  const medListHeadHtml = MED_COLS.map((h) => `<th>${h}</th>`).join("");
+  // one <tbody> per medication so its note can't be orphaned onto the next page
   const medListBodyHtml = medications.length === 0
-    ? `<tr><td colspan="${medListHeadCols.length}" class="center muted">No medications tracked</td></tr>`
-    : trows(medListRows);
+    ? `<tbody><tr><td colspan="${MED_COLS.length}" class="center muted">No medications tracked</td></tr></tbody>`
+    : medListRows.map((cells, i) => {
+        const row = `<tr>${cells.map((c) => `<td>${c ?? "—"}</td>`).join("")}</tr>`;
+        const note = medListNotes[i];
+        const noteRow = note
+          ? `<tr class="note-row"><td colspan="${MED_COLS.length}">${esc(note)}</td></tr>`
+          : "";
+        return `<tbody class="med-group">${row}${noteRow}</tbody>`;
+      }).join("\n    ");
 
   const adherenceBodyHtml = adherenceRows.length === 0
     ? `<tr><td colspan="6" class="center muted">No scheduled medications in this period</td></tr>`
@@ -186,8 +240,25 @@ export function buildReportHtml(data, username) {
 
   // ── Assemble ──────────────────────────────────────────────────────────────
 
-  // Sleep joins the averages row only when the period actually has sleep data
+  // Sleep joins the averages row and At a Glance only when the period has data
   const hasSleep = avgSleep !== "-";
+
+  // Observed Patterns is a bonus section: no insights (API down, or too few
+  // days for a pattern to clear the thresholds) simply means no section.
+  const patternCards = insights?.cards || [];
+  const patternsHtml = patternCards.length === 0 ? "" : `
+  <div class="section-title">Observed Patterns</div>
+  <p class="framing">Associations in this patient's self-reported data over the last 90 days. Correlational only — not causal, and not clinically validated.</p>
+  <table class="patterns-table">
+    <tbody>
+    ${patternCards.map((c) => `<tr><td class="pattern-cell">
+        <div class="pattern-headline">${esc(c.headline)}</div>
+        <div class="pattern-body">${esc(c.body)}</div>
+        <div class="pattern-evidence">${esc(c.evidence)}</div>
+      </td></tr>`).join("\n    ")}
+    </tbody>
+  </table>
+`;
 
   return `<!DOCTYPE html>
 <html>
@@ -200,9 +271,14 @@ export function buildReportHtml(data, username) {
 
 <!-- ═══ PAGE 1: SUMMARY ═══ -->
 <div class="page">
-  <div class="report-title">Chronically Health Report</div>
-  <p class="report-meta">Patient: ${username}&nbsp;&nbsp;&nbsp;Generated: ${generatedDate}</p>
-  <p class="report-meta">Period: ${periodStart} – ${periodEnd}</p>
+  <div class="report-head">
+    ${logoUri ? `<div class="brand-mark"><img src="${logoUri}" alt=""/></div>` : ""}
+    <div>
+      <div class="report-title">Chronically Health Report</div>
+      <p class="report-meta">Patient: ${esc(username)}&nbsp;&nbsp;&nbsp;Generated: ${generatedDate}</p>
+      <p class="report-meta">Period: ${periodStart} – ${periodEnd}</p>
+    </div>
+  </div>
 
   <div class="section-title">At a Glance</div>
   <div class="glance">
@@ -222,6 +298,10 @@ export function buildReportHtml(data, username) {
       <div class="glance-label">Severe days</div>
       <div class="glance-value">${glanceSevereText}</div>
     </div>
+    ${hasSleep ? `<div class="glance-cell full">
+      <div class="glance-label">Average sleep quality</div>
+      <div class="glance-value">${avgSleep} / 5</div>
+    </div>` : ""}
   </div>
 
   <div class="section-title">30-Day Trend</div>
@@ -259,16 +339,14 @@ export function buildReportHtml(data, username) {
     ${symptomRowsHtml}
     </tbody>
   </table>
-
+${patternsHtml}
   <!-- ═══ MEDICATIONS & APPOINTMENTS ═══ -->
   <div class="section-title">Medications &amp; Appointments</div>
 
   <div class="section-title">Current Medications</div>
   <table>
     <thead><tr>${medListHeadHtml}</tr></thead>
-    <tbody>
     ${medListBodyHtml}
-    </tbody>
   </table>
 
   <div class="section-title">Medication Adherence (30 Days)</div>

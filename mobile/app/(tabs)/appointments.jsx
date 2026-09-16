@@ -19,6 +19,7 @@ import { SheetHeader, SheetFooter, formStyles } from "../../components/FormSheet
 import ConfirmDialog from "../../components/ConfirmDialog";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import * as Print from "expo-print";
+import { Asset } from "expo-asset";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import ScreenBackground from "../../components/ScreenBackground";
@@ -39,6 +40,25 @@ import {
 const EMPTY_FORM = {
   doctorName: "", specialty: "", date: "", location: "",
   reason: "", notesBefore: "", notesAfter: "", followUpDate: "", status: "upcoming",
+};
+
+// The report is printed from a standalone HTML string with no base URL, so the
+// brand mark has to travel inside it as a data URI. Read once, then reuse.
+let brandMarkUri = null;
+const loadBrandMark = async () => {
+  if (brandMarkUri) return brandMarkUri;
+  try {
+    const asset = Asset.fromModule(require("../../assets/logo-mark.png"));
+    await asset.downloadAsync();
+    const base64 = await FileSystem.readAsStringAsync(asset.localUri || asset.uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    brandMarkUri = `data:image/png;base64,${base64}`;
+    return brandMarkUri;
+  } catch {
+    // the report reads fine without the mark — never fail an export over it
+    return null;
+  }
 };
 
 const STATUS_OPTIONS = [
@@ -138,11 +158,15 @@ export default function AppointmentsScreen() {
       start.setDate(start.getDate() - 30);
       const startDate = start.toLocaleDateString("en-CA");
 
-      const [checkInsRes, medsRes, logsRes, apptsRes] = await Promise.all([
+      const [checkInsRes, medsRes, logsRes, apptsRes, insights, logoUri] = await Promise.all([
         api.get("/api/checkins"),
         api.get("/api/medications"),
         api.get(`/api/medications/logs?startDate=${startDate}&endDate=${today}`),
         api.get("/api/appointments"),
+        // Observed Patterns is a bonus section — an export must never fail
+        // because insights didn't load
+        api.get("/api/insights").then((r) => r.data).catch(() => null),
+        loadBrandMark(),
       ]);
 
       const data = computeReportData(
@@ -151,7 +175,7 @@ export default function AppointmentsScreen() {
         logsRes.data.logs,
         apptsRes.data.appointments,
       );
-      const html = buildReportHtml(data, user?.username || "Patient");
+      const html = buildReportHtml(data, user?.username || "Patient", insights, logoUri);
       const { uri } = await Print.printToFileAsync({ html });
       const stamp = new Date().toLocaleDateString("en-CA");
       const fileName = `Chronically-Doctor-Report-${stamp}`;

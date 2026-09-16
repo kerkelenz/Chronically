@@ -254,21 +254,16 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
 
   // Current medication list rows — the schedule column speaks the app's human
   // sentences via describeSchedule
-  const medListHasNotes = medications.some((m) => m.notes && m.notes.trim());
-  const medListRows = medications.map((med) => {
-    const row = [
-      med.name,
-      med.type || "—",
-      med.dosage || "—",
-      describeSchedule(med) || "—",
-      med.active ? "Active" : "Inactive",
-    ];
-    if (medListHasNotes) {
-      const n = med.notes || "";
-      row.push(n.length > 40 ? n.slice(0, 40) + "..." : n || "—");
-    }
-    return row;
-  });
+  const medListRows = medications.map((med) => [
+    med.name,
+    med.type || "—",
+    med.dosage || "—",
+    describeSchedule(med) || "—",
+    med.active ? "Active" : "Inactive",
+  ]);
+  // Notes render full-width under their medication's row rather than squeezed
+  // into a truncated column — dosing instructions are what a prescriber reads.
+  const medListNotes = medications.map((med) => (med.notes || "").trim());
 
   // Adherence table rows — from the shared computed-missed math. PRN meds are
   // excluded (no denominator); their doses show on the as-needed line instead
@@ -318,6 +313,6 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
     // Content
     notableLines, dailyRows, adherenceByDay, skipReasonRows,
     recentAppts, upcomingAppts,
-    medListHasNotes, medListRows, adherenceRows, medLogRows,
+    medListRows, medListNotes, adherenceRows, medLogRows,
   };
 }

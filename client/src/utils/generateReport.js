@@ -1,6 +1,8 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatTime, describeSchedule, adherenceStats } from "./medicationHelpers";
+// ?inline gives a data URI, so the PDF stays synchronous — no image to await
+import logoMark from "../assets/logo-mark.png?inline";
 
 const SYMPTOM_LIST = [
   "Fatigue", "Brain fog", "Pain flare", "Numbness",
@@ -171,7 +173,7 @@ const drawTrendChart = (dailyData) => {
   return canvas.toDataURL("image/png");
 };
 
-export function generateReport(checkIns, username, medications = [], medicationLogs = [], appointments = []) {
+export function generateReport(checkIns, username, medications = [], medicationLogs = [], appointments = [], insights = null) {
   const today         = new Date();
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -268,11 +270,19 @@ export function generateReport(checkIns, username, medications = [], medicationL
   // ─── PAGE 1: SUMMARY ────────────────────────────────────────────────────────
   let y = 15;
 
-  // Header
+  // Header — the C-and-sprig mark on a purple tile, the lockup the app's own
+  // header uses. The mark artwork is white, so on paper it needs the tile
+  // behind it; without the tile it would print as nothing.
+  const MARK = 13;
+  doc.setFillColor(...PURPLE);
+  doc.roundedRect(margin, 11.5, MARK, MARK, 2.5, 2.5, "F");
+  doc.addImage(logoMark, "PNG", margin + 2.2, 13.7, MARK - 4.4, MARK - 4.4, "brandmark", "FAST");
+  const headX = margin + MARK + 4;
+
   doc.setFontSize(14);
   doc.setTextColor(...PURPLE);
   doc.setFont(undefined, "bold");
-  doc.text("Chronically Health Report", margin, y);
+  doc.text("Chronically Health Report", headX, y);
   y += 6;
 
   doc.setFontSize(9);
@@ -280,29 +290,34 @@ export function generateReport(checkIns, username, medications = [], medicationL
   doc.setFont(undefined, "normal");
   doc.text(
     `Patient: ${username}     Generated: ${today.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`,
-    margin, y,
+    headX, y,
   );
   y += 4;
   doc.text(
     `Period: ${thirtyDaysAgo.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} – ${today.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
-    margin, y,
+    headX, y,
   );
   y += gap + 2;
 
-  // ── At a Glance box ──
-  const boxH  = 30;
+  // ── At a Glance box ── (sleep takes a full-width third row when tracked)
+  const hasSleep = avgSleep !== "-";
+  const boxH  = hasSleep ? 42 : 30;
   const lPad  = 5;
   const row1Y = y + 5;
   const row2Y = y + 17;
+  const row3Y = y + 29;
+  const div1Y = y + 15;
+  const div2Y = y + 27;
 
   doc.setFillColor(...LAVENDER_FILL);
   doc.roundedRect(margin, y, pageWidth - 2 * margin, boxH, 3, 3, "F");
 
-  // Subtle dividers
+  // Subtle dividers — the column rule stops where the full-width row starts
   doc.setDrawColor(...GRAY);
   doc.setLineWidth(0.2);
-  doc.line(margin + 4,    y + boxH / 2, margin + pageWidth - 2 * margin - 4, y + boxH / 2);
-  doc.line(margin + colW, y + 4,        margin + colW,                        y + boxH - 4);
+  doc.line(margin + 4,    div1Y, margin + pageWidth - 2 * margin - 4, div1Y);
+  if (hasSleep) doc.line(margin + 4, div2Y, margin + pageWidth - 2 * margin - 4, div2Y);
+  doc.line(margin + colW, y + 4,  margin + colW, hasSleep ? div2Y : y + boxH - 4);
 
   // Labels (7pt gray)
   doc.setFontSize(7);
@@ -312,6 +327,7 @@ export function generateReport(checkIns, username, medications = [], medicationL
   doc.text("Medication adherence",  margin + colW + lPad, row1Y);
   doc.text("Most frequent symptom", margin + lPad,        row2Y);
   doc.text("Severe days",           margin + colW + lPad, row2Y);
+  if (hasSleep) doc.text("Average sleep quality", margin + lPad, row3Y);
 
   // Values (10pt dark bold)
   doc.setFontSize(10);
@@ -322,6 +338,7 @@ export function generateReport(checkIns, username, medications = [], medicationL
   doc.text(doc.splitTextToSize(glanceAdherenceText,   maxValW), margin + colW + lPad, row1Y + 5);
   doc.text(doc.splitTextToSize(glanceMostFreqSymptom, maxValW), margin + lPad,        row2Y + 5);
   doc.text(doc.splitTextToSize(glanceSevereText,      maxValW), margin + colW + lPad, row2Y + 5);
+  if (hasSleep) doc.text(`${avgSleep} / 5`, margin + lPad, row3Y + 5);
 
   y += boxH + gap;
 
@@ -351,7 +368,7 @@ export function generateReport(checkIns, username, medications = [], medicationL
   y += 3;
   const avgHead = ["Pain", "Mood", "Energy", "Anxiety", "Appetite"];
   const avgBody = [avgPain, avgMood, avgEnergy, avgAnxiety, avgAppetite];
-  if (avgSleep !== "-") { avgHead.push("Sleep"); avgBody.push(avgSleep); }
+  if (hasSleep) { avgHead.push("Sleep"); avgBody.push(avgSleep); }
   const avgColW = avgHead.length > 5 ? 31 : 38;
   const avgColStyles = {};
   avgHead.forEach((_, i) => { avgColStyles[i] = { cellWidth: avgColW }; });
@@ -398,9 +415,63 @@ export function generateReport(checkIns, username, medications = [], medicationL
     margin: { left: margin, right: margin },
     theme: "grid",
   });
+  y = doc.lastAutoTable.finalY + gap;
 
-  // ─── PAGE 2: MEDICATIONS + APPOINTMENTS ────────────────────────────────────
+  // ── Observed Patterns ── (bonus section: absent insights simply mean no
+  // section — an export must never depend on it)
+  const patternCards = insights?.cards || [];
+  if (patternCards.length > 0) {
+    // don't strand the heading at the foot of the page
+    if (y > pageHeight - 45) { doc.addPage(); y = 15; }
+    sectionTitle(doc, "Observed Patterns", y, margin);
+    y += 4;
+    doc.setFontSize(7.5);
+    doc.setTextColor(...GRAY);
+    doc.setFont(undefined, "italic");
+    doc.text(
+      "Associations in this patient's self-reported data over the last 90 days. Correlational only — not causal, and not clinically validated.",
+      margin, y, { maxWidth: pageWidth - 2 * margin },
+    );
+    doc.setFont(undefined, "normal");
+    y += 6;
+    autoTable(doc, {
+      startY: y,
+      // autoTable measures the three lines (and pages the card as a unit); we
+      // redraw them by hand so headline, body and evidence each get their own
+      // weight and colour
+      body: patternCards.map((c) => [`${c.headline}\n${c.body}\n${c.evidence}`]),
+      bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: { top: 1.5, bottom: 3, left: 2, right: 2 } },
+      willDrawCell: (d) => { if (d.section === "body") d.cell.text = []; },
+      didDrawCell: (d) => {
+        if (d.section !== "body") return;
+        const card     = patternCards[d.row.index];
+        const x        = d.cell.x + 2;
+        const bodyWrap = doc.splitTextToSize(card.body, d.cell.width - 4);
+        let   ty       = d.cell.y + 4.5;
+        doc.setTextColor(...DARK);
+        doc.setFont(undefined, "bold");
+        doc.setFontSize(9);
+        doc.text(card.headline, x, ty);
+        ty += 4;
+        doc.setFont(undefined, "normal");
+        doc.setFontSize(8);
+        doc.text(bodyWrap, x, ty);
+        ty += 3.4 * bodyWrap.length;
+        doc.setTextColor(...GRAY);
+        doc.setFontSize(7);
+        doc.text(card.evidence, x, ty);
+      },
+      columnStyles: { 0: { cellWidth: pageWidth - 2 * margin, minCellHeight: 15 } },
+      styles: { overflow: "linebreak" },
+      margin: { left: margin, right: margin, top: 14 },
+      theme: "plain",
+    });
+  }
+
+  // ─── MEDICATIONS + APPOINTMENTS ────────────────────────────────────────────
+  // chapters track their real page numbers, since the summary can now run long
   doc.addPage();
+  const medsPage = doc.internal.getNumberOfPages();
   let y2 = 15;
 
   doc.setFontSize(12);
@@ -430,17 +501,22 @@ export function generateReport(checkIns, username, medications = [], medicationL
       theme: "grid",
     });
   } else {
-    const hasNotes       = medications.some((med) => med.notes && med.notes.trim());
-    const medListHead    = ["Name", "Type", "Dosage", "Schedule", "Status"];
-    if (hasNotes) medListHead.push("Notes");
-    const medListColStyles = hasNotes
-      ? { 0: { cellWidth: 38 }, 1: { cellWidth: 18 }, 2: { cellWidth: 20 }, 3: { cellWidth: 58 }, 4: { cellWidth: 18 }, 5: { cellWidth: 28 } }
-      : { 0: { cellWidth: 45 }, 1: { cellWidth: 20 }, 2: { cellWidth: 25 }, 3: { cellWidth: 70 }, 4: { cellWidth: 20 } };
-    // the schedule column speaks the app's human sentences via describeSchedule
-    const medListBody = medications.map((med) => {
-      const row = [med.name, med.type || "—", med.dosage || "—", describeSchedule(med) || "—", med.active ? "Active" : "Inactive"];
-      if (hasNotes) { const n = med.notes || ""; row.push(n.length > 40 ? n.slice(0, 40) + "..." : n || "—"); }
-      return row;
+    const medListHead = ["Name", "Type", "Dosage", "Schedule", "Status"];
+    const medListColStyles = { 0: { cellWidth: 45 }, 1: { cellWidth: 20 }, 2: { cellWidth: 25 }, 3: { cellWidth: 70 }, 4: { cellWidth: 20 } };
+    // the schedule column speaks the app's human sentences via describeSchedule.
+    // Notes follow on their own full-width row rather than being truncated into
+    // a cramped sixth column — dosing instructions are what a prescriber reads.
+    const medListBody = [];
+    medications.forEach((med) => {
+      medListBody.push([med.name, med.type || "—", med.dosage || "—", describeSchedule(med) || "—", med.active ? "Active" : "Inactive"]);
+      const note = (med.notes || "").trim();
+      if (note) {
+        medListBody.push([{
+          content: note,
+          colSpan: 5,
+          styles: { fontSize: 7.5, fontStyle: "italic", textColor: GRAY, cellPadding: { top: 1, bottom: 1.5, left: 5, right: 2 } },
+        }]);
+      }
     });
     autoTable(doc, {
       startY: y2, head: [medListHead], body: medListBody,
@@ -554,8 +630,9 @@ export function generateReport(checkIns, username, medications = [], medicationL
     styles: { overflow: "linebreak" }, margin: { left: margin, right: margin, top: 14 }, theme: "grid",
   });
 
-  // ─── PAGE 3: DAILY LOGS ─────────────────────────────────────────────────────
+  // ─── DAILY LOGS ────────────────────────────────────────────────────────────
   doc.addPage();
+  const logsPage = doc.internal.getNumberOfPages();
   let y3 = 15;
 
   doc.setFontSize(12);
@@ -665,7 +742,7 @@ export function generateReport(checkIns, username, medications = [], medicationL
       doc.setFontSize(7);
       doc.setTextColor(...GRAY);
       doc.setFont(undefined, "normal");
-      const pageLabel = p === 2 ? "Medications & Appointments" : p === 3 ? "Daily Logs" : "Continued";
+      const pageLabel = p === medsPage ? "Medications & Appointments" : p === logsPage ? "Daily Logs" : "Continued";
       doc.text(`Chronically Health Report — ${pageLabel}`, margin, 7);
       doc.text(username, pageWidth - margin, 7, { align: "right" });
     }
