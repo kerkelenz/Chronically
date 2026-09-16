@@ -460,18 +460,25 @@ function ReviewRow({ label, value, labels, onEdit }) {
   );
 }
 
-function CheckInModal({ onClose, onComplete, askSleep = true }) {
+function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) {
   // Sleep is asked only on the first check-in of the day (askSleep); a later
   // same-day check-in skips step 0 entirely. Skip is always available.
   const firstStep = askSleep ? 0 : 1;
-  const [step, setStep] = useState(firstStep);
+  // "Same as last time": open straight on the review with the previous answers
+  // copied in. Sleep is deliberately NOT copied — last night isn't yesterday.
+  const prefilled = !!prefill;
+  const [step, setStep] = useState(prefilled ? 7 : firstStep);
   const [sleepLevel, setSleepLevel] = useState(null);
-  const [painLevel, setPainLevel] = useState(null);
-  const [moodLevel, setMoodLevel] = useState(null);
-  const [energyLevel, setEnergyLevel] = useState(null);
-  const [anxietyLevel, setAnxietyLevel] = useState(null);
-  const [appetiteLevel, setAppetiteLevel] = useState(null);
-  const [symptoms, setSymptoms] = useState([]);
+  const [painLevel, setPainLevel] = useState(prefill?.painLevel ?? null);
+  const [moodLevel, setMoodLevel] = useState(prefill?.moodLevel ?? null);
+  const [energyLevel, setEnergyLevel] = useState(prefill?.energyLevel ?? null);
+  const [anxietyLevel, setAnxietyLevel] = useState(prefill?.anxietyLevel ?? null);
+  const [appetiteLevel, setAppetiteLevel] = useState(prefill?.appetiteLevel ?? null);
+  const [symptoms, setSymptoms] = useState(prefill?.symptoms ?? []);
+  // set while editing a single answer from a pre-filled review, so choosing a
+  // value returns to the review instead of marching forward through the flow
+  const [returnToReview, setReturnToReview] = useState(false);
+  const [sleepSkipped, setSleepSkipped] = useState(false);
   const [recentSymptoms, setRecentSymptoms] = useState([]);
   const [symptomSearch, setSymptomSearch] = useState("");
   const [error, setError] = useState("");
@@ -534,6 +541,49 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
     if (count("highMid") >= 2) return pickRandom(COMBINED_TOAST_MESSAGES.twoOrMoreHighMid);
     if (count("best") >= 2)    return pickRandom(COMBINED_TOAST_MESSAGES.twoOrMoreBest);
     return null;
+  };
+
+  // ── Answer helpers ──────────────────────────────────────────────────────────
+  // Steps are indexed in this order, so a metric's step === its index here.
+  const ORDER = ["sleep", "pain", "mood", "energy", "anxiety", "appetite"];
+  const SETTERS = {
+    sleep: setSleepLevel, pain: setPainLevel, mood: setMoodLevel,
+    energy: setEnergyLevel, anxiety: setAnxietyLevel, appetite: setAppetiteLevel,
+  };
+
+  // Picking a value. In the normal flow this invalidates the answers that come
+  // after it and advances; when editing from a pre-filled review it updates just
+  // that one answer and returns to the review.
+  const chooseMetric = (key, level) => {
+    SETTERS[key](level);
+    showToast(getIndividualToast(getTier(level), key));
+    if (returnToReview) { setReturnToReview(false); setStep(7); return; }
+    const i = ORDER.indexOf(key);
+    ORDER.slice(i + 1).forEach((k) => SETTERS[k](null));
+    setSymptoms([]);
+    setStep(i + 1);
+  };
+
+  // Skip on the sleep step behaves like any other answer, minus a value.
+  const skipSleepStep = () => {
+    setSleepLevel(null);
+    setSleepSkipped(true);
+    if (returnToReview) { setReturnToReview(false); setStep(7); return; }
+    ORDER.slice(1).forEach((k) => SETTERS[k](null));
+    setSymptoms([]);
+    setStep(1);
+  };
+
+  // Review-row edit: destructive chain-restart in the normal flow, single-answer
+  // edit when the review was pre-filled.
+  const onEditMetric = (key) => {
+    const i = ORDER.indexOf(key);
+    if (prefilled) return () => { setReturnToReview(true); setStep(i); };
+    return () => {
+      ORDER.slice(i).forEach((k) => SETTERS[k](null));
+      setSymptoms([]);
+      setStep(i);
+    };
   };
 
   const toggleSymptom = (s) =>
@@ -631,29 +681,10 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
             <LevelButtons
               labels={METRIC_LABELS.sleep}
               selected={sleepLevel}
-              onSelect={(level) => {
-                setSleepLevel(level);
-                setPainLevel(null);
-                setMoodLevel(null);
-                setEnergyLevel(null);
-                setAnxietyLevel(null);
-                setAppetiteLevel(null);
-                setSymptoms([]);
-                showToast(getIndividualToast(getTier(level), "sleep"));
-                setStep(1);
-              }}
+              onSelect={(level) => chooseMetric("sleep", level)}
             />
             <button
-              onClick={() => {
-                setSleepLevel(null);
-                setPainLevel(null);
-                setMoodLevel(null);
-                setEnergyLevel(null);
-                setAnxietyLevel(null);
-                setAppetiteLevel(null);
-                setSymptoms([]);
-                setStep(1);
-              }}
+              onClick={skipSleepStep}
               className="text-white/50 text-xs hover:text-white/80 transition-colors"
             >
               Skip
@@ -670,16 +701,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
             <LevelButtons
               labels={METRIC_LABELS.pain}
               selected={painLevel}
-              onSelect={(level) => {
-                setPainLevel(level);
-                setMoodLevel(null);
-                setEnergyLevel(null);
-                setAnxietyLevel(null);
-                setAppetiteLevel(null);
-                setSymptoms([]);
-                showToast(getIndividualToast(getTier(level), "pain"));
-                setStep(2);
-              }}
+              onSelect={(level) => chooseMetric("pain", level)}
             />
           </div>
         )}
@@ -693,15 +715,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
             <LevelButtons
               labels={METRIC_LABELS.mood}
               selected={moodLevel}
-              onSelect={(level) => {
-                setMoodLevel(level);
-                setEnergyLevel(null);
-                setAnxietyLevel(null);
-                setAppetiteLevel(null);
-                setSymptoms([]);
-                showToast(getIndividualToast(getTier(level), "mood"));
-                setStep(3);
-              }}
+              onSelect={(level) => chooseMetric("mood", level)}
             />
           </div>
         )}
@@ -715,14 +729,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
             <LevelButtons
               labels={METRIC_LABELS.energy}
               selected={energyLevel}
-              onSelect={(level) => {
-                setEnergyLevel(level);
-                setAnxietyLevel(null);
-                setAppetiteLevel(null);
-                setSymptoms([]);
-                showToast(getIndividualToast(getTier(level), "energy"));
-                setStep(4);
-              }}
+              onSelect={(level) => chooseMetric("energy", level)}
             />
           </div>
         )}
@@ -736,13 +743,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
             <LevelButtons
               labels={METRIC_LABELS.anxiety}
               selected={anxietyLevel}
-              onSelect={(level) => {
-                setAnxietyLevel(level);
-                setAppetiteLevel(null);
-                setSymptoms([]);
-                showToast(getIndividualToast(getTier(level), "anxiety"));
-                setStep(5);
-              }}
+              onSelect={(level) => chooseMetric("anxiety", level)}
             />
           </div>
         )}
@@ -756,12 +757,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
             <LevelButtons
               labels={METRIC_LABELS.appetite}
               selected={appetiteLevel}
-              onSelect={(level) => {
-                setAppetiteLevel(level);
-                setSymptoms([]);
-                showToast(getIndividualToast(getTier(level), "appetite"));
-                setStep(6);
-              }}
+              onSelect={(level) => chooseMetric("appetite", level)}
             />
           </div>
         )}
@@ -783,6 +779,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
             />
             <button
               onClick={() => {
+                if (returnToReview) { setReturnToReview(false); setStep(7); return; }
                 const combo = getComboToast(painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel);
                 if (combo) showToast(combo);
                 setStep(7);
@@ -798,14 +795,36 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
         {/* Step 7 — Review & Submit */}
         {step === 7 && (
           <div className="flex flex-col gap-3 w-full">
-            {sleepLevel !== null && (
-              <ReviewRow label="Sleep" value={sleepLevel} labels={METRIC_LABELS.sleep} onEdit={() => { setSleepLevel(null); setPainLevel(null); setMoodLevel(null); setEnergyLevel(null); setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(0); }} />
+            {prefilled && (
+              <p className="text-white/60 text-xs text-center">
+                Copied from your last check-in — change anything that's different.
+              </p>
             )}
-            <ReviewRow label="Pain level"     value={painLevel}     labels={METRIC_LABELS.pain}     onEdit={() => { setPainLevel(null);     setMoodLevel(null); setEnergyLevel(null); setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(1); }} />
-            <ReviewRow label="Mood level"     value={moodLevel}     labels={METRIC_LABELS.mood}     onEdit={() => { setMoodLevel(null);     setEnergyLevel(null); setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(2); }} />
-            <ReviewRow label="Energy level"   value={energyLevel}   labels={METRIC_LABELS.energy}   onEdit={() => { setEnergyLevel(null);   setAnxietyLevel(null); setAppetiteLevel(null); setSymptoms([]); setStep(3); }} />
-            <ReviewRow label="Anxiety level"  value={anxietyLevel}  labels={METRIC_LABELS.anxiety}  onEdit={() => { setAnxietyLevel(null);  setAppetiteLevel(null); setSymptoms([]); setStep(4); }} />
-            <ReviewRow label="Appetite level" value={appetiteLevel} labels={METRIC_LABELS.appetite} onEdit={() => { setAppetiteLevel(null); setSymptoms([]); setStep(5); }} />
+            {/* Sleep isn't copied. On the day's first check-in, ask it right here
+                as one optional row instead of reopening the whole flow. */}
+            {prefilled && askSleep && sleepLevel === null && !sleepSkipped && (
+              <div
+                className="w-full p-3 rounded-2xl flex flex-col gap-3"
+                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
+              >
+                <p className="text-white/60 text-xs">How did you sleep?</p>
+                <LevelButtons labels={METRIC_LABELS.sleep} selected={sleepLevel} onSelect={(level) => setSleepLevel(level)} />
+                <button
+                  onClick={() => setSleepSkipped(true)}
+                  className="text-white/50 text-xs hover:text-white/80 transition-colors"
+                >
+                  Skip
+                </button>
+              </div>
+            )}
+            {sleepLevel !== null && (
+              <ReviewRow label="Sleep" value={sleepLevel} labels={METRIC_LABELS.sleep} onEdit={onEditMetric("sleep")} />
+            )}
+            <ReviewRow label="Pain level"     value={painLevel}     labels={METRIC_LABELS.pain}     onEdit={onEditMetric("pain")} />
+            <ReviewRow label="Mood level"     value={moodLevel}     labels={METRIC_LABELS.mood}     onEdit={onEditMetric("mood")} />
+            <ReviewRow label="Energy level"   value={energyLevel}   labels={METRIC_LABELS.energy}   onEdit={onEditMetric("energy")} />
+            <ReviewRow label="Anxiety level"  value={anxietyLevel}  labels={METRIC_LABELS.anxiety}  onEdit={onEditMetric("anxiety")} />
+            <ReviewRow label="Appetite level" value={appetiteLevel} labels={METRIC_LABELS.appetite} onEdit={onEditMetric("appetite")} />
             {symptoms.length > 0 ? (
               <div
                 className="w-full p-3 rounded-2xl relative"
@@ -821,7 +840,13 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
                   ))}
                 </div>
                 <button
-                  onClick={() => { setSymptoms([]); setStep(6); }}
+                  onClick={() => {
+                    // pre-filled review edits the list; the normal flow restarts
+                    // the symptom step from empty
+                    if (prefilled) setReturnToReview(true);
+                    else setSymptoms([]);
+                    setStep(6);
+                  }}
                   className="absolute right-3 top-3 text-white/50 hover:text-white transition-colors"
                 >
                   <FiEdit2 size={14} />
@@ -829,7 +854,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
               </div>
             ) : (
               <button
-                onClick={() => setStep(6)}
+                onClick={() => { if (prefilled) setReturnToReview(true); setStep(6); }}
                 className="text-white/50 text-xs hover:text-white/80 transition-colors text-center"
               >
                 + add symptoms
@@ -867,9 +892,12 @@ function CheckInModal({ onClose, onComplete, askSleep = true }) {
 
         {step !== 8 && (
           <div className="flex items-center gap-5">
-            {step > firstStep && (
+            {(returnToReview || (!prefilled && step > firstStep)) && (
               <button
-                onClick={() => setStep(step - 1)}
+                onClick={() => {
+                  if (returnToReview) { setReturnToReview(false); setStep(7); }
+                  else setStep(step - 1);
+                }}
                 className="text-white/50 text-xs hover:text-white/80 transition-colors"
               >
                 back

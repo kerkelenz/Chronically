@@ -296,6 +296,22 @@ export default function DashboardScreen() {
   const todayStr = new Date().toLocaleDateString("en-CA");
   const askSleep = !checkIns.some((c) => c.date === todayStr);
 
+  // "Same as last time" — only offered when there's a check-in recent enough to
+  // still mean something. Sleep is deliberately left out of the copy.
+  const lastCheckIn = checkIns[0];
+  const repeatPrefill =
+    lastCheckIn &&
+    Date.now() - new Date(lastCheckIn.createdAt).getTime() <= 7 * 24 * 60 * 60 * 1000
+      ? {
+          painLevel: lastCheckIn.painLevel,
+          moodLevel: lastCheckIn.moodLevel,
+          energyLevel: lastCheckIn.energyLevel,
+          anxietyLevel: lastCheckIn.anxietyLevel,
+          appetiteLevel: lastCheckIn.appetiteLevel,
+          symptoms: Array.isArray(lastCheckIn.symptoms) ? lastCheckIn.symptoms : [],
+        }
+      : null;
+
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   const recentCheckIns = checkIns.filter(
     (c) => new Date(c.createdAt) >= cutoff,
@@ -406,6 +422,15 @@ export default function DashboardScreen() {
             >
               <Text style={styles.checkInPromptBtnText}>Start Check-in</Text>
             </TouchableOpacity>
+            {repeatPrefill && (
+              <TouchableOpacity
+                onPress={() => openCheckIn(askSleep, repeatPrefill)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.sameAsLastText}>Same as last time</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -749,6 +774,13 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_700Bold",
     fontSize: 15,
     color: "white",
+  },
+  // quieter secondary action — never competes with the primary button
+  sameAsLastText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.7)",
+    marginTop: 2,
   },
   cardTitle: {
     fontFamily: "Lato_700Bold",

@@ -48,6 +48,7 @@ function DashboardPage() {
   const [checkIns, setCheckIns] = useState([]);
   const [todaysDone, setTodaysDone] = useState(false);
   const [showCheckIn, setShowCheckIn] = useState(false);
+  const [checkInPrefill, setCheckInPrefill] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editingCheckIn, setEditingCheckIn] = useState(null);
 
@@ -171,6 +172,22 @@ function DashboardPage() {
     }
   };
 
+  // "Same as last time" — only offered when there's a check-in recent enough to
+  // still mean something. Sleep is deliberately left out of the copy.
+  const lastCheckIn = checkIns[0];
+  const repeatPrefill =
+    lastCheckIn &&
+    Date.now() - new Date(lastCheckIn.createdAt).getTime() <= 7 * 24 * 60 * 60 * 1000
+      ? {
+          painLevel: lastCheckIn.painLevel,
+          moodLevel: lastCheckIn.moodLevel,
+          energyLevel: lastCheckIn.energyLevel,
+          anxietyLevel: lastCheckIn.anxietyLevel,
+          appetiteLevel: lastCheckIn.appetiteLevel,
+          symptoms: Array.isArray(lastCheckIn.symptoms) ? lastCheckIn.symptoms : [],
+        }
+      : null;
+
   // the re-check nudge waits an hour so it doesn't nag right after a check-in
   const overAnHourSinceCheckIn =
     checkIns[0] &&
@@ -252,12 +269,20 @@ function DashboardPage() {
               It only takes a moment.
             </p>
             <button
-              onClick={() => setShowCheckIn(true)}
+              onClick={() => { setCheckInPrefill(null); setShowCheckIn(true); }}
               className="mt-2 px-8 py-3 rounded-full text-white font-medium hover:scale-105 transition-all duration-200 shockwave-btn"
               style={{ background: "rgba(255,255,255,0.25)" }}
             >
               Start Check-in
             </button>
+            {repeatPrefill && (
+              <button
+                onClick={() => { setCheckInPrefill(repeatPrefill); setShowCheckIn(true); }}
+                className="text-sm text-white/70 hover:text-white transition-colors"
+              >
+                Same as last time
+              </button>
+            )}
           </div>
         )}
 
@@ -267,7 +292,7 @@ function DashboardPage() {
               Feeling different than earlier?
             </p>
             <button
-              onClick={() => setShowCheckIn(true)}
+              onClick={() => { setCheckInPrefill(null); setShowCheckIn(true); }}
               className="px-6 py-2.5 rounded-full text-white font-medium hover:scale-105 transition-all duration-200"
               style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
             >
@@ -760,9 +785,11 @@ function DashboardPage() {
       {showCheckIn && (
         <CheckInModal
           askSleep={!checkIns.some((c) => c.date === new Date().toLocaleDateString("en-CA"))}
-          onClose={() => setShowCheckIn(false)}
+          prefill={checkInPrefill}
+          onClose={() => { setShowCheckIn(false); setCheckInPrefill(null); }}
           onComplete={async () => {
             setShowCheckIn(false);
+            setCheckInPrefill(null);
             const response = await axios.get(
               `${import.meta.env.VITE_API_URL}/api/checkins`,
               { headers: { Authorization: `Bearer ${token}` } },

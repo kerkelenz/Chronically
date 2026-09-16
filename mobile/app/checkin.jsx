@@ -212,23 +212,35 @@ export default function CheckInScreen() {
   // Sleep is asked only on the first check-in of the day. The launcher passes
   // askSleep=false for a later same-day check-in; default true (skip is always
   // available as the safety valve). Params arrive as strings.
-  const { askSleep: askSleepParam } = useLocalSearchParams();
+  const { askSleep: askSleepParam, prefill: prefillParam } = useLocalSearchParams();
   const askSleep = askSleepParam !== "false";
   const firstStep = askSleep ? 0 : 1;
+
+  // "Same as last time": the launcher hands us the previous check-in's answers
+  // and we open straight on the review step. Sleep is deliberately NOT copied.
+  const prefill = (() => {
+    if (!prefillParam) return null;
+    try { return JSON.parse(prefillParam); } catch { return null; }
+  })();
+  const prefilled = !!prefill;
 
   function dismiss() {
     if (router.canGoBack()) router.back();
     else router.replace("/(tabs)");
   }
 
-  const [step, setStep] = useState(firstStep);
+  const [step, setStep] = useState(prefilled ? 7 : firstStep);
   const [sleepLevel, setSleepLevel] = useState(null);
-  const [painLevel, setPainLevel] = useState(null);
-  const [moodLevel, setMoodLevel] = useState(null);
-  const [energyLevel, setEnergyLevel] = useState(null);
-  const [anxietyLevel, setAnxietyLevel] = useState(null);
-  const [appetiteLevel, setAppetiteLevel] = useState(null);
-  const [symptoms, setSymptoms] = useState([]);
+  const [painLevel, setPainLevel] = useState(prefill?.painLevel ?? null);
+  const [moodLevel, setMoodLevel] = useState(prefill?.moodLevel ?? null);
+  const [energyLevel, setEnergyLevel] = useState(prefill?.energyLevel ?? null);
+  const [anxietyLevel, setAnxietyLevel] = useState(prefill?.anxietyLevel ?? null);
+  const [appetiteLevel, setAppetiteLevel] = useState(prefill?.appetiteLevel ?? null);
+  const [symptoms, setSymptoms] = useState(prefill?.symptoms ?? []);
+  // set while editing a single answer from a pre-filled review, so choosing a
+  // value returns to the review instead of marching forward through the flow
+  const [returnToReview, setReturnToReview] = useState(false);
+  const [sleepSkipped, setSleepSkipped] = useState(false);
   const [recentSymptoms, setRecentSymptoms] = useState([]);
   const [symptomSearch, setSymptomSearch] = useState("");
   const [error, setError] = useState("");
@@ -289,6 +301,59 @@ export default function CheckInScreen() {
         if (finished) setToastMessage("");
       });
     }, 1500);
+  }
+
+  // ── Answer helpers ──────────────────────────────────────────────────────────
+  // Steps are indexed in this order, so a metric's step === its index here.
+  const ORDER = ["sleep", "pain", "mood", "energy", "anxiety", "appetite"];
+  const SETTERS = {
+    sleep: setSleepLevel, pain: setPainLevel, mood: setMoodLevel,
+    energy: setEnergyLevel, anxiety: setAnxietyLevel, appetite: setAppetiteLevel,
+  };
+
+  // Picking a value. In the normal flow this invalidates the answers that come
+  // after it and advances; when editing from a pre-filled review it updates just
+  // that one answer and returns to the review.
+  function chooseMetric(key, level) {
+    SETTERS[key](level);
+    showToast(getIndividualToast(getTier(level), key));
+    if (returnToReview) {
+      setReturnToReview(false);
+      setStep(7);
+      return;
+    }
+    const i = ORDER.indexOf(key);
+    for (const k of ORDER.slice(i + 1)) SETTERS[k](null);
+    setSymptoms([]);
+    setStep(i + 1);
+  }
+
+  // Skip on the sleep step behaves like any other answer, minus a value.
+  function skipSleepStep() {
+    setSleepLevel(null);
+    setSleepSkipped(true);
+    if (returnToReview) {
+      setReturnToReview(false);
+      setStep(7);
+      return;
+    }
+    for (const k of ORDER.slice(1)) SETTERS[k](null);
+    setSymptoms([]);
+    setStep(1);
+  }
+
+  // Review-row edit: destructive chain-restart in the normal flow, single-answer
+  // edit when the review was pre-filled.
+  function onEditMetric(key) {
+    const i = ORDER.indexOf(key);
+    if (prefilled) {
+      return () => { setReturnToReview(true); setStep(i); };
+    }
+    return () => {
+      for (const k of ORDER.slice(i)) SETTERS[k](null);
+      setSymptoms([]);
+      setStep(i);
+    };
   }
 
   function toggleSymptom(s) {
@@ -372,30 +437,9 @@ export default function CheckInScreen() {
                     <LevelButtons
                       labels={METRIC_LABELS.sleep}
                       selected={sleepLevel}
-                      onSelect={(level) => {
-                        setSleepLevel(level);
-                        setPainLevel(null);
-                        setMoodLevel(null);
-                        setEnergyLevel(null);
-                        setAnxietyLevel(null);
-                        setAppetiteLevel(null);
-                        setSymptoms([]);
-                        showToast(getIndividualToast(getTier(level), "sleep"));
-                        setStep(1);
-                      }}
+                      onSelect={(level) => chooseMetric("sleep", level)}
                     />
-                    <TouchableOpacity
-                      onPress={() => {
-                        setSleepLevel(null);
-                        setPainLevel(null);
-                        setMoodLevel(null);
-                        setEnergyLevel(null);
-                        setAnxietyLevel(null);
-                        setAppetiteLevel(null);
-                        setSymptoms([]);
-                        setStep(1);
-                      }}
-                    >
+                    <TouchableOpacity onPress={skipSleepStep}>
                       <Text style={styles.skipLink}>Skip</Text>
                     </TouchableOpacity>
                   </>
@@ -408,16 +452,7 @@ export default function CheckInScreen() {
                     <LevelButtons
                       labels={METRIC_LABELS.pain}
                       selected={painLevel}
-                      onSelect={(level) => {
-                        setPainLevel(level);
-                        setMoodLevel(null);
-                        setEnergyLevel(null);
-                        setAnxietyLevel(null);
-                        setAppetiteLevel(null);
-                        setSymptoms([]);
-                        showToast(getIndividualToast(getTier(level), "pain"));
-                        setStep(2);
-                      }}
+                      onSelect={(level) => chooseMetric("pain", level)}
                     />
                   </>
                 )}
@@ -429,15 +464,7 @@ export default function CheckInScreen() {
                     <LevelButtons
                       labels={METRIC_LABELS.mood}
                       selected={moodLevel}
-                      onSelect={(level) => {
-                        setMoodLevel(level);
-                        setEnergyLevel(null);
-                        setAnxietyLevel(null);
-                        setAppetiteLevel(null);
-                        setSymptoms([]);
-                        showToast(getIndividualToast(getTier(level), "mood"));
-                        setStep(3);
-                      }}
+                      onSelect={(level) => chooseMetric("mood", level)}
                     />
                   </>
                 )}
@@ -451,14 +478,7 @@ export default function CheckInScreen() {
                     <LevelButtons
                       labels={METRIC_LABELS.energy}
                       selected={energyLevel}
-                      onSelect={(level) => {
-                        setEnergyLevel(level);
-                        setAnxietyLevel(null);
-                        setAppetiteLevel(null);
-                        setSymptoms([]);
-                        showToast(getIndividualToast(getTier(level), "energy"));
-                        setStep(4);
-                      }}
+                      onSelect={(level) => chooseMetric("energy", level)}
                     />
                   </>
                 )}
@@ -472,15 +492,7 @@ export default function CheckInScreen() {
                     <LevelButtons
                       labels={METRIC_LABELS.anxiety}
                       selected={anxietyLevel}
-                      onSelect={(level) => {
-                        setAnxietyLevel(level);
-                        setAppetiteLevel(null);
-                        setSymptoms([]);
-                        showToast(
-                          getIndividualToast(getTier(level), "anxiety"),
-                        );
-                        setStep(5);
-                      }}
+                      onSelect={(level) => chooseMetric("anxiety", level)}
                     />
                   </>
                 )}
@@ -494,14 +506,7 @@ export default function CheckInScreen() {
                     <LevelButtons
                       labels={METRIC_LABELS.appetite}
                       selected={appetiteLevel}
-                      onSelect={(level) => {
-                        setAppetiteLevel(level);
-                        setSymptoms([]);
-                        showToast(
-                          getIndividualToast(getTier(level), "appetite"),
-                        );
-                        setStep(6);
-                      }}
+                      onSelect={(level) => chooseMetric("appetite", level)}
                     />
                   </>
                 )}
@@ -522,6 +527,11 @@ export default function CheckInScreen() {
                     <TouchableOpacity
                       style={styles.primaryBtn}
                       onPress={() => {
+                        if (returnToReview) {
+                          setReturnToReview(false);
+                          setStep(7);
+                          return;
+                        }
                         const combo = getComboToast(
                           painLevel,
                           moodLevel,
@@ -545,82 +555,63 @@ export default function CheckInScreen() {
                 {/* Step 7 — Review & Submit */}
                 {step === 7 && (
                   <>
+                    {prefilled && (
+                      <Text style={styles.copiedNote}>
+                        Copied from your last check-in — change anything that's different.
+                      </Text>
+                    )}
+                    {/* Sleep isn't copied. On the day's first check-in, ask it
+                        right here as one optional row instead of reopening the flow. */}
+                    {prefilled && askSleep && sleepLevel === null && !sleepSkipped && (
+                      <View style={styles.sleepRowBox}>
+                        <Text style={styles.reviewLabel}>How did you sleep?</Text>
+                        <LevelButtons
+                          labels={METRIC_LABELS.sleep}
+                          selected={sleepLevel}
+                          onSelect={(level) => setSleepLevel(level)}
+                        />
+                        <TouchableOpacity onPress={() => setSleepSkipped(true)}>
+                          <Text style={styles.skipLink}>Skip</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
                     {sleepLevel !== null && (
                       <ReviewRow
                         label="Sleep"
                         value={sleepLevel}
                         labelMap={METRIC_LABELS.sleep}
-                        onEdit={() => {
-                          setSleepLevel(null);
-                          setPainLevel(null);
-                          setMoodLevel(null);
-                          setEnergyLevel(null);
-                          setAnxietyLevel(null);
-                          setAppetiteLevel(null);
-                          setSymptoms([]);
-                          setStep(0);
-                        }}
+                        onEdit={onEditMetric("sleep")}
                       />
                     )}
                     <ReviewRow
                       label="Pain level"
                       value={painLevel}
                       labelMap={METRIC_LABELS.pain}
-                      onEdit={() => {
-                        setPainLevel(null);
-                        setMoodLevel(null);
-                        setEnergyLevel(null);
-                        setAnxietyLevel(null);
-                        setAppetiteLevel(null);
-                        setSymptoms([]);
-                        setStep(1);
-                      }}
+                      onEdit={onEditMetric("pain")}
                     />
                     <ReviewRow
                       label="Mood level"
                       value={moodLevel}
                       labelMap={METRIC_LABELS.mood}
-                      onEdit={() => {
-                        setMoodLevel(null);
-                        setEnergyLevel(null);
-                        setAnxietyLevel(null);
-                        setAppetiteLevel(null);
-                        setSymptoms([]);
-                        setStep(2);
-                      }}
+                      onEdit={onEditMetric("mood")}
                     />
                     <ReviewRow
                       label="Energy level"
                       value={energyLevel}
                       labelMap={METRIC_LABELS.energy}
-                      onEdit={() => {
-                        setEnergyLevel(null);
-                        setAnxietyLevel(null);
-                        setAppetiteLevel(null);
-                        setSymptoms([]);
-                        setStep(3);
-                      }}
+                      onEdit={onEditMetric("energy")}
                     />
                     <ReviewRow
                       label="Anxiety level"
                       value={anxietyLevel}
                       labelMap={METRIC_LABELS.anxiety}
-                      onEdit={() => {
-                        setAnxietyLevel(null);
-                        setAppetiteLevel(null);
-                        setSymptoms([]);
-                        setStep(4);
-                      }}
+                      onEdit={onEditMetric("anxiety")}
                     />
                     <ReviewRow
                       label="Appetite level"
                       value={appetiteLevel}
                       labelMap={METRIC_LABELS.appetite}
-                      onEdit={() => {
-                        setAppetiteLevel(null);
-                        setSymptoms([]);
-                        setStep(5);
-                      }}
+                      onEdit={onEditMetric("appetite")}
                     />
 
                     {/* Symptoms review */}
@@ -630,7 +621,10 @@ export default function CheckInScreen() {
                           <Text style={styles.reviewLabel}>Symptoms</Text>
                           <TouchableOpacity
                             onPress={() => {
-                              setSymptoms([]);
+                              // pre-filled review edits the list; the normal
+                              // flow restarts the symptom step from empty
+                              if (prefilled) setReturnToReview(true);
+                              else setSymptoms([]);
                               setStep(6);
                             }}
                             activeOpacity={0.7}
@@ -653,7 +647,12 @@ export default function CheckInScreen() {
                         </View>
                       </View>
                     ) : (
-                      <TouchableOpacity onPress={() => setStep(6)}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (prefilled) setReturnToReview(true);
+                          setStep(6);
+                        }}
+                      >
                         <Text style={styles.addSymptomsLink}>
                           + add symptoms
                         </Text>
@@ -707,8 +706,15 @@ export default function CheckInScreen() {
               {/* ── Back / Cancel (all steps except 8) ──────────────────── */}
               {step !== 8 && (
                 <View style={styles.navLinks}>
-                  {step > firstStep && (
-                    <TouchableOpacity onPress={() => setStep(step - 1)}>
+                  {(returnToReview || (!prefilled && step > firstStep)) && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (returnToReview) {
+                          setReturnToReview(false);
+                          setStep(7);
+                        } else setStep(step - 1);
+                      }}
+                    >
                       <Text style={styles.navLink}>back</Text>
                     </TouchableOpacity>
                   )}
@@ -946,6 +952,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "rgba(255,255,255,0.55)",
     textAlign: "center",
+  },
+  copiedNote: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.6)",
+    textAlign: "center",
+    marginBottom: 2,
+  },
+  sleepRowBox: {
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    gap: 12,
   },
   errorText: {
     fontFamily: "Lato_400Regular",
