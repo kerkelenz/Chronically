@@ -28,6 +28,7 @@ const EMPTY_FORM = {
   startDate: "", // filled with today when the modal opens
   scheduledTimes: ["08:00"],
   notes: "",
+  removalOffsetHours: 12, // patches only — ignored for every other form
 };
 
 const SKIP_REASONS = [
@@ -404,6 +405,28 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
           </div>
         )}
 
+        {/* Patch removal */}
+        {form.type === "patch" && (
+          <div>
+            <p className={labelClass}>Remove after how many hours?</p>
+            <input
+              type="number"
+              min={1}
+              max={168}
+              value={form.removalOffsetHours}
+              onChange={(e) => {
+                const n = parseInt(e.target.value, 10);
+                if (!isNaN(n)) setForm({ ...form, removalOffsetHours: Math.min(168, Math.max(1, n)) });
+              }}
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              style={inputStyle}
+            />
+            <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.6)" }}>
+              We'll remind you this long after you log the patch on.
+            </p>
+          </div>
+        )}
+
         {/* Every N days */}
         {form.pattern === "every_n_days" && (
           <div>
@@ -576,6 +599,7 @@ function MedicationsPage() {
       startDate: anchorYmd,
       scheduledTimes: med.scheduledTimes || [],
       notes: med.notes || "",
+      removalOffsetHours: med.removalOffsetHours ?? 12,
     });
     setShowModal(true);
   };
@@ -601,6 +625,7 @@ function MedicationsPage() {
             ? form.startDate || today
             : null,
         notes: form.notes.trim() || null,
+        removalOffsetHours: form.type === "patch" ? form.removalOffsetHours : null,
       };
       if (form.id) {
         const res = await axios.put(

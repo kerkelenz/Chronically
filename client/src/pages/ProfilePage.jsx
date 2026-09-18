@@ -36,6 +36,46 @@ function getCroppedImg(imageSrc, croppedAreaPixels) {
   });
 }
 
+// A switch styled to match the app rather than the browser default, which
+// ignores the surrounding palette entirely.
+function ToggleRow({ label, hint, checked, disabled, onChange, nested, last }) {
+  return (
+    <div
+      className="flex items-center gap-3 py-3"
+      style={{
+        paddingLeft: nested ? 14 : 0,
+        borderBottom: last ? "none" : "1px solid rgba(255,255,255,0.12)",
+      }}
+    >
+      <div className="flex-1">
+        <p className="text-sm" style={{ color: "rgba(255,255,255,0.9)" }}>{label}</p>
+        <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>{hint}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className="relative rounded-full transition-colors flex-shrink-0 disabled:opacity-50"
+        style={{
+          width: 44, height: 26,
+          background: checked ? "#B9A9E0" : "rgba(255,255,255,0.25)",
+        }}
+      >
+        <span
+          className="absolute rounded-full transition-transform"
+          style={{
+            width: 20, height: 20, top: 3, left: 3, background: "white",
+            transform: checked ? "translateX(18px)" : "translateX(0)",
+          }}
+        />
+      </button>
+    </div>
+  );
+}
+
 function ProfilePage() {
   const navigate = useNavigate();
   const { user, token, logout, updateUser } = useAuth();
@@ -45,6 +85,35 @@ function ProfilePage() {
   const [email, setEmail] = useState(user?.email || "");
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+  // ── Notification preferences ────────────────────────────────────────────
+  const DEFAULT_PREFS = { enabled: true, medReminders: true, checkinNudge: true };
+  const [prefs, setPrefs] = useState({ ...DEFAULT_PREFS, ...(user?.notificationPrefs || {}) });
+  const [prefsBusy, setPrefsBusy] = useState(false);
+
+  // Server-side state — roll the switch back if the save fails rather than
+  // showing a setting that isn't really in effect.
+  const savePrefs = async (patch) => {
+    const previous = prefs;
+    setPrefs({ ...prefs, ...patch });
+    setPrefsBusy(true);
+    try {
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/users/notification-prefs`,
+        patch,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const saved = res.data?.notificationPrefs;
+      if (saved) {
+        setPrefs(saved);
+        updateUser({ ...user, notificationPrefs: saved });
+      }
+    } catch {
+      setPrefs(previous);
+    } finally {
+      setPrefsBusy(false);
+    }
+  };
+
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
@@ -344,6 +413,52 @@ function ProfilePage() {
           >
             Support Chronically
           </a>
+        </div>
+
+        {/* Notifications — the toggles are account-wide, so they take effect on
+            the phone even though the browser itself never receives a push */}
+        <div
+          className="rounded-2xl p-4 mb-4"
+          style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
+        >
+          <p
+            className="text-xs font-bold uppercase tracking-wider mb-1"
+            style={{ color: "rgba(255,255,255,0.55)" }}
+          >
+            Notifications
+          </p>
+          <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.6)" }}>
+            Reminders are delivered to the Chronically app on your phone.
+          </p>
+
+          <ToggleRow
+            label="Notifications"
+            hint="Medication reminders and the evening check-in nudge."
+            checked={prefs.enabled !== false}
+            disabled={prefsBusy}
+            onChange={(v) => savePrefs({ enabled: v })}
+          />
+          {prefs.enabled !== false && (
+            <>
+              <ToggleRow
+                nested
+                label="Medication reminders"
+                hint="At each dose time, and when a patch is due to come off."
+                checked={prefs.medReminders !== false}
+                disabled={prefsBusy}
+                onChange={(v) => savePrefs({ medReminders: v })}
+              />
+              <ToggleRow
+                nested
+                last
+                label="Check-in nudge"
+                hint="One gentle reminder in the evening, only if you haven't logged."
+                checked={prefs.checkinNudge !== false}
+                disabled={prefsBusy}
+                onChange={(v) => savePrefs({ checkinNudge: v })}
+              />
+            </>
+          )}
         </div>
 
         {/* Session and danger */}

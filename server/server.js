@@ -27,6 +27,8 @@ const feedbackRoutes = require("./routes/feedbackRoutes");
 const accountDeletionRoutes = require("./routes/accountDeletionRoutes");
 const eventRoutes = require("./routes/eventRoutes");
 const insightRoutes = require("./routes/insightRoutes");
+const pushRoutes = require("./routes/pushRoutes");
+const { startNotificationScheduler } = require("./jobs/notificationScheduler");
 const rateLimit = require("express-rate-limit");
 
 // importing the models here so Sequelize knows about them before we call sync
@@ -40,6 +42,8 @@ require("./models/SpoonActivity");
 require("./models/SpoonDay");
 require("./models/SpoonEntry");
 require("./models/Event");
+require("./models/PushToken");
+require("./models/NotificationLog");
 
 // creating the express app - everything gets attached to this
 const app = express();
@@ -127,6 +131,7 @@ const startServer = async () => {
   app.use("/api/appointments", appointmentRoutes);
   app.use("/api/spoons", spoonRoutes);
   app.use("/api/insights", insightRoutes);
+  app.use("/api/push", pushRoutes);
   app.use("/api/feedback", emailLimiter, feedbackRoutes);
   app.use("/api/account-deletion", emailLimiter, accountDeletionRoutes);
 
@@ -164,6 +169,13 @@ const startServer = async () => {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
+
+  // Reminder delivery rides on this process, so it only ticks while the web
+  // service is awake — fine on an always-on instance, not on one that sleeps.
+  // Set DISABLE_NOTIFICATION_SCHEDULER=true to run an instance without it.
+  if (process.env.DISABLE_NOTIFICATION_SCHEDULER !== "true") {
+    startNotificationScheduler();
+  }
 };
 
 startServer();

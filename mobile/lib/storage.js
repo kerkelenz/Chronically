@@ -4,6 +4,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const TOKEN_KEY = "auth_token";
 const USER_KEY = "auth_user";           // AsyncStorage (no size cap — stores full user with avatar)
 const SECURE_USER_KEY = "auth_user";    // legacy SecureStore key used before this refactor
+const PUSH_TOKEN_KEY = "push_token";
+const PUSH_DECLINED_KEY = "push_declined";  // survives sign-out: a "no" should stick
 
 // ── Token (SecureStore — sensitive) ──────────────────────────────────────────
 
@@ -54,11 +56,51 @@ export async function migrateUserFromSecureStore() {
   }
 }
 
+// ── Push notifications ───────────────────────────────────────────────────────
+// The Expo push token is kept so sign-out knows exactly which row to unregister
+// server-side; "declined" remembers that the user said Not now to the priming
+// card, so the app never asks again on its own (Profile can still turn it on).
+
+export async function getPushToken() {
+  try {
+    return await SecureStore.getItemAsync(PUSH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function setPushToken(token) {
+  try {
+    await SecureStore.setItemAsync(PUSH_TOKEN_KEY, token);
+  } catch {}
+}
+
+export async function clearPushToken() {
+  try {
+    await SecureStore.deleteItemAsync(PUSH_TOKEN_KEY);
+  } catch {}
+}
+
+export async function getPushDeclined() {
+  try {
+    return (await AsyncStorage.getItem(PUSH_DECLINED_KEY)) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export async function setPushDeclined(declined) {
+  try {
+    await AsyncStorage.setItem(PUSH_DECLINED_KEY, declined ? "true" : "false");
+  } catch {}
+}
+
 // ── Clear both stores ─────────────────────────────────────────────────────────
 
 export async function clearAuth() {
   try {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     await AsyncStorage.removeItem(USER_KEY);
+    await SecureStore.deleteItemAsync(PUSH_TOKEN_KEY);
   } catch {}
 }

@@ -82,6 +82,24 @@ const User = sequelize.define("User", {
     allowNull: false,
     defaultValue: [],
   },
+  // { enabled, medReminders, checkinNudge } — `enabled` is the master switch:
+  // when it is false the scheduler skips the user entirely, whatever the
+  // sub-toggles say. Defaults are all-on; a user with no push token registered
+  // never hears anything regardless, so this is not a surprise opt-in.
+  notificationPrefs: {
+    type: DataTypes.JSON,
+    allowNull: false,
+    defaultValue: { enabled: true, medReminders: true, checkinNudge: true },
+  },
+  // IANA zone name (e.g. "America/New_York"), reported by the device at login.
+  // Medication times are stored as bare "HH:MM" strings that have always meant
+  // device-local time, so the server cannot fire a reminder at the right hour
+  // without this. Null until a device reports one — the scheduler falls back to
+  // DEFAULT_TIMEZONE and only sends the nudge, never a mistimed dose reminder.
+  timezone: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 });
 
 module.exports = User;

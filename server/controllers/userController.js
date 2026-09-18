@@ -21,6 +21,7 @@ const getProfile = async (req, res) => {
         avatar: user.avatar || null,
         celebratedMilestones: user.celebratedMilestones || [],
         hasSeenWelcome: user.hasSeenWelcome || false,
+        notificationPrefs: user.notificationPrefs || DEFAULT_NOTIFICATION_PREFS,
       },
     });
   } catch (error) {
@@ -143,6 +144,62 @@ const updateMilestones = async (req, res) => {
   }
 };
 
+const DEFAULT_NOTIFICATION_PREFS = { enabled: true, medReminders: true, checkinNudge: true };
+
+// updateNotificationPrefs handles PUT /api/users/notification-prefs
+// Accepts a partial patch and merges, so a single toggle doesn't have to send
+// the whole object back.
+const updateNotificationPrefs = async (req, res) => {
+  try {
+    const { enabled, medReminders, checkinNudge } = req.body;
+    const incoming = { enabled, medReminders, checkinNudge };
+
+    for (const [key, value] of Object.entries(incoming)) {
+      if (value !== undefined && typeof value !== "boolean") {
+        return res.status(400).json({ error: `${key} must be a boolean` });
+      }
+    }
+
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const merged = { ...DEFAULT_NOTIFICATION_PREFS, ...(user.notificationPrefs || {}) };
+    for (const [key, value] of Object.entries(incoming)) {
+      if (value !== undefined) merged[key] = value;
+    }
+
+    await User.update({ notificationPrefs: merged }, { where: { id: req.user.id } });
+    res.status(200).json({ notificationPrefs: merged });
+  } catch (error) {
+    console.error("Update notification prefs error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+// updateTimezone handles PUT /api/users/timezone
+// The device reports its IANA zone at sign-in. Medication times are stored as
+// bare "HH:MM" meaning device-local, so without this the scheduler cannot know
+// what hour "08:00" is — see lib/medSchedule.js.
+const updateTimezone = async (req, res) => {
+  try {
+    const { timezone } = req.body;
+    if (!timezone || typeof timezone !== "string") {
+      return res.status(400).json({ error: "Timezone is required" });
+    }
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+    } catch {
+      return res.status(400).json({ error: "Unknown timezone" });
+    }
+
+    await User.update({ timezone }, { where: { id: req.user.id } });
+    res.status(200).json({ timezone });
+  } catch (error) {
+    console.error("Update timezone error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
 const markWelcomeSeen = async (req, res) => {
   try {
     await User.update({ hasSeenWelcome: true }, { where: { id: req.user.id } });
@@ -153,4 +210,4 @@ const markWelcomeSeen = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen };
+module.exports = { getProfile, updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen, updateNotificationPrefs, updateTimezone };

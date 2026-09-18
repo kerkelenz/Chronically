@@ -55,7 +55,15 @@
         "@sentry/react-native/expo",
         {}
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logo-mark.png",
+          "color": "#7C6BAE",
+          "defaultChannel": "default"
+        }
+      ]
     ],
     "extra": {
       "router": {},

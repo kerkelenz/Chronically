@@ -33,15 +33,25 @@ const getMedications = async (req, res) => {
   }
 };
 
+// Only patches carry a removal offset — switching a med away from "patch" must
+// clear it, or a stale value would keep firing removal reminders for a pill.
+const normalizeRemovalHours = (type, hours) => {
+  if (type !== "patch") return null;
+  const n = Number(hours);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.min(168, Math.round(n));
+};
+
 const createMedication = async (req, res) => {
   try {
-    const { name, type, dosage, frequency, frequencyWeeks, scheduledTimes, notes, active, daysOfWeek, startDate, intervalDays } = req.body;
+    const { name, type, dosage, frequency, frequencyWeeks, scheduledTimes, notes, active, daysOfWeek, startDate, intervalDays, removalOffsetHours } = req.body;
     const scheduleError = validateScheduleFields({ daysOfWeek, startDate, intervalDays });
     if (scheduleError) return res.status(400).json({ error: scheduleError });
     const medication = await Medication.create({
       userId: req.user.id,
       name, type, dosage, frequency, frequencyWeeks, scheduledTimes, notes,
       daysOfWeek, startDate, intervalDays,
+      removalOffsetHours: normalizeRemovalHours(type, removalOffsetHours),
       active: active !== undefined ? active : true,
     });
     res.status(201).json({ medication });
@@ -58,10 +68,14 @@ const updateMedication = async (req, res) => {
     });
     if (!medication) return res.status(404).json({ error: "Medication not found" });
 
-    const { name, type, dosage, frequency, frequencyWeeks, scheduledTimes, notes, active, daysOfWeek, startDate, intervalDays } = req.body;
+    const { name, type, dosage, frequency, frequencyWeeks, scheduledTimes, notes, active, daysOfWeek, startDate, intervalDays, removalOffsetHours } = req.body;
     const scheduleError = validateScheduleFields({ daysOfWeek, startDate, intervalDays });
     if (scheduleError) return res.status(400).json({ error: scheduleError });
-    await medication.update({ name, type, dosage, frequency, frequencyWeeks, scheduledTimes, notes, active, daysOfWeek, startDate, intervalDays });
+    await medication.update({
+      name, type, dosage, frequency, frequencyWeeks, scheduledTimes, notes, active,
+      daysOfWeek, startDate, intervalDays,
+      removalOffsetHours: normalizeRemovalHours(type, removalOffsetHours),
+    });
     res.json({ medication });
   } catch (error) {
     console.error("Update medication error:", error);

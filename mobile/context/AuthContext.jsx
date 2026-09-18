@@ -10,6 +10,11 @@ import {
   clearAuth,
   migrateUserFromSecureStore,
 } from "../lib/storage";
+import {
+  registerForPushNotifications,
+  unregisterPushNotifications,
+  syncTimezone,
+} from "../lib/pushNotifications";
 
 const AuthContext = createContext(null);
 
@@ -24,7 +29,20 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Re-runs on every authenticated session start, not just fresh logins: push
+  // tokens rotate, a reinstall produces a new one, and the server prunes tokens
+  // that stop resolving — so the device has to re-assert itself. Never prompts;
+  // a device that hasn't been granted permission stays silent until the user
+  // opts in via the primer or Profile.
+  function syncNotificationState() {
+    syncTimezone();
+    registerForPushNotifications({ promptIfNeeded: false });
+  }
+
   async function signOut() {
+    // must run before clearAuth — the request needs the auth token that
+    // clearAuth is about to delete from SecureStore
+    await unregisterPushNotifications();
     await clearAuth();
     Sentry.setUser(null);
     setToken(null);
@@ -56,6 +74,7 @@ export function AuthProvider({ children }) {
       // numeric id only — no email/name attached to error reports
       if (u?.id) Sentry.setUser({ id: u.id });
       trackSession();
+      syncNotificationState();
       // Optimistic restore — validate the token AND refresh the user record in
       // the background. Refreshing repairs stale stored users (e.g. an email
       // saved before it was persisted) so fields hydrate correctly next boot.
@@ -86,6 +105,7 @@ export function AuthProvider({ children }) {
       setUserState(newUser);
       if (newUser?.id) Sentry.setUser({ id: newUser.id });
       trackSession();
+      syncNotificationState();
     } catch (err) {
       const msg =
         err.response?.data?.error || "Something went wrong. Please try again.";

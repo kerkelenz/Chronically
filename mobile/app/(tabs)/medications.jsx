@@ -42,6 +42,7 @@ const EMPTY_FORM = {
   startDate: "", // filled with today when the sheet opens
   scheduledTimes: ["08:00"],
   notes: "",
+  removalOffsetHours: 12, // patches only — ignored for every other form
 };
 
 const TYPE_OPTIONS = ["pill", "injection", "infusion", "supplement", "sublingual", "topical", "patch", "gummy", "drops"];
@@ -577,6 +578,30 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
               </>
             )}
 
+            {/* ── Patch removal ── */}
+            {form.type === "patch" && (
+              <>
+                <Text style={formStyles.label}>Remove after how many hours?</Text>
+                <TextInput
+                  style={formStyles.input}
+                  keyboardType="number-pad"
+                  value={String(form.removalOffsetHours)}
+                  onChangeText={(v) => {
+                    const n = parseInt(v, 10);
+                    if (!isNaN(n))
+                      setForm({
+                        ...form,
+                        removalOffsetHours: Math.min(168, Math.max(1, n)),
+                      });
+                  }}
+                  returnKeyType="done"
+                />
+                <Text style={styles.fieldHint}>
+                  We'll remind you this long after you log the patch on.
+                </Text>
+              </>
+            )}
+
             {/* ── Every N days ── */}
             {form.pattern === "every_n_days" && (
               <>
@@ -944,6 +969,7 @@ export default function MedicationsScreen() {
       startDate: anchorYmd,
       scheduledTimes: med.scheduledTimes || [],
       notes: med.notes || "",
+      removalOffsetHours: med.removalOffsetHours ?? 12,
     });
     setSaveError("");
     setShowModal(true);
@@ -969,6 +995,7 @@ export default function MedicationsScreen() {
           ? form.startDate || today
           : null,
       notes: form.notes.trim() || null,
+      removalOffsetHours: form.type === "patch" ? form.removalOffsetHours : null,
     };
     try {
       if (form.id) {

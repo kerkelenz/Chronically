@@ -17,6 +17,11 @@ const Medication = sequelize.define("Medication", {
   startDate:      { type: DataTypes.DATEONLY, allowNull: true },  // anchor for every_n_days / monthly
   intervalDays:   { type: DataTypes.INTEGER, allowNull: true },   // for every_n_days
   notes:          { type: DataTypes.TEXT, allowNull: true },
+  // patches only: hours after an applied dose to remind about removal (null
+  // elsewhere). The reminder is keyed off the dose actually being logged taken,
+  // not off the schedule — telling someone to remove a patch they never put on
+  // would be worse than saying nothing.
+  removalOffsetHours: { type: DataTypes.INTEGER, allowNull: true },
   active:         { type: DataTypes.BOOLEAN, defaultValue: true },
 });
 

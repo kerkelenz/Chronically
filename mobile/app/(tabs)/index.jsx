@@ -23,6 +23,9 @@ import { COMMON_SYMPTOMS } from "../../theme/symptomCatalog";
 import { SymptomIcon } from "../../components/SymptomIcon";
 import MilestoneCelebration from "../../components/MilestoneCelebration";
 import WelcomeModal from "../../components/WelcomeModal";
+import NotificationPrimer from "../../components/NotificationPrimer";
+import { getPushDeclined } from "../../lib/storage";
+import { getPermissionState } from "../../lib/pushNotifications";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import { MILESTONES, totalCheckInDays } from "../../lib/milestones";
 
@@ -127,6 +130,7 @@ export default function DashboardScreen() {
   const [editingCheckIn, setEditingCheckIn] = useState(null);
   const [celebration, setCelebration] = useState(null);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showPrimer, setShowPrimer] = useState(false);
   const [deleteCheckInId, setDeleteCheckInId] = useState(null);
   const [deletingCheckIn, setDeletingCheckIn] = useState(false);
   const isFirstLoadRef = useRef(true);
@@ -167,6 +171,22 @@ export default function DashboardScreen() {
   useEffect(() => {
     if (user && user.hasSeenWelcome === false) setShowWelcome(true);
   }, [user]);
+
+  // Ask about notifications once, and only after Welcome is out of the way —
+  // two modals stacked on a first launch is not a welcome. Asked once ever:
+  // "Not now" is remembered, and Profile is where it can be turned on later.
+  useEffect(() => {
+    let active = true;
+    if (!user || showWelcome) return;
+    (async () => {
+      if (await getPushDeclined()) return;
+      const state = await getPermissionState();
+      if (active && state === "undetermined") setShowPrimer(true);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user, showWelcome]);
 
   useEffect(() => {
     if (!user || loading) return;
@@ -646,6 +666,8 @@ export default function DashboardScreen() {
       </Modal>
 
       {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
+
+      {showPrimer && <NotificationPrimer onDone={() => setShowPrimer(false)} />}
 
       {celebration && (
         <MilestoneCelebration

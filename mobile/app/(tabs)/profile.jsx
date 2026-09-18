@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Switch,
+  Linking,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -22,6 +24,12 @@ import BottomSheet from "../../components/BottomSheet";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { openLink } from "../../lib/openLink";
+import { Ionicons } from "@expo/vector-icons";
+import {
+  registerForPushNotifications,
+  getPermissionState,
+} from "../../lib/pushNotifications";
+import { setPushDeclined } from "../../lib/storage";
 
 export default function ProfileScreen() {
   const { user, signOut, updateUser } = useAuth();
@@ -42,6 +50,61 @@ export default function ProfileScreen() {
 
   const [saveError, setSaveError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // ── Notifications ─────────────────────────────────────────────────────────
+  const DEFAULT_PREFS = { enabled: true, medReminders: true, checkinNudge: true };
+  const [prefs, setPrefs] = useState({ ...DEFAULT_PREFS, ...(user?.notificationPrefs || {}) });
+  const [permission, setPermission] = useState("undetermined");
+  const [prefsBusy, setPrefsBusy] = useState(false);
+
+  useEffect(() => {
+    setPrefs({ ...DEFAULT_PREFS, ...(user?.notificationPrefs || {}) });
+  }, [user?.notificationPrefs]);
+
+  useEffect(() => {
+    let active = true;
+    getPermissionState().then((s) => active && setPermission(s));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Preferences are stored server-side (the scheduler reads them), so a failed
+  // save has to roll the switch back rather than lie about the new state.
+  const savePrefs = async (patch) => {
+    const previous = prefs;
+    const next = { ...prefs, ...patch };
+    setPrefs(next);
+    setPrefsBusy(true);
+    try {
+      const res = await api.put("/api/users/notification-prefs", patch);
+      const saved = res.data?.notificationPrefs || next;
+      setPrefs(saved);
+      updateUser({ ...user, notificationPrefs: saved });
+    } catch {
+      setPrefs(previous);
+    } finally {
+      setPrefsBusy(false);
+    }
+  };
+
+  // Turning the master switch on is also the second chance to grant permission
+  // for anyone who said "Not now" to the primer.
+  const onToggleMaster = async (value) => {
+    if (value && permission !== "granted") {
+      if (permission === "blocked") {
+        Linking.openSettings();
+        return;
+      }
+      const result = await registerForPushNotifications({ promptIfNeeded: true });
+      await setPushDeclined(true);
+      setPermission(await getPermissionState());
+      if (result !== "granted") return; // OS said no — leave the switch off
+    }
+    savePrefs({ enabled: value });
+  };
+
+  const notificationsLive = prefs.enabled && permission === "granted";
 
   // ── Avatar ────────────────────────────────────────────────────────────────
   const [savingAvatar, setSavingAvatar] = useState(false);
@@ -303,6 +366,81 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
           )}
+
+          {/* ── Notifications ─────────────────────────────────────────────── */}
+          <View style={styles.card}>
+            <Text style={styles.sectionLabel}>Notifications</Text>
+
+            <View style={styles.toggleRow}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={styles.toggleLabel}>Notifications</Text>
+                <Text style={styles.toggleHint}>
+                  {permission === "unavailable"
+                    ? "Not available on this device."
+                    : permission === "blocked"
+                      ? "Turned off in system settings — tap to open them."
+                      : "Reminders for medications and check-ins."}
+                </Text>
+              </View>
+              <Switch
+                value={notificationsLive}
+                onValueChange={onToggleMaster}
+                disabled={prefsBusy || permission === "unavailable"}
+                trackColor={{ false: "rgba(255,255,255,0.25)", true: "#B9A9E0" }}
+                thumbColor={notificationsLive ? "#FFFFFF" : "#EFEAF7"}
+                ios_backgroundColor="rgba(255,255,255,0.25)"
+              />
+            </View>
+
+            {notificationsLive && (
+              <>
+                <View style={[styles.toggleRow, styles.toggleRowNested]}>
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={styles.toggleLabel}>Medication reminders</Text>
+                    <Text style={styles.toggleHint}>
+                      At each dose time, and when a patch is due to come off.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={prefs.medReminders !== false}
+                    onValueChange={(v) => savePrefs({ medReminders: v })}
+                    disabled={prefsBusy}
+                    trackColor={{ false: "rgba(255,255,255,0.25)", true: "#B9A9E0" }}
+                    thumbColor={prefs.medReminders !== false ? "#FFFFFF" : "#EFEAF7"}
+                    ios_backgroundColor="rgba(255,255,255,0.25)"
+                  />
+                </View>
+
+                <View style={[styles.toggleRow, styles.toggleRowNested, styles.toggleRowLast]}>
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={styles.toggleLabel}>Check-in nudge</Text>
+                    <Text style={styles.toggleHint}>
+                      One gentle reminder in the evening, only if you haven't logged.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={prefs.checkinNudge !== false}
+                    onValueChange={(v) => savePrefs({ checkinNudge: v })}
+                    disabled={prefsBusy}
+                    trackColor={{ false: "rgba(255,255,255,0.25)", true: "#B9A9E0" }}
+                    thumbColor={prefs.checkinNudge !== false ? "#FFFFFF" : "#EFEAF7"}
+                    ios_backgroundColor="rgba(255,255,255,0.25)"
+                  />
+                </View>
+              </>
+            )}
+
+            {permission === "blocked" && (
+              <TouchableOpacity
+                style={styles.settingsRow}
+                onPress={() => Linking.openSettings()}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="settings-outline" size={16} color="rgba(255,255,255,0.8)" />
+                <Text style={styles.settingsText}>Open system settings</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {/* ── Account / danger section ──────────────────────────────────── */}
           <View style={styles.card}>
@@ -570,6 +708,41 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_400Regular",
     fontSize: 15,
     color: "rgba(255,255,255,0.9)",
+  },
+
+  // Notifications section
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  // sub-toggles sit under the master switch they depend on
+  toggleRowNested: { paddingLeft: 14 },
+  toggleRowLast: { borderBottomWidth: 0 },
+  toggleLabel: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 15,
+    color: "rgba(255,255,255,0.9)",
+  },
+  toggleHint: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.6)",
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  settingsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingTop: 12,
+  },
+  settingsText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.8)",
   },
 
   // Account section
