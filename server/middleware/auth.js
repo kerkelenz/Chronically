@@ -32,7 +32,10 @@ const authenticateToken = async (req, res, next) => {
 
     // attach the user info to req.user so any route can access who's logged in
     // username comes from the database rather than the token so it never goes stale
-    req.user = { id: user.id, username: user.username };
+    // isAdmin comes from the row just loaded, never from the JWT payload — a
+    // token minted before a demotion must not keep admin access, and nothing
+    // the client sends can influence it
+    req.user = { id: user.id, username: user.username, isAdmin: user.isAdmin === true };
 
     // everything checks out - pass the request along to the actual route handler
     next();

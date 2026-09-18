@@ -171,6 +171,7 @@ const login = async (req, res) => {
         avatar: user.avatar || null,
         celebratedMilestones: user.celebratedMilestones || [],
         hasSeenWelcome: user.hasSeenWelcome ?? false,
+        isAdmin: user.isAdmin === true,
       },
     });
   } catch (error) {
@@ -215,6 +216,7 @@ const verifyEmail = async (req, res) => {
         avatar: user.avatar || null,
         celebratedMilestones: user.celebratedMilestones || [],
         hasSeenWelcome: user.hasSeenWelcome ?? false,
+        isAdmin: user.isAdmin === true,
       },
     });
   } catch (error) {

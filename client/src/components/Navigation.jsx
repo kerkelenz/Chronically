@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  FiHome, FiTrendingUp, FiPackage, FiUser, FiCalendar, FiMenu, FiX,
+  FiHome, FiTrendingUp, FiPackage, FiUser, FiCalendar, FiMenu, FiX, FiRadio,
 } from "react-icons/fi";
 import { GiSpoon } from "react-icons/gi";
 import { useAuth } from "../hooks/useAuth";
@@ -17,7 +17,7 @@ const NAV_ITEMS = [
 
 export function NavHamburger() {
   const [open, setOpen] = useState(false);
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const pathname = window.location.pathname;
   const ref = useRef(null);
@@ -68,6 +68,23 @@ export function NavHamburger() {
               </Link>
             );
           })}
+          {/* Admin only, and desktop only — the mobile bar below is a fixed
+              six-column grid and a seventh item would break it */}
+          {user?.isAdmin === true && (
+            <Link
+              to="/admin/announcements"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-[#F0EBF8]"
+              style={{
+                color: pathname === "/admin/announcements" ? "#7C6BAE" : "#6B5F7A",
+                fontWeight: pathname === "/admin/announcements" ? "500" : "400",
+                borderTop: "1px solid #F0EBF8",
+              }}
+            >
+              <FiRadio size={15} />
+              Announcements
+            </Link>
+          )}
           <button
             onClick={() => { setOpen(false); logout(); navigate("/"); }}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-[#F0EBF8] transition-colors"

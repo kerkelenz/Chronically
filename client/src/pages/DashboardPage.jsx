@@ -12,6 +12,7 @@ import Avatar from "../components/Avatar";
 import MilestoneCelebration from "../components/MilestoneCelebration";
 import WelcomeModal from "../components/WelcomeModal";
 import { ConfirmDialog } from "../components/FormModal";
+import AnnouncementCard from "../components/AnnouncementCard";
 import { MILESTONES, totalCheckInDays } from "../utils/milestones";
 
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
@@ -53,6 +54,7 @@ function DashboardPage() {
   const [editingCheckIn, setEditingCheckIn] = useState(null);
 
   const [appointments, setAppointments] = useState([]);
+  const [announcement, setAnnouncement] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState(false);
 
@@ -136,6 +138,37 @@ function DashboardPage() {
     };
     if (token) fetchAppointments();
   }, [token]);
+
+  // Chronicle's update card. Silent-fail by design: an announcement is a bonus,
+  // so any error just means no card rather than an error on the dashboard.
+  useEffect(() => {
+    const fetchAnnouncement = async () => {
+      try {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/announcements`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setAnnouncement(res.data.announcement || null);
+      } catch {
+        setAnnouncement(null);
+      }
+    };
+    if (token) fetchAnnouncement();
+  }, [token]);
+
+  // Optimistic: the card animates itself out, so drop it locally either way —
+  // a failed dismiss that reappears on the next load is worse than a lost write
+  const dismissAnnouncement = async (id) => {
+    setAnnouncement(null);
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/announcements/${id}/dismiss`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+    } catch {
+      // nothing to surface — it will simply be offered again next time
+    }
+  };
 
   // Path A: silently seed already-achieved milestones for existing accounts (no confetti)
   useEffect(() => {
@@ -257,6 +290,8 @@ function DashboardPage() {
           </div>
         ) : (
           <>
+        <AnnouncementCard announcement={announcement} onDismiss={dismissAnnouncement} />
+
         {(checkIns.length === 0 || !todaysDone) && (
           <div className="flex flex-col items-center justify-center py-10 gap-3">
             <p

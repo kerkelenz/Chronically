@@ -22,6 +22,7 @@ const getProfile = async (req, res) => {
         celebratedMilestones: user.celebratedMilestones || [],
         hasSeenWelcome: user.hasSeenWelcome || false,
         notificationPrefs: user.notificationPrefs || DEFAULT_NOTIFICATION_PREFS,
+        isAdmin: user.isAdmin === true,
       },
     });
   } catch (error) {

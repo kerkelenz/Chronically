@@ -15,6 +15,7 @@ import SpoonCenterPage from "./pages/SpoonCenterPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsPage from "./pages/TermsPage";
 import DeleteAccountPage from "./pages/DeleteAccountPage";
+import AdminAnnouncementsPage from "./pages/AdminAnnouncementsPage";
 
 function App() {
   return (
@@ -74,6 +75,14 @@ function App() {
           element={
             <ProtectedRoute>
               <SpoonCenterPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/announcements"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminAnnouncementsPage />
             </ProtectedRoute>
           }
         />

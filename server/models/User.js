@@ -91,6 +91,14 @@ const User = sequelize.define("User", {
     allowNull: false,
     defaultValue: { enabled: true, medReminders: true, checkinNudge: true },
   },
+  // Grants access to the admin endpoints (announcement authoring). Only ever
+  // set directly in the database — nothing in the app can raise it, and the
+  // auth middleware reads it fresh from this row on every request.
+  isAdmin: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
   // IANA zone name (e.g. "America/New_York"), reported by the device at login.
   // Medication times are stored as bare "HH:MM" strings that have always meant
   // device-local time, so the server cannot fire a reminder at the right hour

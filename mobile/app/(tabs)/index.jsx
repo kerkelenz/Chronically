@@ -24,6 +24,7 @@ import { SymptomIcon } from "../../components/SymptomIcon";
 import MilestoneCelebration from "../../components/MilestoneCelebration";
 import WelcomeModal from "../../components/WelcomeModal";
 import NotificationPrimer from "../../components/NotificationPrimer";
+import AnnouncementCard from "../../components/AnnouncementCard";
 import { getPushDeclined } from "../../lib/storage";
 import { getPermissionState } from "../../lib/pushNotifications";
 import ConfirmDialog from "../../components/ConfirmDialog";
@@ -127,6 +128,7 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [announcement, setAnnouncement] = useState(null);
   const [editingCheckIn, setEditingCheckIn] = useState(null);
   const [celebration, setCelebration] = useState(null);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -143,13 +145,17 @@ export default function DashboardScreen() {
 
       (async () => {
         try {
-          const [checkInsRes, apptRes] = await Promise.all([
+          const [checkInsRes, apptRes, ann] = await Promise.all([
             api.get("/api/checkins"),
             api.get("/api/appointments"),
+            // Chronicle's card is a bonus — it must never turn the dashboard
+            // into an error state
+            api.get("/api/announcements").then((r) => r.data.announcement).catch(() => null),
           ]);
           if (active) {
             setCheckIns(checkInsRes.data.checkIns || []);
             setAppointments(apptRes.data.appointments || []);
+            setAnnouncement(ann || null);
             setError(null);
             isFirstLoadRef.current = false;
           }
@@ -213,12 +219,14 @@ export default function DashboardScreen() {
   async function onRefresh() {
     setRefreshing(true);
     try {
-      const [checkInsRes, apptRes] = await Promise.all([
+      const [checkInsRes, apptRes, ann] = await Promise.all([
         api.get("/api/checkins"),
         api.get("/api/appointments"),
+        api.get("/api/announcements").then((r) => r.data.announcement).catch(() => null),
       ]);
       setCheckIns(checkInsRes.data.checkIns || []);
       setAppointments(apptRes.data.appointments || []);
+      setAnnouncement(ann || null);
       setError(null);
     } catch {
       setError("Could not load your data. Pull down to try again.");
@@ -226,6 +234,17 @@ export default function DashboardScreen() {
       setRefreshing(false);
     }
   }
+
+  // Optimistic: the card has already animated itself out by the time this runs,
+  // so drop it locally whatever the server says
+  const dismissAnnouncement = async (id) => {
+    setAnnouncement(null);
+    try {
+      await api.post(`/api/announcements/${id}/dismiss`);
+    } catch {
+      // it will simply be offered again on a later load
+    }
+  };
 
   const handleDeleteCheckIn = (id) => setDeleteCheckInId(id);
 
@@ -427,6 +446,8 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        <AnnouncementCard announcement={announcement} onDismiss={dismissAnnouncement} />
 
         {/* Check-in prompt */}
         {!error && (checkIns.length === 0 || !todaysDone) && (

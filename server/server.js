@@ -28,6 +28,8 @@ const accountDeletionRoutes = require("./routes/accountDeletionRoutes");
 const eventRoutes = require("./routes/eventRoutes");
 const insightRoutes = require("./routes/insightRoutes");
 const pushRoutes = require("./routes/pushRoutes");
+const announcementRoutes = require("./routes/announcementRoutes");
+const adminAnnouncementRoutes = require("./routes/adminAnnouncementRoutes");
 const { startNotificationScheduler } = require("./jobs/notificationScheduler");
 const rateLimit = require("express-rate-limit");
 
@@ -44,6 +46,8 @@ require("./models/SpoonEntry");
 require("./models/Event");
 require("./models/PushToken");
 require("./models/NotificationLog");
+require("./models/Announcement");
+require("./models/AnnouncementRead");
 
 // creating the express app - everything gets attached to this
 const app = express();
@@ -132,6 +136,8 @@ const startServer = async () => {
   app.use("/api/spoons", spoonRoutes);
   app.use("/api/insights", insightRoutes);
   app.use("/api/push", pushRoutes);
+  app.use("/api/announcements", announcementRoutes);
+  app.use("/api/admin/announcements", adminAnnouncementRoutes);
   app.use("/api/feedback", emailLimiter, feedbackRoutes);
   app.use("/api/account-deletion", emailLimiter, accountDeletionRoutes);
 
