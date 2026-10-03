@@ -4,7 +4,7 @@
     "owner": "team-chronically",
     "slug": "chronically",
     "scheme": "chronically",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -51,10 +51,7 @@
           }
         }
       ],
-      [
-        "@sentry/react-native/expo",
-        {}
-      ],
+      ["@sentry/react-native/expo", {}],
       "expo-web-browser",
       [
         "expo-notifications",
