@@ -1,7 +1,5 @@
 import { useState } from "react";
-// TODO: Chronicle artwork — swap for client/src/assets/chronicle.svg once the
-// mascot is drawn. The lavender sprig mark stands in so nothing blocks on art.
-import chronicleMark from "../assets/logo-mark.png";
+import ChronicleMark from "./ChronicleMark";
 
 const EXIT_MS = 260;
 
@@ -39,12 +37,7 @@ export default function AnnouncementCard({ announcement, onDismiss, preview = fa
           border: "1px solid rgba(255,255,255,0.3)",
         }}
       >
-        <img
-          src={chronicleMark}
-          alt=""
-          aria-hidden="true"
-          style={{ width: 44, height: 44, flexShrink: 0, objectFit: "contain" }}
-        />
+        <ChronicleMark size={44} className="text-white shrink-0" />
 
         <div className="min-w-0 flex-1">
           <p

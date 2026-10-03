@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  View, Text, Image, TouchableOpacity, Animated, StyleSheet, AccessibilityInfo,
+  View, Text, TouchableOpacity, Animated, StyleSheet, AccessibilityInfo,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-
-// TODO: Chronicle artwork — swap for mobile/assets/chronicle.svg once the
-// mascot is drawn. The lavender sprig mark stands in so nothing blocks on art.
-const chronicleMark = require("../assets/logo-mark.png");
+import ChronicleMark from "./ChronicleMark";
 
 const EXIT_MS = 260;
 
@@ -52,7 +49,7 @@ export default function AnnouncementCard({ announcement, onDismiss }) {
       }}
     >
       <View style={styles.card}>
-        <Image source={chronicleMark} style={styles.avatar} resizeMode="contain" />
+        <ChronicleMark size={44} />
 
         <View style={styles.content}>
           <Text style={styles.label}>Chronicle</Text>
@@ -85,7 +82,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.3)",
     padding: 16,
   },
-  avatar: { width: 44, height: 44, flexShrink: 0 },
   content: { flex: 1, minWidth: 0 },
   label: {
     fontFamily: "Lato_700Bold",
