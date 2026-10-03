@@ -24,6 +24,7 @@ import MilestoneBadges from "../../components/MilestoneBadges";
 import BottomSheet from "../../components/BottomSheet";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import WeatherLocationSheet from "../../components/WeatherLocationSheet";
+import { SUPPORT_ROW_LABEL } from "../../theme/supportResources";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { openLink } from "../../lib/openLink";
 import { Ionicons } from "@expo/vector-icons";
@@ -464,6 +465,18 @@ export default function ProfileScreen() {
 
             {/* The permanent record — dismissing a card clears the dashboard,
                 it doesn't destroy the message */}
+            {/* Always here, never triggered by anything the app thinks it has
+                noticed. No badge, no highlight — a door, not a prompt. */}
+            <TouchableOpacity
+              style={[styles.legalRow, styles.chevronRow]}
+              onPress={() => router.push("/support")}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={SUPPORT_ROW_LABEL}
+            >
+              <Text style={styles.legalText}>{SUPPORT_ROW_LABEL}</Text>
+              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
+            </TouchableOpacity>
             {/* Typed city, never GPS — so there is no OS permission prompt */}
             <TouchableOpacity
               style={[styles.legalRow, styles.chevronRow]}

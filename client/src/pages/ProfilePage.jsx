@@ -10,6 +10,7 @@ import HomeLogo from "../components/HomeLogo";
 import Avatar from "../components/Avatar";
 import MilestoneBadges from "../components/MilestoneBadges";
 import WeatherLocationModal from "../components/WeatherLocationModal";
+import { SUPPORT_ROW_LABEL } from "../utils/supportResources";
 
 function getCroppedImg(imageSrc, croppedAreaPixels) {
   return new Promise((resolve, reject) => {
@@ -476,6 +477,16 @@ function ProfilePage() {
           className="rounded-2xl overflow-hidden"
           style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
         >
+          {/* Always here, never triggered by anything the app thinks it has
+              noticed. No badge, no highlight — a door, not a prompt. */}
+          <button
+            onClick={() => navigate("/support")}
+            className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
+            style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.2)" }}
+          >
+            {SUPPORT_ROW_LABEL}
+            <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
+          </button>
           {/* Typed city, never browser geolocation — no permission prompt */}
           <button
             onClick={() => setShowWeather(true)}

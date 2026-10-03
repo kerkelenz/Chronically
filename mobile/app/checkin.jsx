@@ -26,6 +26,7 @@ import {
   getIndividualToast,
   getComboToast,
 } from "../theme/checkinCopy";
+import { SUPPORT_TOAST_LINK } from "../theme/supportResources";
 
 // dedupe a name list case-insensitively, preserving first-seen order + casing
 function uniqByLower(arr) {
@@ -246,6 +247,9 @@ export default function CheckInScreen() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  // Shown only when the user themselves answered mood or anxiety at its lowest.
+  // This responds to an explicit choice — the app never infers a state.
+  const [toastSupport, setToastSupport] = useState(false);
 
   const [affirmation] = useState(
     () => AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)],
@@ -282,13 +286,19 @@ export default function CheckInScreen() {
     };
   }, []);
 
-  function showToast(message) {
+  function showToast(message, withSupport = false) {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     if (toastAnimRef.current) toastAnimRef.current.stop();
 
     // Appear instantly (matches web's same-render opacity:1 behavior)
     toastOpacity.setValue(1);
     setToastMessage(message);
+    setToastSupport(withSupport);
+
+    // A toast carrying the support link waits for the user instead of expiring.
+    // Someone who just reported their lowest mood should not have a lifeline
+    // flash past them in two seconds. Every other toast is untouched below.
+    if (withSupport) return;
 
     // After 1500ms, fade out over 500ms then clear — matching web timing exactly
     toastTimerRef.current = setTimeout(() => {
@@ -298,9 +308,30 @@ export default function CheckInScreen() {
         useNativeDriver: true,
       });
       toastAnimRef.current.start(({ finished }) => {
-        if (finished) setToastMessage("");
+        if (finished) {
+          setToastMessage("");
+          setToastSupport(false);
+        }
       });
     }, 1500);
+  }
+
+  // Dismissing a persistent toast. The step underneath has already advanced —
+  // the toast is only a curtain — so this just draws it back.
+  function dismissToast() {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    if (toastAnimRef.current) toastAnimRef.current.stop();
+    toastAnimRef.current = Animated.timing(toastOpacity, {
+      toValue: 0,
+      duration: 500,
+      useNativeDriver: true,
+    });
+    toastAnimRef.current.start(({ finished }) => {
+      if (finished) {
+        setToastMessage("");
+        setToastSupport(false);
+      }
+    });
   }
 
   // ── Answer helpers ──────────────────────────────────────────────────────────
@@ -316,7 +347,10 @@ export default function CheckInScreen() {
   // that one answer and returns to the review.
   function chooseMetric(key, level) {
     SETTERS[key](level);
-    showToast(getIndividualToast(getTier(level), key));
+    // the user picked the lowest value for mood or anxiety — offer the door,
+    // without changing the toast's copy or its timing
+    const offerSupport = level === 1 && (key === "mood" || key === "anxiety");
+    showToast(getIndividualToast(getTier(level), key), offerSupport);
     if (returnToReview) {
       setReturnToReview(false);
       setStep(7);
@@ -419,6 +453,30 @@ export default function CheckInScreen() {
         {toastMessage ? (
           <Animated.View style={[styles.toastView, { opacity: toastOpacity }]}>
             <Text style={styles.toastText}>{toastMessage}</Text>
+            {toastSupport ? (
+              <TouchableOpacity
+                onPress={() => router.push("/support")}
+                hitSlop={{ top: 16, bottom: 16, left: 24, right: 24 }}
+                activeOpacity={0.7}
+                accessibilityRole="link"
+                accessibilityLabel={SUPPORT_TOAST_LINK}
+                style={styles.toastSupportBtn}
+              >
+                <Text style={styles.toastSupportText}>{SUPPORT_TOAST_LINK}</Text>
+              </TouchableOpacity>
+            ) : null}
+            {toastSupport ? (
+              <TouchableOpacity
+                onPress={dismissToast}
+                hitSlop={{ top: 12, bottom: 12, left: 24, right: 24 }}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Continue the check-in"
+                style={styles.toastContinueBtn}
+              >
+                <Text style={styles.toastContinueText}>Continue</Text>
+              </TouchableOpacity>
+            ) : null}
           </Animated.View>
         ) : (
           <ScrollView
@@ -748,6 +806,22 @@ const styles = StyleSheet.create({
     color: "white",
     textAlign: "center",
     lineHeight: 26,
+  },
+  // quiet, underlined, well clear of the copy above it — an offer, not a nudge
+  toastSupportBtn: { marginTop: 18, paddingVertical: 8, paddingHorizontal: 12 },
+  toastContinueBtn: { marginTop: 14, paddingVertical: 10, paddingHorizontal: 24 },
+  toastContinueText: {
+    fontFamily: "Lato_700Bold",
+    fontSize: 15,
+    color: "rgba(255,255,255,0.6)",
+    textAlign: "center",
+  },
+  toastSupportText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 15,
+    color: "rgba(255,255,255,0.75)",
+    textDecorationLine: "underline",
+    textAlign: "center",
   },
 
   // Outer layout

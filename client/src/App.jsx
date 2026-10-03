@@ -17,6 +17,7 @@ import TermsPage from "./pages/TermsPage";
 import DeleteAccountPage from "./pages/DeleteAccountPage";
 import AdminAnnouncementsPage from "./pages/AdminAnnouncementsPage";
 import ChroniclePage from "./pages/ChroniclePage";
+import SupportPage from "./pages/SupportPage";
 
 function App() {
   return (
@@ -26,6 +27,8 @@ function App() {
         <Route path="/privacy" element={<PrivacyPolicyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/delete-account" element={<DeleteAccountPage />} />
+        {/* public on purpose — someone who needs this must never hit an auth wall */}
+        <Route path="/support" element={<SupportPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

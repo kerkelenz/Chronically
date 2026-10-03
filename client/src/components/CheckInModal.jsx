@@ -6,6 +6,7 @@ import LavenderConfetti from "./LavenderConfetti";
 import { FiEdit2 } from "react-icons/fi";
 import { COMMON_SYMPTOMS, SYMPTOM_CATALOG } from "../utils/symptomCatalog";
 import { SymptomIcon } from "./SymptomIcon";
+import { SUPPORT_TOAST_LINK } from "../utils/supportResources";
 import { METRIC_LABELS } from "../utils/metricLabels";
 
 const AFFIRMATIONS = [
@@ -485,6 +486,9 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
   const [affirmation] = useState(() => AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)]);
   const [toastMessage, setToastMessage] = useState("");
   const [toastVisible, setToastVisible] = useState(false);
+  // Shown only when the user themselves answered mood or anxiety at its lowest.
+  // This responds to an explicit choice — the app never infers a state.
+  const [toastSupport, setToastSupport] = useState(false);
   const toastTimerRef = useRef(null);
 
   const { token } = useAuth();
@@ -508,14 +512,33 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
 
   const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-  const showToast = (message) => {
+  const showToast = (message, withSupport = false) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToastMessage(message);
+    setToastSupport(withSupport);
     setToastVisible(true);
+    // A toast carrying the support link waits for the user instead of expiring.
+    // Someone who just reported their lowest mood should not have a lifeline
+    // flash past them in two seconds. Every other toast is untouched below.
+    if (withSupport) return;
     toastTimerRef.current = setTimeout(() => {
       setToastVisible(false);
-      setTimeout(() => setToastMessage(""), 500);
+      setTimeout(() => {
+        setToastMessage("");
+        setToastSupport(false);
+      }, 500);
     }, 1500);
+  };
+
+  // Dismissing a persistent toast. The step underneath has already advanced —
+  // the toast is only a curtain — so this just draws it back.
+  const dismissToast = () => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToastVisible(false);
+    setTimeout(() => {
+      setToastMessage("");
+      setToastSupport(false);
+    }, 500);
   };
 
   const getIndividualToast = (tier, metric) => {
@@ -556,7 +579,10 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
   // that one answer and returns to the review.
   const chooseMetric = (key, level) => {
     SETTERS[key](level);
-    showToast(getIndividualToast(getTier(level), key));
+    // the user picked the lowest value for mood or anxiety — offer the door,
+    // without changing the toast's copy or its timing
+    const offerSupport = level === 1 && (key === "mood" || key === "anxiety");
+    showToast(getIndividualToast(getTier(level), key), offerSupport);
     if (returnToReview) { setReturnToReview(false); setStep(7); return; }
     const i = ORDER.indexOf(key);
     ORDER.slice(i + 1).forEach((k) => SETTERS[k](null));
@@ -661,7 +687,33 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
             className="flex items-center justify-center w-full text-center"
             style={{ opacity: toastVisible ? 1 : 0, transition: "opacity 0.5s", minHeight: "260px" }}
           >
-            <p className="text-white text-base leading-relaxed px-2">{toastMessage}</p>
+            <div className="flex flex-col items-center gap-4 px-2">
+              <p className="text-white text-base leading-relaxed">{toastMessage}</p>
+              {toastSupport && (
+                /* a new tab, so an in-progress check-in is never lost */
+                <a
+                  href="/support"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={SUPPORT_TOAST_LINK}
+                  className="underline transition-opacity hover:opacity-80"
+                  style={{ color: "rgba(255,255,255,0.75)", fontSize: 15, padding: "8px 12px" }}
+                >
+                  {SUPPORT_TOAST_LINK}
+                </a>
+              )}
+              {toastSupport && (
+                <button
+                  type="button"
+                  onClick={dismissToast}
+                  aria-label="Continue the check-in"
+                  className="transition-opacity hover:opacity-80"
+                  style={{ color: "rgba(255,255,255,0.6)", fontSize: 15, fontWeight: 700, padding: "10px 24px" }}
+                >
+                  Continue
+                </button>
+              )}
+            </div>
           </div>
         )}
 
