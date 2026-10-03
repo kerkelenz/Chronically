@@ -10,6 +10,7 @@ import Navigation, { NavHamburger } from "../components/Navigation";
 import HomeLogo from "../components/HomeLogo";
 import { adherenceStats } from "../utils/medicationHelpers";
 import { METRIC_LABELS } from "../utils/metricLabels";
+import ChronicleMark from "../components/ChronicleMark";
 
 function TrendsPage() {
   const { user, token } = useAuth();
@@ -188,10 +189,13 @@ function TrendsPage() {
                     </div>
                   ))
                 ) : (
+                  /* Chronicle keeps the empty state company. He appears only
+                     here — once there are real cards, they speak for themselves. */
                   <div
-                    className="p-4 rounded-2xl"
+                    className="p-4 rounded-2xl flex items-center gap-3"
                     style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
                   >
+                    <ChronicleMark size={36} className="text-white shrink-0" />
                     <p style={{ fontSize: "14px", color: "rgba(255,255,255,0.8)" }}>{insights.meta.message}</p>
                   </div>
                 )}

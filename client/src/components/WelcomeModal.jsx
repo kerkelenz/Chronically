@@ -3,6 +3,7 @@ import axios from "axios";
 import { track } from "../lib/analytics";
 import { FiCheckCircle, FiTrendingUp, FiPackage, FiCalendar } from "react-icons/fi";
 import { GiSpoon } from "react-icons/gi";
+import ChronicleMark from "./ChronicleMark";
 
 const FEATURES = [
   [FiCheckCircle, "Daily check-ins", "Note how you're feeling in seconds."],
@@ -34,6 +35,12 @@ export default function WelcomeModal({ onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }}>
       <div className="w-full max-w-md rounded-2xl p-6 flex flex-col gap-4" style={{ background: "white", maxHeight: "90vh", overflowY: "auto" }}>
         <div className="text-center">
+          {/* Chronicle's introduction — the one placement every user sees.
+              This card is white, unlike mobile's, so he takes the brand purple
+              rather than the white he wears everywhere else. */}
+          <div className="flex justify-center" style={{ color: "#7C6BAE", marginBottom: 12 }}>
+            <ChronicleMark size={64} />
+          </div>
           <h2 style={{ fontFamily: "Playfair Display, Georgia, serif", color: "#2D2540", fontSize: 26 }}>
             Welcome to Chronically
           </h2>

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { MILESTONE_COPY, MILESTONE_META } from "../utils/milestones";
 import Badge from "./Badge";
+import ChronicleMark from "./ChronicleMark";
 
 const CONFETTI_COLORS = ["#7C6BAE", "#9B8EC4", "#C4A8C0", "#C4A882", "#A9D8B4", "#FFFFFF"];
 
@@ -36,12 +37,17 @@ export default function MilestoneCelebration({ milestone, onDismiss }) {
         <p className="text-xl font-medium" style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}>
           {MILESTONE_META[milestone].name}
         </p>
-        <p
-          className="text-lg font-medium leading-snug"
-          style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}
-        >
-          {MILESTONE_COPY[milestone]}
-        </p>
+        {/* Chronicle sits beside the copy so it reads as him saying it. The
+            badge above stays the hero — he is small and off to the side. */}
+        <div className="flex items-center gap-3 self-stretch">
+          <ChronicleMark size={32} className="text-white shrink-0" />
+          <p
+            className="text-lg font-medium leading-snug text-left"
+            style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}
+          >
+            {MILESTONE_COPY[milestone]}
+          </p>
+        </div>
         <button
           onClick={onDismiss}
           className="mt-2 px-8 py-3 rounded-full text-sm font-medium bg-white hover:scale-105 transition-all duration-200"

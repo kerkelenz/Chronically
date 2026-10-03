@@ -1,5 +1,6 @@
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import ChronicleMark from "./ChronicleMark";
 import { useAuth } from "../context/AuthContext";
 import api from "../lib/api";
 import { track } from "../lib/analytics";
@@ -32,6 +33,10 @@ export default function WelcomeModal({ onClose }) {
         <View style={styles.card}>
           <ScrollView contentContainerStyle={{ gap: 14 }} showsVerticalScrollIndicator={false}>
             <View>
+              {/* Chronicle's introduction — the one placement every user sees */}
+              <View style={styles.chronicleWrap}>
+                <ChronicleMark size={64} />
+              </View>
               <Text style={styles.title}>Welcome to Chronically</Text>
               <Text style={styles.subtitle}>
                 A calm, private place to track life with a chronic illness — one day at a time.
@@ -64,6 +69,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(52,38,86,0.98)",
     borderRadius: 24, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", padding: 24,
   },
+  chronicleWrap: { alignItems: "center", marginBottom: 12 },
   title: { fontFamily: "PlayfairDisplay_500Medium", fontSize: 24, color: "white", textAlign: "center" },
   subtitle: { fontFamily: "Lato_400Regular", fontSize: 13, color: "rgba(255,255,255,0.8)", textAlign: "center", marginTop: 6, lineHeight: 19 },
   row: { flexDirection: "row", alignItems: "center", gap: 14 },

@@ -16,6 +16,7 @@ import AdherenceBars from "../../components/AdherenceBars";
 import AdherenceLineChart from "../../components/AdherenceLineChart";
 import api from "../../lib/api";
 import { adherenceStats } from "../../theme/medications";
+import ChronicleMark from "../../components/ChronicleMark";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -261,8 +262,13 @@ export default function TrendsScreen() {
                 </View>
               ))
             ) : (
-              <View style={styles.card}>
-                <Text style={styles.insightBody}>{insights.meta.message}</Text>
+              /* Chronicle keeps the empty state company. He appears only here —
+                 once there are real cards, they speak for themselves. */
+              <View style={[styles.card, styles.insightEmptyRow]}>
+                <ChronicleMark size={36} />
+                <Text style={[styles.insightBody, styles.insightEmptyText]}>
+                  {insights.meta.message}
+                </Text>
               </View>
             )}
             {insights.meta.sleepHint && (
@@ -386,6 +392,8 @@ const styles = StyleSheet.create({
   pillTextActive: {
     color: "white",
   },
+  insightEmptyRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  insightEmptyText: { flex: 1 },
   card: {
     backgroundColor: "rgba(255,255,255,0.15)",
     borderRadius: 16,

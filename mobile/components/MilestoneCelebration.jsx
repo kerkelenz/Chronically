@@ -9,6 +9,7 @@ import {
 import ConfettiCannon from "react-native-confetti-cannon";
 import { MILESTONE_COPY, MILESTONE_META } from "../lib/milestones";
 import Badge from "./Badge";
+import ChronicleMark from "./ChronicleMark";
 
 const CONFETTI_COLORS = ["#7C6BAE", "#9B8EC4", "#C4A8C0", "#C4A882", "#A9D8B4", "#FFFFFF"];
 
@@ -29,7 +30,12 @@ export default function MilestoneCelebration({ milestone, onDismiss }) {
         <View style={styles.card}>
           <Badge days={milestone} earned size={128} />
           <Text style={styles.name}>{MILESTONE_META[milestone].name}</Text>
-          <Text style={styles.copy}>{MILESTONE_COPY[milestone]}</Text>
+          {/* Chronicle sits beside the copy so it reads as him saying it. The
+              badge above stays the hero — he is small and off to the side. */}
+          <View style={styles.copyRow}>
+            <ChronicleMark size={32} />
+            <Text style={styles.copy}>{MILESTONE_COPY[milestone]}</Text>
+          </View>
           <TouchableOpacity style={styles.btn} onPress={onDismiss} activeOpacity={0.85}>
             <Text style={styles.btnText}>Keep it up</Text>
           </TouchableOpacity>
@@ -59,12 +65,20 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.35)",
   },
   name: { fontFamily: "PlayfairDisplay_500Medium", fontSize: 22, color: "white", marginTop: 14, textAlign: "center" },
+  copyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 16,
+    alignSelf: "stretch",
+  },
   copy: {
+    // flex so a long line wraps rather than squeezing Chronicle
+    flex: 1,
     fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 18,
     color: "white",
-    textAlign: "center",
-    marginTop: 16,
+    textAlign: "left",
     lineHeight: 24,
   },
   btn: { marginTop: 22, paddingHorizontal: 32, paddingVertical: 13, borderRadius: 999, backgroundColor: "white" },
