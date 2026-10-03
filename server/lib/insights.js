@@ -1,5 +1,5 @@
 // Correlation-insights engine — pure and test-ready:
-//   computeInsights({ checkIns, medLogs = [], spoonDays = [] })
+//   computeInsights({ checkIns, medLogs = [], spoonDays = [], weatherDays = [] })
 // takes the user's last-90-days data and returns voiced headline cards plus a
 // teaching-state meta. No req/res, no DB. Honesty rules are hard-coded below.
 //
@@ -10,6 +10,7 @@
 //        bad days likely cause skipped doses, not the reverse, so never advice
 //   F4 — over-budget spoon day ↔ the NEXT day (one card, energy then pain)
 //   F5 — weekday pattern (one card, hardest weekday)
+//   F6 — sharp barometric pressure drop ↔ that day's metrics (one card)
 //
 // All five daytime metrics are on a 1–5 scale where 5 = best, so "worse" always
 // means a lower average. Language stays descriptive ("averages / runs / dips") —
@@ -21,6 +22,13 @@ const MIN_EFFECT = 0.5;           // minimum |effect| on the 1–5 scale
 const MIN_EFFECT_COMPOSITE = 0.4; // F5's composite is a mean, so a gentler floor
 const MAX_CARDS = 5;
 const MAX_PER_FAMILY = 2;
+
+// F6 pressure buckets, in hPa. The gap between -5 and -2 is deliberate: a day
+// that drifted 3 hPa is neither a sharp drop nor a steady day, and contrasting
+// "slightly falling" against "slightly rising" would be reading noise. Only a
+// sharp fall against a genuinely flat day makes the claim worth printing.
+const PRESSURE_FALL_HPA = -5;   // delta <= this is a "falling" day
+const PRESSURE_STABLE_HPA = 2;  // |delta| <= this is a "stable" day
 
 const WEEKDAYS = [
   "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
@@ -65,6 +73,52 @@ function f1Headline(symptom, metricKey) {
 
 // ── Per-DAY aggregates ────────────────────────────────────────────────────────
 // Multi-check-in days average their metrics; a day's symptom set is the union.
+// F6 — a sharp overnight fall in barometric pressure against a steady day.
+// Pressure *change* is what this audience describes feeling, not the absolute
+// reading, so the comparison is day-over-day. A day whose own or whose previous
+// day's pressure is missing is dropped entirely: a gap is not zero change, and
+// treating it as one would quietly stuff the stable bucket with unknowns.
+function familyF6(days, weatherDays) {
+  if (!weatherDays || weatherDays.length === 0) return [];
+
+  const pressureByDate = {};
+  for (const w of weatherDays) {
+    if (w.date && typeof w.pressureHpa === "number" && Number.isFinite(w.pressureHpa)) {
+      pressureByDate[w.date] = w.pressureHpa;
+    }
+  }
+
+  const fallingDates = [];
+  const stableDates = [];
+  for (const d of days) {
+    const today = pressureByDate[d.date];
+    const yesterday = pressureByDate[prevDateStr(d.date)];
+    if (today == null || yesterday == null) continue; // never infer a gap as 0
+    const delta = today - yesterday;
+    if (delta <= PRESSURE_FALL_HPA) fallingDates.push(d.date);
+    else if (Math.abs(delta) <= PRESSURE_STABLE_HPA) stableDates.push(d.date);
+  }
+
+  const dayByDate = Object.fromEntries(days.map((d) => [d.date, d]));
+  for (const key of ["pain", "energy"]) {
+    const a = fallingDates.map((dt) => dayByDate[dt]?.[key]).filter((v) => v != null);
+    const b = stableDates.map((dt) => dayByDate[dt]?.[key]).filter((v) => v != null);
+    if (a.length < MIN_BUCKET_DAYS || b.length < MIN_BUCKET_DAYS) continue;
+    const effect = mean(b) - mean(a); // >0 → worse on falling days
+    if (effect < MIN_EFFECT) continue;
+    const X = round1(effect).toFixed(1);
+    return [{
+      id: `f6-${key}`,
+      family: "weather",
+      headline: `Pressure drops track with your ${key}`,
+      body: `On days the barometric pressure fell sharply, your ${key} averages ${X} ${worseWord(key)} than on steady days.`,
+      evidence: `Across ${a.length} days with a sharp pressure drop`,
+      effect,
+    }];
+  }
+  return [];
+}
+
 function buildDays(checkIns) {
   const byDate = {};
   for (const c of checkIns) {
@@ -283,7 +337,7 @@ function familyF4(days, spoonDays) {
 }
 
 // ── Public entry point ────────────────────────────────────────────────────────
-function computeInsights({ checkIns, medLogs = [], spoonDays = [] } = {}) {
+function computeInsights({ checkIns, medLogs = [], spoonDays = [], weatherDays = [] } = {}) {
   const days = buildDays(checkIns || []);
   const dayCount = days.length;
 
@@ -293,8 +347,9 @@ function computeInsights({ checkIns, medLogs = [], spoonDays = [] } = {}) {
   const f3 = familyF3(days, medLogs).slice(0, MAX_PER_FAMILY);
   const f4 = familyF4(days, spoonDays).slice(0, MAX_PER_FAMILY);
   const f5 = familyF5(days).slice(0, MAX_PER_FAMILY);
+  const f6 = familyF6(days, weatherDays).slice(0, MAX_PER_FAMILY);
 
-  const cards = [...f1, ...f2, ...f3, ...f4, ...f5]
+  const cards = [...f1, ...f2, ...f3, ...f4, ...f5, ...f6]
     .sort(byEffect)
     .slice(0, MAX_CARDS)
     .map((c) => ({ ...c, effect: round1(c.effect) }));

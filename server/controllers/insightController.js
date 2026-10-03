@@ -3,6 +3,7 @@ const CheckIn = require("../models/CheckIn");
 const MedicationLog = require("../models/MedicationLog");
 const SpoonDay = require("../models/SpoonDay");
 const SpoonEntry = require("../models/SpoonEntry");
+const WeatherDay = require("../models/WeatherDay");
 const { computeInsights, WINDOW_DAYS } = require("../lib/insights");
 
 // getInsights handles GET /api/insights
@@ -16,7 +17,7 @@ const getInsights = async (req, res) => {
     const cutoffStr = cutoff.toLocaleDateString("en-CA");
     const uid = req.user.id;
 
-    const [checkIns, medLogs, spoonDayRows] = await Promise.all([
+    const [checkIns, medLogs, spoonDayRows, weatherDays] = await Promise.all([
       CheckIn.findAll({
         attributes: [
           "date", "painLevel", "moodLevel", "energyLevel",
@@ -36,6 +37,12 @@ const getInsights = async (req, res) => {
       SpoonDay.findAll({
         attributes: ["id", "date", "budget"],
         where: { userId: uid, date: { [Op.gte]: cutoffStr } },
+        raw: true,
+      }),
+      WeatherDay.findAll({
+        attributes: ["date", "pressureHpa"],
+        where: { userId: uid, date: { [Op.gte]: cutoffStr } },
+        order: [["date", "ASC"]],
         raw: true,
       }),
     ]);
@@ -62,7 +69,7 @@ const getInsights = async (req, res) => {
       }));
     }
 
-    res.json(computeInsights({ checkIns, medLogs, spoonDays }));
+    res.json(computeInsights({ checkIns, medLogs, spoonDays, weatherDays }));
   } catch (err) {
     console.error("Get insights error:", err);
     res.status(500).json({ error: "Server error" });

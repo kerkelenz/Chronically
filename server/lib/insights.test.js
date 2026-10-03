@@ -289,3 +289,195 @@ describe("meta", () => {
     expect(res.meta.message).toBe("Insights unlock as patterns emerge — about 11 more check-in days to go.");
   });
 });
+
+// ── F6: barometric pressure drop ↔ metrics ───────────────────────────────────
+
+// weather rows for a run of days, pressures given day by day
+const wx = (base, pressures) =>
+  pressures.map((p, i) => ({ date: dayStr(base, i), pressureHpa: p }));
+
+describe("F6 — pressure drops", () => {
+  // Build n falling days and n stable days, interleaved so neither bucket is
+  // a contiguous block that might accidentally correlate with something else.
+  // Day 0 is a baseline with no previous pressure, so it lands in neither.
+  const scenario = ({ fallCount = 5, stableCount = 5, fallPain = 2, stablePain = 4 } = {}) => {
+    const checkIns = [];
+    const weatherDays = [];
+    let p = 1013;
+    let i = 0;
+    weatherDays.push({ date: dayStr(B, i), pressureHpa: p });
+    checkIns.push(ci(dayStr(B, i), { pain: stablePain }));
+    i += 1;
+    for (let n = 0; n < Math.max(fallCount, stableCount); n++) {
+      if (n < fallCount) {
+        p -= 7; // a sharp drop
+        weatherDays.push({ date: dayStr(B, i), pressureHpa: p });
+        checkIns.push(ci(dayStr(B, i), { pain: fallPain }));
+        i += 1;
+      }
+      if (n < stableCount) {
+        p += 1; // a steady day
+        weatherDays.push({ date: dayStr(B, i), pressureHpa: p });
+        checkIns.push(ci(dayStr(B, i), { pain: stablePain }));
+        i += 1;
+      }
+    }
+    return { checkIns, weatherDays };
+  };
+
+  test("a -6 hPa day falls in the falling bucket and produces a card", () => {
+    // a sharp fall, then a slow recovery in +1 steps — a +6 rebound would sit
+    // in the dead zone between the buckets, not in "stable"
+    const checkIns = [], weatherDays = [];
+    let p = 1013, i = 0;
+    weatherDays.push({ date: dayStr(B, i), pressureHpa: p });
+    checkIns.push(ci(dayStr(B, i), { pain: 4 }));
+    i += 1;
+    for (let cycle = 0; cycle < 5; cycle++) {
+      p -= 6;
+      weatherDays.push({ date: dayStr(B, i), pressureHpa: p });
+      checkIns.push(ci(dayStr(B, i), { pain: 2 }));
+      i += 1;
+      for (let k = 0; k < 2; k++) {
+        p += 1;
+        weatherDays.push({ date: dayStr(B, i), pressureHpa: p });
+        checkIns.push(ci(dayStr(B, i), { pain: 4 }));
+        i += 1;
+      }
+    }
+    const res = computeInsights({ checkIns, weatherDays });
+    const card = res.cards.find((c) => c.family === "weather");
+    expect(card).toBeTruthy();
+    expect(card.id).toBe("f6-pain");
+    expect(card.headline).toBe("Pressure drops track with your pain");
+    expect(card.evidence).toBe("Across 5 days with a sharp pressure drop");
+  });
+
+  test("a -3 hPa day lands in neither bucket", () => {
+    // every "drop" is only -3: too small to be falling, too big to be stable,
+    // so the falling bucket never fills and no card can form
+    const checkIns = [], weatherDays = [];
+    let p = 1013;
+    weatherDays.push({ date: dayStr(B, 0), pressureHpa: p });
+    checkIns.push(ci(dayStr(B, 0), { pain: 4 }));
+    for (let i = 1; i <= 12; i++) {
+      p += i % 2 === 1 ? -3 : 3;
+      weatherDays.push({ date: dayStr(B, i), pressureHpa: p });
+      checkIns.push(ci(dayStr(B, i), { pain: i % 2 === 1 ? 2 : 4 }));
+    }
+    const res = computeInsights({ checkIns, weatherDays });
+    expect(familyCount(res, "weather")).toBe(0);
+  });
+
+  test("a +1 hPa day counts as stable", () => {
+    const { checkIns, weatherDays } = scenario({ fallCount: 5, stableCount: 5 });
+    const res = computeInsights({ checkIns, weatherDays });
+    const card = res.cards.find((c) => c.family === "weather");
+    expect(card).toBeTruthy();
+    // the +1 days are the stable bucket; without them there is no comparison
+    expect(card.evidence).toBe("Across 5 days with a sharp pressure drop");
+  });
+
+  test("4 falling days make no card, 5 do", () => {
+    const four = scenario({ fallCount: 4, stableCount: 6 });
+    expect(familyCount(computeInsights(four), "weather")).toBe(0);
+
+    const five = scenario({ fallCount: 5, stableCount: 6 });
+    expect(familyCount(computeInsights(five), "weather")).toBe(1);
+  });
+
+  test("a missing previous-day pressure excludes the day entirely", () => {
+    const { checkIns, weatherDays } = scenario({ fallCount: 5, stableCount: 6 });
+    expect(familyCount(computeInsights({ checkIns, weatherDays }), "weather")).toBe(1);
+
+    // drop the pressure reading before each falling day — those days can no
+    // longer be classified, so the falling bucket starves. If a gap were
+    // treated as 0 change they would instead pile into "stable" and the card
+    // would survive with corrupted buckets.
+    const fallingDates = [];
+    for (let i = 1; i < weatherDays.length; i++) {
+      const delta = weatherDays[i].pressureHpa - weatherDays[i - 1].pressureHpa;
+      if (delta <= -5) fallingDates.push(weatherDays[i].date);
+    }
+    const prevOfFalling = new Set(
+      fallingDates.map((d) => {
+        const x = new Date(d + "T12:00:00");
+        x.setDate(x.getDate() - 1);
+        return ymd(x);
+      }),
+    );
+    const gapped = weatherDays.filter((w) => !prevOfFalling.has(w.date));
+    expect(familyCount(computeInsights({ checkIns, weatherDays: gapped }), "weather")).toBe(0);
+  });
+
+  test("a gap is never read as zero change", () => {
+    // pressure only on alternating days: no day has both its own and the
+    // previous day's reading, so nothing is classifiable at all
+    const checkIns = [], weatherDays = [];
+    for (let i = 0; i <= 20; i++) {
+      checkIns.push(ci(dayStr(B, i), { pain: i % 2 === 0 ? 2 : 4 }));
+      if (i % 2 === 0) weatherDays.push({ date: dayStr(B, i), pressureHpa: 1013 });
+    }
+    expect(familyCount(computeInsights({ checkIns, weatherDays }), "weather")).toBe(0);
+  });
+
+  test("non-numeric or null pressure is ignored, not coerced", () => {
+    const { checkIns, weatherDays } = scenario({ fallCount: 5, stableCount: 6 });
+    const poisoned = weatherDays.map((w) => ({ ...w, pressureHpa: null }));
+    expect(familyCount(computeInsights({ checkIns, weatherDays: poisoned }), "weather")).toBe(0);
+  });
+
+  test("pain is preferred over energy when both qualify", () => {
+    const checkIns = [], weatherDays = [];
+    let p = 1013, i = 0;
+    weatherDays.push({ date: dayStr(B, i), pressureHpa: p });
+    checkIns.push(ci(dayStr(B, i), { pain: 4, energy: 4 }));
+    i += 1;
+    for (let cycle = 0; cycle < 6; cycle++) {
+      p -= 7;
+      weatherDays.push({ date: dayStr(B, i), pressureHpa: p });
+      checkIns.push(ci(dayStr(B, i), { pain: 2, energy: 2 }));
+      i += 1;
+      for (let k = 0; k < 2; k++) {
+        p += 1;
+        weatherDays.push({ date: dayStr(B, i), pressureHpa: p });
+        checkIns.push(ci(dayStr(B, i), { pain: 4, energy: 4 }));
+        i += 1;
+      }
+    }
+    const res = computeInsights({ checkIns, weatherDays });
+    expect(res.cards.find((c) => c.family === "weather").id).toBe("f6-pain");
+  });
+
+  test("an improvement on falling days produces no card (worsening only)", () => {
+    const { checkIns, weatherDays } = scenario({ fallCount: 6, stableCount: 6, fallPain: 5, stablePain: 2 });
+    expect(familyCount(computeInsights({ checkIns, weatherDays }), "weather")).toBe(0);
+  });
+
+  test("at most one weather card", () => {
+    const { checkIns, weatherDays } = scenario({ fallCount: 8, stableCount: 8 });
+    expect(familyCount(computeInsights({ checkIns, weatherDays }), "weather")).toBeLessThanOrEqual(1);
+  });
+
+  test("empty weatherDays leaves every other family byte-identical", () => {
+    // a dataset that fires F1, F2 and F5
+    const checkIns = [];
+    for (let i = 0; i < 40; i++) {
+      const date = dayStr(B, i);
+      const flare = i % 3 === 0;
+      checkIns.push(ci(date, {
+        pain: flare ? 2 : 4,
+        energy: flare ? 2 : 4,
+        mood: 3,
+        anxiety: 3,
+        appetite: 3,
+        sleep: flare ? 2 : 4,
+        symptoms: flare ? ["Brain fog"] : [],
+      }));
+    }
+    const without = computeInsights({ checkIns });
+    const withEmpty = computeInsights({ checkIns, weatherDays: [] });
+    expect(JSON.stringify(withEmpty)).toBe(JSON.stringify(without));
+    expect(without.cards.length).toBeGreaterThan(0);
+  });
+});
