@@ -23,6 +23,7 @@ import { track } from "../../lib/analytics";
 import MilestoneBadges from "../../components/MilestoneBadges";
 import BottomSheet from "../../components/BottomSheet";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import WeatherLocationSheet from "../../components/WeatherLocationSheet";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { openLink } from "../../lib/openLink";
 import { Ionicons } from "@expo/vector-icons";
@@ -109,6 +110,19 @@ export default function ProfileScreen() {
   const notificationsLive = prefs.enabled && permission === "granted";
 
   // ── Avatar ────────────────────────────────────────────────────────────────
+  // ── Weather ───────────────────────────────────────────────────────────────
+  const [showWeather, setShowWeather] = useState(false);
+  const [weatherLocation, setWeatherLocation] = useState(user?.weatherLocation || null);
+
+  useEffect(() => {
+    setWeatherLocation(user?.weatherLocation || null);
+  }, [user?.weatherLocation]);
+
+  const onWeatherSaved = (location) => {
+    setWeatherLocation(location);
+    updateUser({ ...user, weatherLocation: location });
+  };
+
   const [savingAvatar, setSavingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState("");
 
@@ -450,6 +464,19 @@ export default function ProfileScreen() {
 
             {/* The permanent record — dismissing a card clears the dashboard,
                 it doesn't destroy the message */}
+            {/* Typed city, never GPS — so there is no OS permission prompt */}
+            <TouchableOpacity
+              style={[styles.legalRow, styles.chevronRow]}
+              onPress={() => setShowWeather(true)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Weather location, ${weatherLocation || "not set"}`}
+            >
+              <Text style={styles.legalText}>Weather</Text>
+              <Text style={styles.rowValue} numberOfLines={1}>
+                {weatherLocation || "Not set"}
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.legalRow, styles.chevronRow]}
               onPress={() => router.push("/chronicle")}
@@ -557,6 +584,13 @@ export default function ProfileScreen() {
       </BottomSheet>
 
       {/* ── Delete confirmation modal ─────────────────────────────────────── */}
+      <WeatherLocationSheet
+        visible={showWeather}
+        current={weatherLocation}
+        onClose={() => setShowWeather(false)}
+        onSaved={onWeatherSaved}
+      />
+
       <ConfirmDialog
         visible={showDeleteModal}
         title="Delete your account?"
@@ -725,6 +759,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  rowValue: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.5)",
+    flexShrink: 1,
+    marginLeft: 12,
+    textAlign: "right",
   },
 
   // Notifications section

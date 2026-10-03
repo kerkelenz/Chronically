@@ -99,6 +99,26 @@ const User = sequelize.define("User", {
     allowNull: false,
     defaultValue: false,
   },
+  // Weather location — typed by the user, never read from device GPS. No OS
+  // permission prompt, no precise coordinates, nothing to declare on the App
+  // Store privacy label. City resolution is all a weather correlation needs.
+  //
+  // A null location is the off switch: there is no separate toggle. Clearing it
+  // stops future capture but leaves existing WeatherDay rows alone.
+  weatherLocation: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  // rounded to 2 decimals (~1km) on the way in — precise enough for a city,
+  // deliberately too coarse to place someone
+  weatherLat: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+  },
+  weatherLon: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+  },
   // IANA zone name (e.g. "America/New_York"), reported by the device at login.
   // Medication times are stored as bare "HH:MM" strings that have always meant
   // device-local time, so the server cannot fire a reminder at the right hour

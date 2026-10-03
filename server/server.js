@@ -31,6 +31,7 @@ const pushRoutes = require("./routes/pushRoutes");
 const announcementRoutes = require("./routes/announcementRoutes");
 const adminAnnouncementRoutes = require("./routes/adminAnnouncementRoutes");
 const { startNotificationScheduler } = require("./jobs/notificationScheduler");
+const { startWeatherBackfill } = require("./jobs/weatherCapture");
 const rateLimit = require("express-rate-limit");
 
 // importing the models here so Sequelize knows about them before we call sync
@@ -48,6 +49,7 @@ require("./models/PushToken");
 require("./models/NotificationLog");
 require("./models/Announcement");
 require("./models/AnnouncementRead");
+require("./models/WeatherDay");
 
 // creating the express app - everything gets attached to this
 const app = express();
@@ -176,11 +178,15 @@ const startServer = async () => {
     console.log(`Server running on port ${PORT}`);
   });
 
-  // Reminder delivery rides on this process, so it only ticks while the web
-  // service is awake — fine on an always-on instance, not on one that sleeps.
-  // Set DISABLE_NOTIFICATION_SCHEDULER=true to run an instance without it.
+  // Both of these ride on this process, so they only tick while the web service
+  // is awake — fine on an always-on instance, not on one that sleeps. Each has
+  // its own kill switch: they fail in different ways and a flag named for
+  // notifications has no business silencing weather.
   if (process.env.DISABLE_NOTIFICATION_SCHEDULER !== "true") {
     startNotificationScheduler();
+  }
+  if (process.env.DISABLE_WEATHER_BACKFILL !== "true") {
+    startWeatherBackfill();
   }
 };
 

@@ -1,6 +1,8 @@
 const { Op } = require("sequelize");
 const CheckIn = require("../models/CheckIn");
 const User = require("../models/User");
+const WeatherDay = require("../models/WeatherDay");
+const { captureWeatherInBackground } = require("../jobs/weatherCapture");
 
 // clamp an optional 1–5 metric: a clean integer in range or null (ignore junk)
 const validLevel = (v) =>
@@ -55,6 +57,20 @@ const createCheckIn = async (req, res) => {
       console.error("Un-hide symptom error:", unhideErr);
     }
 
+    // Capture the day's weather for later correlation. Fire-and-forget and
+    // unawaited on purpose: a weather hiccup must never slow down or fail
+    // somebody logging how they feel.
+    try {
+      const user = await User.findByPk(req.user.id, {
+        attributes: ["id", "weatherLat", "weatherLon"],
+      });
+      if (user?.weatherLat && user?.weatherLon) {
+        captureWeatherInBackground(user, checkIn.date);
+      }
+    } catch (weatherErr) {
+      console.error("Weather capture dispatch failed:", weatherErr);
+    }
+
     // 201 means something was created successfully
     res.status(201).json({
       message: "Check-in created successfully",
@@ -104,7 +120,24 @@ const getCheckIns = async (req, res) => {
       limit,
     });
 
-    res.status(200).json({ checkIns });
+    // Weather for the same span, keyed by date. Sent alongside rather than as
+    // its own request so the dashboard and both report generators get it from
+    // the call they already make. Never fatal: no weather just means no line.
+    let weather = [];
+    try {
+      const dates = [...new Set(checkIns.map((c) => c.date))];
+      if (dates.length > 0) {
+        weather = await WeatherDay.findAll({
+          where: { userId: req.user.id, date: { [Op.in]: dates } },
+          attributes: ["date", "tempMaxC", "tempMinC", "pressureHpa", "humidityPct", "precipitationMm", "weatherCode"],
+          raw: true,
+        });
+      }
+    } catch (weatherErr) {
+      console.error("Weather lookup failed:", weatherErr);
+    }
+
+    res.status(200).json({ checkIns, weather });
   } catch (error) {
     console.error("Error getting check-ins", error);
     res.status(500).json({ error: "Server error processing check-ins" });

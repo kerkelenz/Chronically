@@ -174,6 +174,8 @@ export default function AppointmentsScreen() {
         medsRes.data.medications,
         logsRes.data.logs,
         apptsRes.data.appointments,
+        // weather rides along with the check-ins request
+        checkInsRes.data.weather || [],
       );
       const html = buildReportHtml(data, user?.username || "Patient", insights, logoUri);
       const { uri } = await Print.printToFileAsync({ html });

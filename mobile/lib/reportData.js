@@ -1,4 +1,5 @@
 import { formatTime, describeSchedule, adherenceStats } from "../theme/medications";
+import { formatWeatherLine } from "../theme/weatherFormat";
 
 // ── Constants (mirror generateReport.js verbatim) ─────────────────────────────
 
@@ -141,7 +142,7 @@ export function buildTrendChartSvg(dailyData) {
 
 // ── Main computation (mirrors generateReport body — pure JS, no PDF calls) ────
 
-export function computeReportData(checkIns, medications = [], medicationLogs = [], appointments = []) {
+export function computeReportData(checkIns, medications = [], medicationLogs = [], appointments = [], weatherDays = []) {
   const today         = new Date();
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -217,13 +218,21 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
     notableLines.push(`${METRIC_NAMES[k]} was severe (avg ≤ 2) on ${days.length} ${suffix}: ${dateLabels.join(", ")}${extra}`);
   });
 
+  // Weather joins the daily table only when the period actually has some —
+  // an all-"—" column is noise on a page a doctor has to scan.
+  const weatherByDate = Object.fromEntries((weatherDays || []).map((w) => [w.date, w]));
+  const hasWeather = dailyData.some((d) => formatWeatherLine(weatherByDate[d.date]));
+
   // Daily rows (derived from dailyData so chart and table always agree)
   const dailyRows = dailyData.map((d) => {
     const dayCheckins    = periodCheckIns.filter((c) => c.date === d.date);
     const uniqueSymptoms = [...new Set(dayCheckins.flatMap((c) => c.symptoms || []))];
     const fmt = (v) => v !== null ? v.toFixed(1) : "—";
-    return [d.label, fmt(d.pain), fmt(d.mood), fmt(d.energy), fmt(d.anxiety), fmt(d.appetite),
+    const row = [d.label, fmt(d.pain), fmt(d.mood), fmt(d.energy), fmt(d.anxiety), fmt(d.appetite),
       uniqueSymptoms.length > 0 ? uniqueSymptoms.join(", ") : "—"];
+    // appended last so reportHtml's centre-column indices stay valid
+    if (hasWeather) row.push(formatWeatherLine(weatherByDate[d.date]) || "—");
+    return row;
   });
 
   // Adherence by day of week — same computed-missed math
@@ -313,6 +322,6 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
     // Content
     notableLines, dailyRows, adherenceByDay, skipReasonRows,
     recentAppts, upcomingAppts,
-    medListRows, medListNotes, adherenceRows, medLogRows,
+    medListRows, medListNotes, adherenceRows, medLogRows, hasWeather,
   };
 }

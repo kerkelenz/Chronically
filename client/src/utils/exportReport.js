@@ -27,6 +27,8 @@ export const exportDoctorReport = async ({ token, username }) => {
     logsRes.data.logs,
     apptsRes.data.appointments,
     insights,
+    // weather rides along with the check-ins request
+    checkInsRes.data.weather || [],
   );
 
   // covers both export buttons (dashboard and appointments) in one place

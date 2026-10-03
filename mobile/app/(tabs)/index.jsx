@@ -25,6 +25,7 @@ import MilestoneCelebration from "../../components/MilestoneCelebration";
 import WelcomeModal from "../../components/WelcomeModal";
 import NotificationPrimer from "../../components/NotificationPrimer";
 import AnnouncementCard from "../../components/AnnouncementCard";
+import { formatWeatherLine, deviceLocale } from "../../theme/weatherFormat";
 import { getPushDeclined } from "../../lib/storage";
 import { getPermissionState } from "../../lib/pushNotifications";
 import ConfirmDialog from "../../components/ConfirmDialog";
@@ -129,6 +130,7 @@ export default function DashboardScreen() {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [announcement, setAnnouncement] = useState(null);
+  const [weather, setWeather] = useState([]);
   const [editingCheckIn, setEditingCheckIn] = useState(null);
   const [celebration, setCelebration] = useState(null);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -154,6 +156,7 @@ export default function DashboardScreen() {
           ]);
           if (active) {
             setCheckIns(checkInsRes.data.checkIns || []);
+            setWeather(checkInsRes.data.weather || []);
             setAppointments(apptRes.data.appointments || []);
             setAnnouncement(ann || null);
             setError(null);
@@ -225,6 +228,7 @@ export default function DashboardScreen() {
         api.get("/api/announcements").then((r) => r.data.announcement).catch(() => null),
       ]);
       setCheckIns(checkInsRes.data.checkIns || []);
+      setWeather(checkInsRes.data.weather || []);
       setAppointments(apptRes.data.appointments || []);
       setAnnouncement(ann || null);
       setError(null);
@@ -350,6 +354,9 @@ export default function DashboardScreen() {
           symptoms: Array.isArray(lastCheckIn.symptoms) ? lastCheckIn.symptoms : [],
         }
       : null;
+
+  const locale = deviceLocale();
+  const weatherByDate = Object.fromEntries((weather || []).map((w) => [w.date, w]));
 
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   const recentCheckIns = checkIns.filter(
@@ -573,15 +580,26 @@ export default function DashboardScreen() {
                   No check-ins in the last 24 hours
                 </Text>
               ) : (
-                recentCheckIns.map((c, i) => (
-                  <CheckInRow
-                    key={c.id}
-                    checkIn={c}
-                    onEdit={setEditingCheckIn}
-                    onDelete={handleDeleteCheckIn}
-                    isLatest={i === 0}
-                  />
-                ))
+                recentCheckIns.map((c, i) => {
+                  // the rolling 24h window can straddle two dates, and weather
+                  // belongs to the day — so it shows once, above that date's
+                  // first row, rather than repeating on every check-in
+                  const newDay = i === 0 || c.date !== recentCheckIns[i - 1].date;
+                  const line = newDay
+                    ? formatWeatherLine(weatherByDate[c.date], locale)
+                    : null;
+                  return (
+                    <View key={c.id}>
+                      {line ? <Text style={styles.weatherLine}>{line}</Text> : null}
+                      <CheckInRow
+                        checkIn={c}
+                        onEdit={setEditingCheckIn}
+                        onDelete={handleDeleteCheckIn}
+                        isLatest={i === 0}
+                      />
+                    </View>
+                  );
+                })
               )}
             </View>
           </>
@@ -892,6 +910,14 @@ const styles = StyleSheet.create({
     color: "white",
     marginBottom: 10,
     marginTop: 4,
+  },
+  // quiet by design — this app is not a weather app
+  weatherLine: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.55)",
+    marginTop: 2,
+    marginBottom: 4,
   },
   emptyRecentText: {
     fontFamily: "Lato_400Regular",

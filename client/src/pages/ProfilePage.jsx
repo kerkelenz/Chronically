@@ -9,6 +9,7 @@ import Navigation, { NavHamburger } from "../components/Navigation";
 import HomeLogo from "../components/HomeLogo";
 import Avatar from "../components/Avatar";
 import MilestoneBadges from "../components/MilestoneBadges";
+import WeatherLocationModal from "../components/WeatherLocationModal";
 
 function getCroppedImg(imageSrc, croppedAreaPixels) {
   return new Promise((resolve, reject) => {
@@ -112,6 +113,15 @@ function ProfilePage() {
     } finally {
       setPrefsBusy(false);
     }
+  };
+
+  // ── Weather ─────────────────────────────────────────────────────────────
+  const [showWeather, setShowWeather] = useState(false);
+  const [weatherLocation, setWeatherLocation] = useState(user?.weatherLocation || null);
+
+  const onWeatherSaved = (location) => {
+    setWeatherLocation(location);
+    updateUser({ ...user, weatherLocation: location });
   };
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -466,6 +476,17 @@ function ProfilePage() {
           className="rounded-2xl overflow-hidden"
           style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
         >
+          {/* Typed city, never browser geolocation — no permission prompt */}
+          <button
+            onClick={() => setShowWeather(true)}
+            className="w-full px-4 py-3 text-left text-sm flex justify-between items-center gap-3 transition-colors hover:bg-white/10"
+            style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.2)" }}
+          >
+            Weather
+            <span className="truncate" style={{ color: "rgba(255,255,255,0.5)" }}>
+              {weatherLocation || "Not set"}
+            </span>
+          </button>
           {/* The permanent record — dismissing a card clears the dashboard,
               it doesn't destroy the message */}
           <button
@@ -718,6 +739,14 @@ function ProfilePage() {
           </div>
         </div>
       )}
+
+      <WeatherLocationModal
+        open={showWeather}
+        current={weatherLocation}
+        token={token}
+        onClose={() => setShowWeather(false)}
+        onSaved={onWeatherSaved}
+      />
 
       <Navigation />
     </div>

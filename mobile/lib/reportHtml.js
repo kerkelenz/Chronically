@@ -166,7 +166,7 @@ export function buildReportHtml(data, username, insights = null, logoUri = null)
     periodStart, periodEnd, generatedDate,
     medications, prnTaken,
     medListRows, medListNotes, adherenceRows, medLogRows,
-    dailyRows, adherenceByDay, skipReasonRows, recentAppts, upcomingAppts,
+    dailyRows, adherenceByDay, skipReasonRows, recentAppts, upcomingAppts, hasWeather,
   } = data;
 
   // ── Page 1 helpers ────────────────────────────────────────────────────────
@@ -435,7 +435,8 @@ ${patternsHtml}
         <th style="width:8%">Enrg</th>
         <th style="width:8%">Anx</th>
         <th style="width:8%">App</th>
-        <th>Symptoms</th>
+        <th${hasWeather ? ' style="width:22%"' : ""}>Symptoms</th>
+        ${hasWeather ? '<th style="width:20%">Weather</th>' : ""}
       </tr>
     </thead>
     <tbody>

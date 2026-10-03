@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const { Resend } = require("resend");
 const User = require("../models/User");
+const { searchPlaces, roundCoord, placeLabel } = require("../lib/weather");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -23,6 +24,7 @@ const getProfile = async (req, res) => {
         hasSeenWelcome: user.hasSeenWelcome || false,
         notificationPrefs: user.notificationPrefs || DEFAULT_NOTIFICATION_PREFS,
         isAdmin: user.isAdmin === true,
+        weatherLocation: user.weatherLocation || null,
       },
     });
   } catch (error) {
@@ -201,6 +203,68 @@ const updateTimezone = async (req, res) => {
   }
 };
 
+// searchWeatherLocation handles POST /api/users/weather-location with { query }
+// Returns candidates WITHOUT saving — "Springfield" is five different places
+// and the user has to say which one.
+const searchWeatherLocation = async (req, res) => {
+  try {
+    const { query, latitude, longitude, name } = req.body;
+
+    // Second step: a candidate was chosen, so save it.
+    if (latitude !== undefined && longitude !== undefined) {
+      const lat = Number(latitude);
+      const lon = Number(longitude);
+      if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+        return res.status(400).json({ error: "Invalid latitude" });
+      }
+      if (!Number.isFinite(lon) || lon < -180 || lon > 180) {
+        return res.status(400).json({ error: "Invalid longitude" });
+      }
+      if (typeof name !== "string" || !name.trim()) {
+        return res.status(400).json({ error: "A location name is required" });
+      }
+
+      const weatherLocation = name.trim().slice(0, 120);
+      await User.update(
+        { weatherLocation, weatherLat: roundCoord(lat), weatherLon: roundCoord(lon) },
+        { where: { id: req.user.id } },
+      );
+      return res.status(200).json({
+        weatherLocation,
+        weatherLat: roundCoord(lat),
+        weatherLon: roundCoord(lon),
+      });
+    }
+
+    // First step: look up candidates.
+    if (typeof query !== "string" || !query.trim()) {
+      return res.status(400).json({ error: "A search term is required" });
+    }
+
+    const results = await searchPlaces(query.trim());
+    res.status(200).json({ results, labels: results.map(placeLabel) });
+  } catch (error) {
+    console.error("Weather location error:", error);
+    res.status(500).json({ error: "Could not look up that location" });
+  }
+};
+
+// clearWeatherLocation handles DELETE /api/users/weather-location
+// Turns weather capture off. Existing WeatherDay rows stay — the days the user
+// already lived through are part of their record, not of this setting.
+const clearWeatherLocation = async (req, res) => {
+  try {
+    await User.update(
+      { weatherLocation: null, weatherLat: null, weatherLon: null },
+      { where: { id: req.user.id } },
+    );
+    res.status(200).json({ weatherLocation: null, weatherLat: null, weatherLon: null });
+  } catch (error) {
+    console.error("Clear weather location error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
 const markWelcomeSeen = async (req, res) => {
   try {
     await User.update({ hasSeenWelcome: true }, { where: { id: req.user.id } });
@@ -211,4 +275,4 @@ const markWelcomeSeen = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen, updateNotificationPrefs, updateTimezone };
+module.exports = { getProfile, updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen, updateNotificationPrefs, updateTimezone, searchWeatherLocation, clearWeatherLocation };

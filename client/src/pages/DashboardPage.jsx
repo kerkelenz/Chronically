@@ -13,6 +13,7 @@ import MilestoneCelebration from "../components/MilestoneCelebration";
 import WelcomeModal from "../components/WelcomeModal";
 import { ConfirmDialog } from "../components/FormModal";
 import AnnouncementCard from "../components/AnnouncementCard";
+import { formatWeatherLine, deviceLocale } from "../utils/weatherFormat";
 import { MILESTONES, totalCheckInDays } from "../utils/milestones";
 
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
@@ -55,6 +56,7 @@ function DashboardPage() {
 
   const [appointments, setAppointments] = useState([]);
   const [announcement, setAnnouncement] = useState(null);
+  const [weather, setWeather] = useState([]);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState(false);
 
@@ -111,6 +113,7 @@ function DashboardPage() {
           { headers: { Authorization: `Bearer ${token}` } },
         );
         setCheckIns(response.data.checkIns);
+        setWeather(response.data.weather || []);
         const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
         const recentlyDone =
           response.data.checkIns.length > 0 &&
@@ -537,6 +540,8 @@ function DashboardPage() {
               {(() => {
                 const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
                 const recentCheckIns = checkIns.filter((c) => new Date(c.createdAt) >= cutoff);
+                const locale = deviceLocale();
+                const weatherByDate = Object.fromEntries((weather || []).map((w) => [w.date, w]));
                 if (recentCheckIns.length === 0) {
                   return (
                     <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>
@@ -546,9 +551,22 @@ function DashboardPage() {
                 }
                 return (
                   <div className="flex flex-col gap-2">
-                    {recentCheckIns.map((c) => (
+                    {recentCheckIns.map((c, i) => {
+                    // the rolling 24h window can straddle two dates, and weather
+                    // belongs to the day — so it shows once, above that date's
+                    // first row, rather than repeating on every check-in
+                    const newDay = i === 0 || c.date !== recentCheckIns[i - 1].date;
+                    const weatherLine = newDay
+                      ? formatWeatherLine(weatherByDate[c.date], locale)
+                      : null;
+                    return (
+                      <div key={c.id}>
+                      {weatherLine ? (
+                        <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.55)" }}>
+                          {weatherLine}
+                        </p>
+                      ) : null}
                       <div
-                        key={c.id}
                         className="flex items-start gap-3 p-3 rounded-xl"
                         style={{ background: "rgba(255,255,255,0.1)" }}
                       >
@@ -614,7 +632,9 @@ function DashboardPage() {
                           )}
                         </div>
                       </div>
-                    ))}
+                      </div>
+                    );
+                    })}
                   </div>
                 );
               })()}
