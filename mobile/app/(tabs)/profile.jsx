@@ -12,6 +12,7 @@ import {
   Switch,
   Linking,
 } from "react-native";
+import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import ScreenBackground from "../../components/ScreenBackground";
@@ -33,6 +34,7 @@ import { setPushDeclined } from "../../lib/storage";
 
 export default function ProfileScreen() {
   const { user, signOut, updateUser } = useAuth();
+  const router = useRouter();
 
   // ── Profile form ──────────────────────────────────────────────────────────
   const [username, setUsername] = useState(user?.username || "");
@@ -446,6 +448,16 @@ export default function ProfileScreen() {
           <View style={styles.card}>
             <Text style={styles.sectionLabel}>Account</Text>
 
+            {/* The permanent record — dismissing a card clears the dashboard,
+                it doesn't destroy the message */}
+            <TouchableOpacity
+              style={[styles.legalRow, styles.chevronRow]}
+              onPress={() => router.push("/chronicle")}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.legalText}>From Chronicle</Text>
+              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.legalRow}
               onPress={() => openLink("https://mychronically.app/privacy")}
@@ -708,6 +720,11 @@ const styles = StyleSheet.create({
     fontFamily: "Lato_400Regular",
     fontSize: 15,
     color: "rgba(255,255,255,0.9)",
+  },
+  chevronRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
 
   // Notifications section

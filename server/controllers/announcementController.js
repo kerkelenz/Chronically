@@ -58,6 +58,34 @@ const getCurrentAnnouncement = async (req, res) => {
   }
 };
 
+// getAnnouncementHistory handles GET /api/announcements/history
+// Every published, unexpired announcement, newest first, regardless of whether
+// this user has dismissed it. Dismissing clears the dashboard card; it does not
+// destroy the message — an accidental tap shouldn't lose it, and someone who
+// installed last week should still be able to read what came before.
+//
+// Read-only on purpose: no unread state, no re-show. The moment this gains
+// state to manage it stops being a gentle channel and becomes an inbox.
+const getAnnouncementHistory = async (req, res) => {
+  try {
+    const now = new Date();
+    const announcements = await Announcement.findAll({
+      where: {
+        publishedAt: { [Op.ne]: null, [Op.lte]: now },
+        [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: now } }],
+      },
+      attributes: ["id", "title", "body", "publishedAt"],
+      order: [["publishedAt", "DESC"]],
+      limit: 50,
+    });
+
+    res.json({ announcements });
+  } catch (error) {
+    console.error("Get announcement history error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
 // dismissAnnouncement handles POST /api/announcements/:id/dismiss
 // Idempotent: dismissing twice is a no-op rather than an error, so a retry or a
 // double tap can't fail in the user's face.
@@ -191,6 +219,7 @@ const deleteAnnouncement = async (req, res) => {
 
 module.exports = {
   getCurrentAnnouncement,
+  getAnnouncementHistory,
   dismissAnnouncement,
   listAnnouncements,
   createAnnouncement,

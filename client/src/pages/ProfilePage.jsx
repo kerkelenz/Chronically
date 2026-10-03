@@ -466,6 +466,16 @@ function ProfilePage() {
           className="rounded-2xl overflow-hidden"
           style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
         >
+          {/* The permanent record — dismissing a card clears the dashboard,
+              it doesn't destroy the message */}
+          <button
+            onClick={() => navigate("/chronicle")}
+            className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
+            style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.2)" }}
+          >
+            From Chronicle
+            <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
+          </button>
           <button
             onClick={() => navigate("/privacy")}
             className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"

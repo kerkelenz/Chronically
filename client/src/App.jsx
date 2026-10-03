@@ -16,6 +16,7 @@ import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsPage from "./pages/TermsPage";
 import DeleteAccountPage from "./pages/DeleteAccountPage";
 import AdminAnnouncementsPage from "./pages/AdminAnnouncementsPage";
+import ChroniclePage from "./pages/ChroniclePage";
 
 function App() {
   return (
@@ -75,6 +76,14 @@ function App() {
           element={
             <ProtectedRoute>
               <SpoonCenterPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/chronicle"
+          element={
+            <ProtectedRoute>
+              <ChroniclePage />
             </ProtectedRoute>
           }
         />
