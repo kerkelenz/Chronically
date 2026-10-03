@@ -15,6 +15,7 @@ import {
   expectedDosesOn,
   describeSchedule,
   nextDueDate,
+  SKIP_REASONS,
 } from "../utils/medicationHelpers";
 import { MedicationTypeIcon } from "../components/SymptomIcon";
 
@@ -30,16 +31,6 @@ const EMPTY_FORM = {
   notes: "",
   removalOffsetHours: 12, // patches only — ignored for every other form
 };
-
-const SKIP_REASONS = [
-  "Forgot",
-  "Felt sick / threw up",
-  "Side effects",
-  "Ran out",
-  "Doctor advised",
-  "Already took it",
-  "Too painful to take",
-];
 
 const PATTERN_OPTIONS = [
   { key: "daily", label: "Every day" },

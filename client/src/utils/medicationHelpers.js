@@ -268,3 +268,13 @@ export function nextDueDate(medication, fromYmd, horizon = 31) {
   }
   return null;
 }
+
+export const SKIP_REASONS = [
+  "Forgot",
+  "Felt sick / threw up",
+  "Side effects",
+  "Ran out",
+  "Doctor advised",
+  "Already took it",
+  "Too painful to take",
+];
