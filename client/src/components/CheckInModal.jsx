@@ -472,15 +472,16 @@ function LevelButtons({ labels, selected, onSelect }) {
   );
 }
 
-function ReviewRow({ label, value, labels, onEdit }) {
+function ReviewRow({ label, value, labels, onEdit, emptyLabel = "Skipped" }) {
   return (
     <div
       className="w-full p-3 rounded-2xl text-center relative"
       style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
     >
       <p className="text-white/60 text-xs mb-1">{label}</p>
-      {/* null means not asked or skipped — never a value, never a zero */}
-      <p className="text-white font-medium">{value == null ? "Skipped" : labels[value]}</p>
+      {/* null means not asked or skipped — never a value, never a zero. Pain
+          words it as "No pain" so the review echoes the button that set it. */}
+      <p className="text-white font-medium">{value == null ? emptyLabel : labels[value]}</p>
       <button
         onClick={onEdit}
         className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
@@ -807,7 +808,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
               onClick={skipPainStep}
               className="text-white/50 text-xs hover:text-white/80 transition-colors"
             >
-              Skip
+              No pain
             </button>
           </div>
         )}
@@ -928,7 +929,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
               <ReviewRow label="Sleep" value={sleepLevel} labels={METRIC_LABELS.sleep} onEdit={onEditMetric("sleep")} />
             )}
             {(askPain || painLevel !== null) && (
-              <ReviewRow label="Pain level"     value={painLevel}     labels={METRIC_LABELS.pain}     onEdit={onEditMetric("pain")} />
+              <ReviewRow label="Pain level"     value={painLevel}     labels={METRIC_LABELS.pain}     onEdit={onEditMetric("pain")} emptyLabel="No pain" />
             )}
             <ReviewRow label="Mood level"     value={moodLevel}     labels={METRIC_LABELS.mood}     onEdit={onEditMetric("mood")} />
             <ReviewRow label="Energy level"   value={energyLevel}   labels={METRIC_LABELS.energy}   onEdit={onEditMetric("energy")} />

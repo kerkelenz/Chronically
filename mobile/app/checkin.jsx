@@ -208,15 +208,16 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
 
 // ── ReviewRow ─────────────────────────────────────────────────────────────────
 
-function ReviewRow({ label, value, labelMap, onEdit }) {
+function ReviewRow({ label, value, labelMap, onEdit, emptyLabel = "Skipped" }) {
   return (
     <View style={styles.reviewRow}>
       {/* Left spacer mirrors the edit icon width for true centering */}
       <View style={styles.reviewSpacer} />
       <View style={styles.reviewCenter}>
         <Text style={styles.reviewLabel}>{label}</Text>
-        {/* null means not asked or skipped — never a value, never a zero */}
-        <Text style={styles.reviewValue}>{value == null ? "Skipped" : labelMap[value]}</Text>
+        {/* null means not asked or skipped — never a value, never a zero. Pain
+            words it as "No pain" so the review echoes the button that set it. */}
+        <Text style={styles.reviewValue}>{value == null ? emptyLabel : labelMap[value]}</Text>
       </View>
       <TouchableOpacity
         style={styles.reviewSpacer}
@@ -562,7 +563,7 @@ export default function CheckInScreen() {
                       onSelect={(level) => chooseMetric("pain", level)}
                     />
                     <TouchableOpacity onPress={skipPainStep}>
-                      <Text style={styles.skipLink}>Skip</Text>
+                      <Text style={styles.skipLink}>No pain</Text>
                     </TouchableOpacity>
                   </>
                 )}
@@ -700,6 +701,7 @@ export default function CheckInScreen() {
                         value={painLevel}
                         labelMap={METRIC_LABELS.pain}
                         onEdit={onEditMetric("pain")}
+                        emptyLabel="No pain"
                       />
                     )}
                     <ReviewRow
