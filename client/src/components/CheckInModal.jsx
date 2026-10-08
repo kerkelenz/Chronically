@@ -521,7 +521,6 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
   // value returns to the review instead of marching forward through the flow
   const [returnToReview, setReturnToReview] = useState(false);
   const [sleepSkipped, setSleepSkipped] = useState(false);
-  const [painSkipped, setPainSkipped] = useState(false);
   const [recentSymptoms, setRecentSymptoms] = useState([]);
   const [symptomSearch, setSymptomSearch] = useState("");
   const [error, setError] = useState("");
@@ -627,14 +626,12 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
     const i = ORDER.indexOf(key);
     ORDER.slice(i + 1).forEach((k) => SETTERS[k](null));
     setSymptoms([]);
-    setPainSkipped(false);
     setStep(nextStep(i + 1));
   };
 
   // Skip on the pain step behaves like sleep's: an answer, minus a value.
   const skipPainStep = () => {
     setPainLevel(null);
-    setPainSkipped(true);
     if (returnToReview) { setReturnToReview(false); setStep(7); return; }
     ORDER.slice(2).forEach((k) => SETTERS[k](null));
     setSymptoms([]);
@@ -648,7 +645,6 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
     if (returnToReview) { setReturnToReview(false); setStep(7); return; }
     ORDER.slice(1).forEach((k) => SETTERS[k](null));
     setSymptoms([]);
-    setPainSkipped(false);
     setStep(nextStep(1));
   };
 

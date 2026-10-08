@@ -278,7 +278,6 @@ export default function CheckInScreen() {
   // value returns to the review instead of marching forward through the flow
   const [returnToReview, setReturnToReview] = useState(false);
   const [sleepSkipped, setSleepSkipped] = useState(false);
-  const [painSkipped, setPainSkipped] = useState(false);
   const [recentSymptoms, setRecentSymptoms] = useState([]);
   const [symptomSearch, setSymptomSearch] = useState("");
   const [error, setError] = useState("");
@@ -396,14 +395,12 @@ export default function CheckInScreen() {
     const i = ORDER.indexOf(key);
     for (const k of ORDER.slice(i + 1)) SETTERS[k](null);
     setSymptoms([]);
-    setPainSkipped(false);
     setStep(nextStep(i + 1));
   }
 
   // Skip on the pain step behaves like sleep's: an answer, minus a value.
   function skipPainStep() {
     setPainLevel(null);
-    setPainSkipped(true);
     if (returnToReview) {
       setReturnToReview(false);
       setStep(7);
@@ -424,7 +421,6 @@ export default function CheckInScreen() {
       return;
     }
     for (const k of ORDER.slice(1)) SETTERS[k](null);
-    setPainSkipped(false);
     setSymptoms([]);
     setStep(nextStep(1));
   }
