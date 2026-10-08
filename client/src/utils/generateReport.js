@@ -5,13 +5,6 @@ import { formatTime, describeSchedule, adherenceStats } from "./medicationHelper
 import logoMark from "../assets/logo-mark.png?inline";
 import { formatWeatherLine } from "./weatherFormat";
 
-const SYMPTOM_LIST = [
-  "Fatigue", "Brain fog", "Pain flare", "Numbness",
-  "Spasticity", "Vision issues", "Heat sensitivity", "Balance issues",
-  "Dizziness", "Headache", "Muscle weakness", "Joint pain",
-  "Shortness of breath", "Nausea", "Sleep disturbance", "Bladder urgency",
-];
-
 const PURPLE        = [124, 107, 174];
 const DARK          = [45,  37,  64];
 const GRAY          = [107, 95,  122];
@@ -91,9 +84,11 @@ const drawTrendChart = (dailyData) => {
   const toX = (i) => plotLeft + (i / 30) * plotW;
   const toY = (v) => plotBottom - ((v - 1) / 4) * plotH;
 
-  // keep the original five always; add Sleep only when the period has any
+  // A metric nobody answered in this period gets no line and no legend entry.
+  // Sleep has always been optional and pain now is too, and a legend swatch
+  // with nothing drawn beside it reads as a flatline rather than an absence.
   const activeMetrics = CHART_METRICS.filter(
-    (m) => m.key !== "sleep" || dailyData.some((d) => d.sleep != null),
+    (m) => dailyData.some((d) => d[m.key] != null),
   );
 
   // Gridlines at 1, 3, 5
@@ -202,13 +197,36 @@ export function generateReport(checkIns, username, medications = [], medicationL
   const avgAppetite = avg(periodCheckIns, "appetiteLevel");
   const avgSleep    = avg(periodCheckIns, "sleepLevel");
 
-  // Symptom frequency
-  const symptomStats = SYMPTOM_LIST.map((symptom) => {
+  // Sleep is asked once a day and skippable; pain is not asked at all of
+  // someone tracking their mind. A metric nobody answered is left out of the
+  // report entirely rather than printed as a dash for a clinician to interpret.
+  // Declared here because the daily log table below is built from it too.
+  const hasPain  = avgPain !== "-";
+  const hasSleep = avgSleep !== "-";
+
+  // An omitted metric should read as "never asked", not as a gap in the data a
+  // doctor has to guess at. Only worth saying when something was recorded at
+  // all — on an empty period every average is blank and nothing is singled out.
+  const untracked = [...(hasPain ? [] : ["pain"]), ...(hasSleep ? [] : ["sleep"])];
+  const untrackedNote = untracked.length === 0 || periodCheckIns.length === 0
+    ? ""
+    : `${untracked.join(" and ").replace(/^./, (ch) => ch.toUpperCase())} ` +
+      `${untracked.length > 1 ? "were" : "was"} not recorded in this period, so ` +
+      `${untracked.length > 1 ? "they are" : "it is"} omitted above rather than shown as a zero.`;
+
+  // Symptom frequency — counted over what the patient actually logged, not a
+  // fixed list of names. The fixed list predated the catalog and silently
+  // dropped every mental symptom, most of the physical ones and anything the
+  // patient typed themselves: their symptoms appeared in the daily log while
+  // this table said "none". Ties break by name so the ordering is stable, and
+  // At a Glance reads the top row.
+  const loggedSymptoms = [...new Set(periodCheckIns.flatMap((c) => c.symptoms || []))];
+  const symptomStats = loggedSymptoms.map((symptom) => {
     const days = daysWithCheckIns.filter((date) =>
       periodCheckIns.filter((c) => c.date === date).some((c) => c.symptoms && c.symptoms.includes(symptom)),
     ).length;
     return { name: symptom, days, percentage: totalDaysTracked > 0 ? Math.round((days / totalDaysTracked) * 100) : 0 };
-  }).filter((s) => s.days > 0).sort((a, b) => b.days - a.days);
+  }).filter((s) => s.days > 0).sort((a, b) => b.days - a.days || a.name.localeCompare(b.name));
 
   // Adherence: expected-vs-logged (computed-missed) — the shared engine math.
   // missed = expected past dose with no log; today's unlogged doses are neutral
@@ -261,7 +279,8 @@ export function generateReport(checkIns, username, medications = [], medicationL
     const dayCheckins    = periodCheckIns.filter((c) => c.date === d.date);
     const uniqueSymptoms = [...new Set(dayCheckins.flatMap((c) => c.symptoms || []))];
     const fmt = (v) => v !== null ? v.toFixed(1) : "—";
-    const row = [d.label, fmt(d.pain), fmt(d.mood), fmt(d.energy), fmt(d.anxiety), fmt(d.appetite),
+    const row = [d.label, ...(hasPain ? [fmt(d.pain)] : []),
+      fmt(d.mood), fmt(d.energy), fmt(d.anxiety), fmt(d.appetite),
       uniqueSymptoms.length > 0 ? uniqueSymptoms.join(", ") : "—"];
     if (hasWeather) row.push(formatWeatherLine(weatherByDate[d.date]) || "—");
     return row;
@@ -308,7 +327,6 @@ export function generateReport(checkIns, username, medications = [], medicationL
   y += gap + 2;
 
   // ── At a Glance box ── (sleep takes a full-width third row when tracked)
-  const hasSleep = avgSleep !== "-";
   const boxH  = hasSleep ? 42 : 30;
   const lPad  = 5;
   const row1Y = y + 5;
@@ -374,10 +392,6 @@ export function generateReport(checkIns, username, medications = [], medicationL
   // ── 30-Day Averages ── (Sleep column only when the period has sleep data)
   sectionTitle(doc, "30-Day Averages", y, margin);
   y += 3;
-  // A metric nobody answered in this period is left out entirely rather than
-  // printed as a dash a clinician has to interpret. Pain is optional now, so
-  // it earns the same treatment sleep already had.
-  const hasPain = avgPain !== "-";
   const avgHead = [...(hasPain ? ["Pain"] : []), "Mood", "Energy", "Anxiety", "Appetite"];
   const avgBody = [...(hasPain ? [avgPain] : []), avgMood, avgEnergy, avgAnxiety, avgAppetite];
   if (hasSleep) { avgHead.push("Sleep"); avgBody.push(avgSleep); }
@@ -395,6 +409,15 @@ export function generateReport(checkIns, username, medications = [], medicationL
     theme: "grid",
   });
   y = doc.lastAutoTable.finalY + gap;
+
+  if (untrackedNote) {
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY);
+    doc.setFont(undefined, "normal");
+    const noteLines = doc.splitTextToSize(untrackedNote, pageWidth - 2 * margin);
+    doc.text(noteLines, margin, y);
+    y += noteLines.length * 3.5 + gap - 1;
+  }
 
   // ── Notable Events ──
   sectionTitle(doc, "Notable Events", y, margin);
@@ -664,11 +687,26 @@ export function generateReport(checkIns, username, medications = [], medicationL
   // Daily Health Log
   sectionTitle(doc, "Daily Health Log", y3, margin);
   y3 += 3;
+  // Columns are assembled rather than written out: pain drops when nobody
+  // answered it, weather appears only when the period has some. autoTable keys
+  // columnStyles by index, so the widths have to be derived from the same list
+  // — a hardcoded index map would misalign the moment a column disappears.
+  const dailyHead = ["Date", ...(hasPain ? ["Pain"] : []),
+    "Mood", "Enrg", "Anx", "App", "Symptoms", ...(hasWeather ? ["Weather"] : [])];
+  const metricW = hasWeather ? 12 : 14;
+  const dailyColStyles = {};
+  dailyHead.forEach((h, i) => {
+    if (i === 0)               dailyColStyles[i] = { cellWidth: 14 };
+    // only one column may be "auto", so Symptoms keeps it and takes up whatever
+    // the other columns leave — including the width a dropped Pain frees
+    else if (h === "Symptoms") dailyColStyles[i] = { cellWidth: "auto" };
+    else if (h === "Weather")  dailyColStyles[i] = { cellWidth: 34 };
+    else                       dailyColStyles[i] = { cellWidth: metricW, halign: "center" };
+  });
+
   autoTable(doc, {
     startY: y3,
-    head: [hasWeather
-      ? ["Date", "Pain", "Mood", "Enrg", "Anx", "App", "Symptoms", "Weather"]
-      : ["Date", "Pain", "Mood", "Enrg", "Anx", "App", "Symptoms"]],
+    head: [dailyHead],
     body: dailyRows,
     headStyles: {
       fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9,
@@ -680,19 +718,7 @@ export function generateReport(checkIns, username, medications = [], medicationL
       minCellHeight: 5,
       valign: "middle",
     },
-    // only one column may be "auto", so Symptoms keeps it and Weather takes a
-    // fixed width when it is present
-    columnStyles: hasWeather
-      ? {
-          0: { cellWidth: 14 }, 1: { cellWidth: 12, halign: "center" }, 2: { cellWidth: 12, halign: "center" },
-          3: { cellWidth: 12, halign: "center" }, 4: { cellWidth: 12, halign: "center" },
-          5: { cellWidth: 12, halign: "center" }, 6: { cellWidth: "auto" }, 7: { cellWidth: 34 },
-        }
-      : {
-          0: { cellWidth: 14 }, 1: { cellWidth: 14, halign: "center" }, 2: { cellWidth: 14, halign: "center" },
-          3: { cellWidth: 14, halign: "center" }, 4: { cellWidth: 14, halign: "center" },
-          5: { cellWidth: 14, halign: "center" }, 6: { cellWidth: "auto" },
-        },
+    columnStyles: dailyColStyles,
     styles: { overflow: "linebreak" },
     margin: { left: margin, right: margin, top: 14 },
     theme: "grid",

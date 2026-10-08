@@ -167,6 +167,7 @@ export function buildReportHtml(data, username, insights = null, logoUri = null)
     medications, prnTaken,
     medListRows, medListNotes, adherenceRows, medLogRows,
     dailyRows, adherenceByDay, skipReasonRows, recentAppts, upcomingAppts, hasWeather,
+    hasPain, hasSleep, untrackedNote,
   } = data;
 
   // ── Page 1 helpers ────────────────────────────────────────────────────────
@@ -232,20 +233,29 @@ export function buildReportHtml(data, username, insights = null, logoUri = null)
 
   // ── Page 3 helpers ────────────────────────────────────────────────────────
 
-  const dailyBodyHtml = trows(dailyRows, [1, 2, 3, 4, 5]);
+  // Date, then the numeric metrics, then Symptoms (and Weather). Pain drops out
+  // when nobody answered it, so the centred columns are counted rather than
+  // hardcoded: 4 metrics without pain, 5 with.
+  const dailyMetricCount = hasPain ? 5 : 4;
+  const dailyCenterCols = Array.from({ length: dailyMetricCount }, (_, i) => i + 1);
+  const dailyBodyHtml = trows(dailyRows, dailyCenterCols);
+  const dailyMetricW = hasWeather ? 8 : 9;
+  const dailyHeadHtml = [
+    `<th style="width:8%">Date</th>`,
+    ...(hasPain ? [`<th style="width:${dailyMetricW}%">Pain</th>`] : []),
+    `<th style="width:${dailyMetricW}%">Mood</th>`,
+    `<th style="width:${dailyMetricW}%">Enrg</th>`,
+    `<th style="width:${dailyMetricW}%">Anx</th>`,
+    `<th style="width:${dailyMetricW}%">App</th>`,
+    `<th${hasWeather ? ' style="width:22%"' : ""}>Symptoms</th>`,
+    ...(hasWeather ? [`<th style="width:20%">Weather</th>`] : []),
+  ].join("\n        ");
 
   const medLogBodyHtml = medLogRows.length > 0
     ? trows(medLogRows)
     : `<tr><td colspan="7" class="center muted">No medication logs in this period</td></tr>`;
 
   // ── Assemble ──────────────────────────────────────────────────────────────
-
-  // Sleep joins the averages row and At a Glance only when the period has data
-  const hasSleep = avgSleep !== "-";
-  // A metric nobody answered in this period is left out entirely rather than
-  // printed as a dash a clinician has to interpret. Pain is optional now, so
-  // it earns the same treatment sleep already had.
-  const hasPain = avgPain !== "-";
 
   // Observed Patterns is a bonus section: no insights (API down, or too few
   // days for a pattern to clear the thresholds) simply means no section.
@@ -322,6 +332,7 @@ export function buildReportHtml(data, username, insights = null, logoUri = null)
       <tr>${hasPain ? `<td>${avgPain}</td>` : ""}<td>${avgMood}</td><td>${avgEnergy}</td><td>${avgAnxiety}</td><td>${avgAppetite}</td>${hasSleep ? `<td>${avgSleep}</td>` : ""}</tr>
     </tbody>
   </table>
+  ${untrackedNote ? `<p class="no-data">${untrackedNote}</p>` : ""}
 
   <div class="section-title">Notable Events</div>
   <table class="notable-table">
@@ -433,14 +444,7 @@ ${patternsHtml}
   <table>
     <thead>
       <tr>
-        <th style="width:8%">Date</th>
-        <th style="width:8%">Pain</th>
-        <th style="width:8%">Mood</th>
-        <th style="width:8%">Enrg</th>
-        <th style="width:8%">Anx</th>
-        <th style="width:8%">App</th>
-        <th${hasWeather ? ' style="width:22%"' : ""}>Symptoms</th>
-        ${hasWeather ? '<th style="width:20%">Weather</th>' : ""}
+        ${dailyHeadHtml}
       </tr>
     </thead>
     <tbody>

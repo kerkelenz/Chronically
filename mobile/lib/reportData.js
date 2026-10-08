@@ -3,13 +3,6 @@ import { formatWeatherLine } from "../theme/weatherFormat";
 
 // ── Constants (mirror generateReport.js verbatim) ─────────────────────────────
 
-export const SYMPTOM_LIST = [
-  "Fatigue", "Brain fog", "Pain flare", "Numbness",
-  "Spasticity", "Vision issues", "Heat sensitivity", "Balance issues",
-  "Dizziness", "Headache", "Muscle weakness", "Joint pain",
-  "Shortness of breath", "Nausea", "Sleep disturbance", "Bladder urgency",
-];
-
 export const PURPLE        = [124, 107, 174];
 export const DARK          = [45,  37,  64];
 export const GRAY          = [107, 95,  122];
@@ -77,9 +70,11 @@ export function buildTrendChartSvg(dailyData) {
   const toY = (v) => plotBottom - ((v - 1) / 4) * plotH;
   const p   = (n) => n.toFixed(2);
 
-  // keep the original five always; add Sleep only when the period has any
+  // A metric nobody answered in this period gets no line and no legend entry.
+  // Sleep has always been optional and pain now is too, and a legend swatch
+  // with nothing drawn beside it reads as a flatline rather than an absence.
   const activeMetrics = CHART_METRICS.filter(
-    (m) => m.key !== "sleep" || dailyData.some((d) => d.sleep != null),
+    (m) => dailyData.some((d) => d[m.key] != null),
   );
 
   const parts = [];
@@ -169,13 +164,25 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
   const avgAppetite = avg(periodCheckIns, "appetiteLevel");
   const avgSleep    = avg(periodCheckIns, "sleepLevel");
 
-  // Symptom frequency
-  const symptomStats = SYMPTOM_LIST.map((symptom) => {
+  // Sleep is asked once a day and skippable; pain is not asked at all of
+  // someone tracking their mind. A metric nobody answered is left out of the
+  // report entirely rather than printed as a dash for a clinician to interpret.
+  const hasPain  = avgPain !== "-";
+  const hasSleep = avgSleep !== "-";
+
+  // Symptom frequency — counted over what the patient actually logged, not a
+  // fixed list of names. The fixed list predated the catalog and silently
+  // dropped every mental symptom, most of the physical ones and anything the
+  // patient typed themselves: their symptoms appeared in the daily log while
+  // this table said "none". Ties break by name so the ordering is stable, and
+  // At a Glance reads the top row.
+  const loggedSymptoms = [...new Set(periodCheckIns.flatMap((c) => c.symptoms || []))];
+  const symptomStats = loggedSymptoms.map((symptom) => {
     const days = daysWithCheckIns.filter((date) =>
       periodCheckIns.filter((c) => c.date === date).some((c) => c.symptoms && c.symptoms.includes(symptom))
     ).length;
     return { name: symptom, days, percentage: totalDaysTracked > 0 ? Math.round((days / totalDaysTracked) * 100) : 0 };
-  }).filter((s) => s.days > 0).sort((a, b) => b.days - a.days);
+  }).filter((s) => s.days > 0).sort((a, b) => b.days - a.days || a.name.localeCompare(b.name));
 
   // Adherence: expected-vs-logged (computed-missed) — the shared engine math.
   // missed = expected past dose with no log; today's unlogged doses are neutral
@@ -228,12 +235,23 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
     const dayCheckins    = periodCheckIns.filter((c) => c.date === d.date);
     const uniqueSymptoms = [...new Set(dayCheckins.flatMap((c) => c.symptoms || []))];
     const fmt = (v) => v !== null ? v.toFixed(1) : "—";
-    const row = [d.label, fmt(d.pain), fmt(d.mood), fmt(d.energy), fmt(d.anxiety), fmt(d.appetite),
+    const row = [d.label, ...(hasPain ? [fmt(d.pain)] : []),
+      fmt(d.mood), fmt(d.energy), fmt(d.anxiety), fmt(d.appetite),
       uniqueSymptoms.length > 0 ? uniqueSymptoms.join(", ") : "—"];
-    // appended last so reportHtml's centre-column indices stay valid
+    // appended last so the numeric columns stay contiguous from index 1
     if (hasWeather) row.push(formatWeatherLine(weatherByDate[d.date]) || "—");
     return row;
   });
+
+  // An omitted metric should read as "never asked", not as a gap in the data a
+  // doctor has to guess at. Only worth saying when something was recorded at
+  // all — on an empty period every average is blank and nothing is singled out.
+  const untracked = [...(hasPain ? [] : ["pain"]), ...(hasSleep ? [] : ["sleep"])];
+  const untrackedNote = untracked.length === 0 || periodCheckIns.length === 0
+    ? ""
+    : `${untracked.join(" and ").replace(/^./, (ch) => ch.toUpperCase())} ` +
+      `${untracked.length > 1 ? "were" : "was"} not recorded in this period, so ` +
+      `${untracked.length > 1 ? "they are" : "it is"} omitted above rather than shown as a zero.`;
 
   // Adherence by day of week — same computed-missed math
   const adherenceByDay = medStats.perWeekday.map((w) => (w.pct != null ? `${w.pct}%` : null));
@@ -323,5 +341,6 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
     notableLines, dailyRows, adherenceByDay, skipReasonRows,
     recentAppts, upcomingAppts,
     medListRows, medListNotes, adherenceRows, medLogRows, hasWeather,
+    hasPain, hasSleep, untrackedNote,
   };
 }
