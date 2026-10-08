@@ -492,6 +492,12 @@ function ReviewRow({ label, value, labels, onEdit }) {
 }
 
 function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) {
+  // What the user asked to keep front and centre; "both" until they choose.
+  // Declared first because the step maths below derives from it — a `const`
+  // hoists without initialising, so reading it any earlier is a TDZ crash.
+  const { token, user } = useAuth();
+  const trackingMode = user?.trackingMode || "both";
+
   // Sleep is asked only on the first check-in of the day (askSleep); a later
   // same-day check-in skips step 0 entirely. Skip is always available.
   // Pain is skipped entirely for someone tracking their mind — not hidden,
@@ -526,10 +532,6 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
   // This responds to an explicit choice — the app never infers a state.
   const [toastSupport, setToastSupport] = useState(false);
   const toastTimerRef = useRef(null);
-
-  const { token, user } = useAuth();
-  // what the user asked to keep front and centre; "both" until they choose
-  const trackingMode = user?.trackingMode || "both";
 
   // fetch the user's personal recent symptoms; silent-fail to none
   useEffect(() => {
