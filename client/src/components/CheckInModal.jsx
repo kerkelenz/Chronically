@@ -4,7 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import { track } from "../lib/analytics";
 import LavenderConfetti from "./LavenderConfetti";
 import { FiEdit2 } from "react-icons/fi";
-import { COMMON_SYMPTOMS, SYMPTOM_CATALOG } from "../utils/symptomCatalog";
+import { COMMON_SYMPTOMS, COMMON_MENTAL_SYMPTOMS, SYMPTOM_CATALOG } from "../utils/symptomCatalog";
 import { SymptomIcon } from "./SymptomIcon";
 import { SUPPORT_TOAST_LINK } from "../utils/supportResources";
 import { METRIC_LABELS } from "../utils/metricLabels";
@@ -267,12 +267,16 @@ function uniqByLower(arr) {
 // Personal symptom picker: the user's recents lead, then a condition-neutral
 // default set, with search + add-your-own. Shared by the step-6 flow and the
 // step-7 edit path (both route through step 6).
-function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCustom, onHide }) {
+function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCustom, onHide, trackingMode = "both" }) {
   const q = search.trim();
   const qLower = q.toLowerCase();
 
   const recentSet = new Set(recents.map((r) => r.toLowerCase()));
-  const commonSet = new Set(COMMON_SYMPTOMS.map((d) => d.toLowerCase()));
+  // both quick-pick grids count as "shown somewhere", so a selected chip from
+  // either doesn't get duplicated into YOUR SYMPTOMS
+  const commonSet = new Set(
+    [...COMMON_SYMPTOMS, ...COMMON_MENTAL_SYMPTOMS].map((d) => d.toLowerCase()),
+  );
   // selected symptoms not shown in the non-search sections (recents / common) —
   // customs AND catalog-but-not-common picks — join YOUR SYMPTOMS so they stay
   // visible as selected this session
@@ -288,9 +292,15 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
   const SEARCH_MIN = 2;   // catalog search kicks in at 2+ chars
   const SEARCH_CAP = 12;  // ranked results shown before "keep typing"
 
-  // resting view: the COMMON list; searching (2+ chars): the whole catalog
+  // Resting view is mode-aware; searching (2+ chars) always covers the whole
+  // catalog whatever the mode — a mode only changes what is offered first,
+  // it never hides anything.
   const searchingCatalog = qLower.length >= SEARCH_MIN;
-  const commonBase = searchingCatalog ? SYMPTOM_CATALOG.map((c) => c.name) : COMMON_SYMPTOMS;
+  const showCommon = trackingMode !== "mental";
+  const showMental = trackingMode !== "physical";
+  const commonBase = searchingCatalog
+    ? SYMPTOM_CATALOG.map((c) => c.name)
+    : showCommon ? COMMON_SYMPTOMS : [];
   const commonAll = commonBase.filter((s) => !yourSet.has(s.toLowerCase()));
 
   let commonShown;
@@ -309,7 +319,16 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
     commonShown = matches.slice(0, SEARCH_CAP);
   }
 
-  const visible = [...yourShown, ...commonShown];
+  // MOOD & MIND only appears at rest — in search everything is one Results list
+  const commonShownSet = new Set(commonShown.map((s) => s.toLowerCase()));
+  const mentalShown =
+    searchingCatalog || q || !showMental
+      ? []
+      : COMMON_MENTAL_SYMPTOMS.filter(
+          (s) => !yourSet.has(s.toLowerCase()) && !commonShownSet.has(s.toLowerCase()),
+        );
+
+  const visible = [...yourShown, ...commonShown, ...mentalShown];
   const showAdd = qLower.length >= SEARCH_MIN && visible.length === 0;
 
   const chip = (s, removable) => {
@@ -391,6 +410,16 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
               </div>
             </div>
           )}
+          {mentalShown.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-center" style={{ color: "rgba(255,255,255,0.6)" }}>
+                Mood &amp; mind
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {mentalShown.map((s) => chip(s, false))}
+              </div>
+            </div>
+          )}
         </>
       )}
       {truncatedFrom > 0 && (
@@ -450,7 +479,8 @@ function ReviewRow({ label, value, labels, onEdit }) {
       style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
     >
       <p className="text-white/60 text-xs mb-1">{label}</p>
-      <p className="text-white font-medium">{labels[value]}</p>
+      {/* null means not asked or skipped — never a value, never a zero */}
+      <p className="text-white font-medium">{value == null ? "Skipped" : labels[value]}</p>
       <button
         onClick={onEdit}
         className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
@@ -464,7 +494,12 @@ function ReviewRow({ label, value, labels, onEdit }) {
 function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) {
   // Sleep is asked only on the first check-in of the day (askSleep); a later
   // same-day check-in skips step 0 entirely. Skip is always available.
-  const firstStep = askSleep ? 0 : 1;
+  // Pain is skipped entirely for someone tracking their mind — not hidden,
+  // just not asked. Profile -> Tracking focus brings it back.
+  const askPain = trackingMode !== "mental";
+  // walking forwards, step 1 is passed over when pain isn't asked
+  const nextStep = (n) => (n === 1 && !askPain ? 2 : n);
+  const firstStep = askSleep ? 0 : nextStep(1);
   // "Same as last time": open straight on the review with the previous answers
   // copied in. Sleep is deliberately NOT copied — last night isn't yesterday.
   const prefilled = !!prefill;
@@ -480,6 +515,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
   // value returns to the review instead of marching forward through the flow
   const [returnToReview, setReturnToReview] = useState(false);
   const [sleepSkipped, setSleepSkipped] = useState(false);
+  const [painSkipped, setPainSkipped] = useState(false);
   const [recentSymptoms, setRecentSymptoms] = useState([]);
   const [symptomSearch, setSymptomSearch] = useState("");
   const [error, setError] = useState("");
@@ -491,7 +527,9 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
   const [toastSupport, setToastSupport] = useState(false);
   const toastTimerRef = useRef(null);
 
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  // what the user asked to keep front and centre; "both" until they choose
+  const trackingMode = user?.trackingMode || "both";
 
   // fetch the user's personal recent symptoms; silent-fail to none
   useEffect(() => {
@@ -587,7 +625,18 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
     const i = ORDER.indexOf(key);
     ORDER.slice(i + 1).forEach((k) => SETTERS[k](null));
     setSymptoms([]);
-    setStep(i + 1);
+    setPainSkipped(false);
+    setStep(nextStep(i + 1));
+  };
+
+  // Skip on the pain step behaves like sleep's: an answer, minus a value.
+  const skipPainStep = () => {
+    setPainLevel(null);
+    setPainSkipped(true);
+    if (returnToReview) { setReturnToReview(false); setStep(7); return; }
+    ORDER.slice(2).forEach((k) => SETTERS[k](null));
+    setSymptoms([]);
+    setStep(2);
   };
 
   // Skip on the sleep step behaves like any other answer, minus a value.
@@ -597,7 +646,8 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
     if (returnToReview) { setReturnToReview(false); setStep(7); return; }
     ORDER.slice(1).forEach((k) => SETTERS[k](null));
     setSymptoms([]);
-    setStep(1);
+    setPainSkipped(false);
+    setStep(nextStep(1));
   };
 
   // Review-row edit: destructive chain-restart in the normal flow, single-answer
@@ -755,6 +805,12 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
               selected={painLevel}
               onSelect={(level) => chooseMetric("pain", level)}
             />
+            <button
+              onClick={skipPainStep}
+              className="text-white/50 text-xs hover:text-white/80 transition-colors"
+            >
+              Skip
+            </button>
           </div>
         )}
 
@@ -828,6 +884,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
               recents={recentSymptoms}
               onAddCustom={addCustomSymptom}
               onHide={handleHideSymptom}
+              trackingMode={trackingMode}
             />
             <button
               onClick={() => {
@@ -872,7 +929,9 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
             {sleepLevel !== null && (
               <ReviewRow label="Sleep" value={sleepLevel} labels={METRIC_LABELS.sleep} onEdit={onEditMetric("sleep")} />
             )}
-            <ReviewRow label="Pain level"     value={painLevel}     labels={METRIC_LABELS.pain}     onEdit={onEditMetric("pain")} />
+            {(askPain || painLevel !== null) && (
+              <ReviewRow label="Pain level"     value={painLevel}     labels={METRIC_LABELS.pain}     onEdit={onEditMetric("pain")} />
+            )}
             <ReviewRow label="Mood level"     value={moodLevel}     labels={METRIC_LABELS.mood}     onEdit={onEditMetric("mood")} />
             <ReviewRow label="Energy level"   value={energyLevel}   labels={METRIC_LABELS.energy}   onEdit={onEditMetric("energy")} />
             <ReviewRow label="Anxiety level"  value={anxietyLevel}  labels={METRIC_LABELS.anxiety}  onEdit={onEditMetric("anxiety")} />

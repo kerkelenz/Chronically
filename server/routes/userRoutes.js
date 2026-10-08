@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const authenticateToken = require("../middleware/auth");
-const { getProfile, updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen, updateNotificationPrefs, updateTimezone, searchWeatherLocation, clearWeatherLocation } = require("../controllers/userController");
+const { getProfile, updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen, updateNotificationPrefs, updateTimezone, searchWeatherLocation, clearWeatherLocation, updateTrackingMode } = require("../controllers/userController");
 
 router.get("/profile", authenticateToken, getProfile);
 router.put("/profile", authenticateToken, updateProfile);
@@ -11,6 +11,7 @@ router.put("/milestones", authenticateToken, updateMilestones);
 router.put("/welcome", authenticateToken, markWelcomeSeen);
 router.put("/notification-prefs", authenticateToken, updateNotificationPrefs);
 router.put("/timezone", authenticateToken, updateTimezone);
+router.put("/tracking-mode", authenticateToken, updateTrackingMode);
 router.post("/weather-location", authenticateToken, searchWeatherLocation);
 router.delete("/weather-location", authenticateToken, clearWeatherLocation);
 router.delete("/account", authenticateToken, deleteAccount);

@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import ChronicleMark from "./ChronicleMark";
+import { TRACKING_OPTIONS } from "./TrackingFocusSheet";
 import { useAuth } from "../context/AuthContext";
 import api from "../lib/api";
 import { track } from "../lib/analytics";
@@ -15,6 +17,19 @@ const FEATURES = [
 
 export default function WelcomeModal({ onClose }) {
   const { user, updateUser } = useAuth();
+  // Preselected, and left alone if they skip or dismiss — nobody is made to
+  // answer this to get into the app.
+  const [mode, setMode] = useState("both");
+
+  const chooseMode = async (value) => {
+    setMode(value);
+    try {
+      await api.put("/api/users/tracking-mode", { trackingMode: value });
+      updateUser({ ...user, trackingMode: value });
+    } catch {
+      // non-fatal — "both" is the default and the Profile row is the other route
+    }
+  };
 
   const dismiss = async () => {
     try {
@@ -51,6 +66,32 @@ export default function WelcomeModal({ onClose }) {
                 </View>
               </View>
             ))}
+            <View>
+              <Text style={styles.trackingQuestion}>What would you like to keep track of?</Text>
+              <View style={styles.trackingRow}>
+                {TRACKING_OPTIONS.map((o) => {
+                  const active = mode === o.value;
+                  return (
+                    <TouchableOpacity
+                      key={o.value}
+                      style={[styles.trackingOpt, active && styles.trackingOptActive]}
+                      onPress={() => chooseMode(o.value)}
+                      activeOpacity={0.8}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={o.label}
+                    >
+                      <Text style={[styles.trackingOptText, active && styles.trackingOptTextActive]}>
+                        {o.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text style={styles.trackingSub}>
+                You can change this anytime in Profile. Everything stays searchable either way.
+              </Text>
+            </View>
             <Text style={styles.note}>No ads, no tracking — just gentle, everyday support. 💜</Text>
           </ScrollView>
           <TouchableOpacity style={styles.btn} onPress={dismiss} activeOpacity={0.85}>
@@ -77,6 +118,17 @@ const styles = StyleSheet.create({
   rowName: { fontFamily: "Lato_700Bold", fontSize: 15, color: "white" },
   rowDesc: { fontFamily: "Lato_400Regular", fontSize: 13, color: "rgba(255,255,255,0.72)", marginTop: 1 },
   note: { fontFamily: "Lato_400Regular", fontSize: 12, color: "rgba(255,255,255,0.6)", textAlign: "center", marginTop: 2 },
+  trackingQuestion: { fontFamily: "Lato_700Bold", fontSize: 15, color: "white", textAlign: "center", marginBottom: 10 },
+  trackingRow: { flexDirection: "row", gap: 8 },
+  trackingOpt: {
+    flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.25)",
+  },
+  trackingOptActive: { backgroundColor: "white", borderColor: "white" },
+  trackingOptText: { fontFamily: "Lato_700Bold", fontSize: 14, color: "white" },
+  trackingOptTextActive: { color: "#7C6BAE" },
+  trackingSub: { fontFamily: "Lato_400Regular", fontSize: 12, color: "rgba(255,255,255,0.6)", textAlign: "center", marginTop: 10, lineHeight: 17 },
   btn: { backgroundColor: "white", borderRadius: 999, paddingVertical: 14, alignItems: "center", marginTop: 16 },
   btnText: { fontFamily: "Lato_700Bold", fontSize: 15, color: "#5A3A60" },
 });

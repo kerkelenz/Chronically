@@ -15,16 +15,16 @@ const createCheckIn = async (req, res) => {
     // pull the check-in data out of the request body
     const { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel, symptoms, followUpData, date } = req.body;
 
-    // pain and mood are required - can't save a check-in without them
-    if (!painLevel || !moodLevel) {
-      return res
-        .status(400)
-        .json({ error: "Pain level and mood level are required" });
+    // mood is the only required metric. Pain is optional like sleep — a user
+    // tracking their mind may never be asked it at all.
+    if (!moodLevel) {
+      return res.status(400).json({ error: "Mood level is required" });
     }
 
     const checkIn = await CheckIn.create({
       userId: req.user.id,
-      painLevel,
+      // out-of-range or absent pain stores as null rather than being rejected
+      painLevel: validLevel(painLevel),
       moodLevel,
       energyLevel: energyLevel || null,
       anxietyLevel: anxietyLevel || null,
@@ -170,8 +170,10 @@ const updateCheckIn = async (req, res) => {
     const { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel, symptoms, followUpData } = req.body;
 
     await checkIn.update({
-      painLevel: painLevel || checkIn.painLevel,
-      moodLevel: moodLevel || checkIn.moodLevel,
+      // `undefined` means "not sent, leave it"; an explicit null clears it.
+      // `||` would have made clearing pain impossible — null is a real value here.
+      painLevel: painLevel !== undefined ? validLevel(painLevel) : checkIn.painLevel,
+      moodLevel: moodLevel !== undefined ? moodLevel : checkIn.moodLevel,
       energyLevel: energyLevel !== undefined ? energyLevel : checkIn.energyLevel,
       anxietyLevel: anxietyLevel !== undefined ? anxietyLevel : checkIn.anxietyLevel,
       appetiteLevel: appetiteLevel !== undefined ? appetiteLevel : checkIn.appetiteLevel,

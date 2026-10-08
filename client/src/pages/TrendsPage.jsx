@@ -44,7 +44,7 @@ function TrendsPage() {
       .forEach((c) => {
         if (!byDate[c.date])
           byDate[c.date] = { pains: [], moods: [], energies: [], anxieties: [], appetites: [], sleeps: [] };
-        byDate[c.date].pains.push(c.painLevel);
+        if (c.painLevel)     byDate[c.date].pains.push(c.painLevel);
         byDate[c.date].moods.push(c.moodLevel);
         if (c.energyLevel)   byDate[c.date].energies.push(c.energyLevel);
         if (c.anxietyLevel)  byDate[c.date].anxieties.push(c.anxietyLevel);
@@ -56,7 +56,7 @@ function TrendsPage() {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, { pains, moods, energies, anxieties, appetites, sleeps }]) => ({
         date,
-        pain:     parseFloat((pains.reduce((s, v) => s + v, 0) / pains.length).toFixed(1)),
+        pain:     pains.length      ? parseFloat((pains.reduce((s, v) => s + v, 0)      / pains.length).toFixed(1))      : null,
         mood:     parseFloat((moods.reduce((s, v) => s + v, 0) / moods.length).toFixed(1)),
         energy:   energies.length   ? parseFloat((energies.reduce((s, v) => s + v, 0)   / energies.length).toFixed(1))   : null,
         anxiety:  anxieties.length  ? parseFloat((anxieties.reduce((s, v) => s + v, 0)  / anxieties.length).toFixed(1))  : null,

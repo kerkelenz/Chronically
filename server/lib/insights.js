@@ -43,6 +43,27 @@ const METRICS = [
   { key: "appetite", label: "appetite" },
 ];
 
+// Symptoms the catalog marks kind: "mental". Correlating one of these against
+// mood or anxiety restates the input as a finding — "Low mood weighs on your
+// mood" is a tautology, not an insight — so F1 skips those two metrics for
+// them. Energy, pain, appetite and sleep are still fair game, and those are
+// where the informative claims live ("Overwhelm costs you energy").
+//
+// This duplicates client/src/utils/symptomCatalog.js because the server can't
+// import a client ES module. A parity test in insights.test.js reads that file
+// and fails if the two ever drift — add a mental symptom there and this must
+// follow.
+const MENTAL_SYMPTOMS = new Set([
+  "Low mood", "Hopelessness", "Anxiety spike", "Panic attack",
+  "Racing thoughts", "Intrusive thoughts", "Rumination", "Overwhelm",
+  "Sensory overload", "Low motivation", "Emotional numbness", "Dissociation",
+  "Social withdrawal", "Trouble concentrating", "Crying spells",
+  "Irritability", "Restlessness",
+]);
+
+// the two metrics a mental symptom would merely restate
+const TAUTOLOGICAL_METRICS = new Set(["mood", "anxiety"]);
+
 const round1 = (x) => Math.round(x * 10) / 10;
 const mean = (arr) => arr.reduce((s, v) => s + v, 0) / arr.length;
 const slug = (s) =>
@@ -164,6 +185,9 @@ function familyF1(days) {
   for (const [symptom, count] of Object.entries(symptomDayCount)) {
     if (count < MIN_BUCKET_DAYS) continue;
     for (const { key, label } of METRICS) {
+      // a mental symptom against mood/anxiety is a restatement, not a finding.
+      // Unknown (user-typed) symptoms aren't in the set, so they're unaffected.
+      if (MENTAL_SYMPTOMS.has(symptom) && TAUTOLOGICAL_METRICS.has(key)) continue;
       const sym = [];
       const non = [];
       for (const d of days) {
@@ -370,4 +394,4 @@ function computeInsights({ checkIns, medLogs = [], spoonDays = [], weatherDays =
   return { cards, meta };
 }
 
-module.exports = { computeInsights, WINDOW_DAYS };
+module.exports = { computeInsights, WINDOW_DAYS, MENTAL_SYMPTOMS };

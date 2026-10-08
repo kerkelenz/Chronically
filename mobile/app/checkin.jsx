@@ -15,10 +15,11 @@ import ScreenBackground from "../components/ScreenBackground";
 import LavenderConfetti from "../components/LavenderConfetti";
 import LevelButtons from "../components/LevelButtons";
 import api from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 import { track } from "../lib/analytics";
 import { consumeDeliberateOpen } from "../lib/checkinNav";
 import { METRIC_LABELS } from "../theme/metrics";
-import { COMMON_SYMPTOMS, SYMPTOM_CATALOG } from "../theme/symptomCatalog";
+import { COMMON_SYMPTOMS, COMMON_MENTAL_SYMPTOMS, SYMPTOM_CATALOG } from "../theme/symptomCatalog";
 import { SymptomIcon } from "../components/SymptomIcon";
 import {
   AFFIRMATIONS,
@@ -47,12 +48,16 @@ function uniqByLower(arr) {
 // default set, with search + add-your-own. Shared by the step-6 flow and the
 // step-7 edit path (both route through step 6).
 
-function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCustom, onHide }) {
+function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCustom, onHide, trackingMode = "both" }) {
   const q = search.trim();
   const qLower = q.toLowerCase();
 
   const recentSet = new Set(recents.map((r) => r.toLowerCase()));
-  const commonSet = new Set(COMMON_SYMPTOMS.map((d) => d.toLowerCase()));
+  // both quick-pick grids count as "shown somewhere", so a selected chip from
+  // either doesn't get duplicated into YOUR SYMPTOMS
+  const commonSet = new Set(
+    [...COMMON_SYMPTOMS, ...COMMON_MENTAL_SYMPTOMS].map((d) => d.toLowerCase()),
+  );
   // selected symptoms not shown in the non-search sections (recents / common) —
   // customs AND catalog-but-not-common picks — join YOUR SYMPTOMS so they stay
   // visible as selected this session
@@ -70,7 +75,13 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
 
   // resting view: the COMMON list; searching (2+ chars): the whole catalog
   const searchingCatalog = qLower.length >= SEARCH_MIN;
-  const commonBase = searchingCatalog ? SYMPTOM_CATALOG.map((c) => c.name) : COMMON_SYMPTOMS;
+  // Resting view is mode-aware; searching always covers the whole catalog
+  // whatever the mode — a mode changes what is offered first, never what exists.
+  const showCommon = trackingMode !== "mental";
+  const showMental = trackingMode !== "physical";
+  const commonBase = searchingCatalog
+    ? SYMPTOM_CATALOG.map((c) => c.name)
+    : showCommon ? COMMON_SYMPTOMS : [];
   const commonAll = commonBase.filter((s) => !yourSet.has(s.toLowerCase()));
 
   let commonShown;
@@ -89,7 +100,16 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
     commonShown = matches.slice(0, SEARCH_CAP);
   }
 
-  const visible = [...yourShown, ...commonShown];
+  // MOOD & MIND only appears at rest — in search everything is one Results list
+  const commonShownSet = new Set(commonShown.map((x) => x.toLowerCase()));
+  const mentalShown =
+    searchingCatalog || q || !showMental
+      ? []
+      : COMMON_MENTAL_SYMPTOMS.filter(
+          (x) => !yourSet.has(x.toLowerCase()) && !commonShownSet.has(x.toLowerCase()),
+        );
+
+  const visible = [...yourShown, ...commonShown, ...mentalShown];
   const showAdd = qLower.length >= SEARCH_MIN && visible.length === 0;
 
   const renderChip = (s, removable) => {
@@ -162,6 +182,14 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
               </View>
             </View>
           )}
+          {mentalShown.length > 0 && (
+            <View style={styles.pickerSection}>
+              <Text style={styles.sectionLabel}>Mood &amp; mind</Text>
+              <View style={styles.symptomsGrid}>
+                {mentalShown.map((s) => renderChip(s, false))}
+              </View>
+            </View>
+          )}
         </>
       )}
       {truncatedFrom > 0 && (
@@ -187,7 +215,8 @@ function ReviewRow({ label, value, labelMap, onEdit }) {
       <View style={styles.reviewSpacer} />
       <View style={styles.reviewCenter}>
         <Text style={styles.reviewLabel}>{label}</Text>
-        <Text style={styles.reviewValue}>{labelMap[value]}</Text>
+        {/* null means not asked or skipped — never a value, never a zero */}
+        <Text style={styles.reviewValue}>{value == null ? "Skipped" : labelMap[value]}</Text>
       </View>
       <TouchableOpacity
         style={styles.reviewSpacer}
@@ -214,8 +243,15 @@ export default function CheckInScreen() {
   // askSleep=false for a later same-day check-in; default true (skip is always
   // available as the safety valve). Params arrive as strings.
   const { askSleep: askSleepParam, prefill: prefillParam } = useLocalSearchParams();
+  const { user } = useAuth();
   const askSleep = askSleepParam !== "false";
-  const firstStep = askSleep ? 0 : 1;
+  // Pain is skipped entirely for someone tracking their mind — not hidden,
+  // just not asked. Profile -> Tracking focus brings it back.
+  const trackingMode = user?.trackingMode || "both";
+  const askPain = trackingMode !== "mental";
+  // walking forwards, step 1 is passed over when pain isn't asked
+  const nextStep = (n) => (n === 1 && !askPain ? 2 : n);
+  const firstStep = askSleep ? 0 : nextStep(1);
 
   // "Same as last time": the launcher hands us the previous check-in's answers
   // and we open straight on the review step. Sleep is deliberately NOT copied.
@@ -242,6 +278,7 @@ export default function CheckInScreen() {
   // value returns to the review instead of marching forward through the flow
   const [returnToReview, setReturnToReview] = useState(false);
   const [sleepSkipped, setSleepSkipped] = useState(false);
+  const [painSkipped, setPainSkipped] = useState(false);
   const [recentSymptoms, setRecentSymptoms] = useState([]);
   const [symptomSearch, setSymptomSearch] = useState("");
   const [error, setError] = useState("");
@@ -359,7 +396,22 @@ export default function CheckInScreen() {
     const i = ORDER.indexOf(key);
     for (const k of ORDER.slice(i + 1)) SETTERS[k](null);
     setSymptoms([]);
-    setStep(i + 1);
+    setPainSkipped(false);
+    setStep(nextStep(i + 1));
+  }
+
+  // Skip on the pain step behaves like sleep's: an answer, minus a value.
+  function skipPainStep() {
+    setPainLevel(null);
+    setPainSkipped(true);
+    if (returnToReview) {
+      setReturnToReview(false);
+      setStep(7);
+      return;
+    }
+    for (const k of ORDER.slice(2)) SETTERS[k](null);
+    setSymptoms([]);
+    setStep(2);
   }
 
   // Skip on the sleep step behaves like any other answer, minus a value.
@@ -372,8 +424,9 @@ export default function CheckInScreen() {
       return;
     }
     for (const k of ORDER.slice(1)) SETTERS[k](null);
+    setPainSkipped(false);
     setSymptoms([]);
-    setStep(1);
+    setStep(nextStep(1));
   }
 
   // Review-row edit: destructive chain-restart in the normal flow, single-answer
@@ -512,6 +565,9 @@ export default function CheckInScreen() {
                       selected={painLevel}
                       onSelect={(level) => chooseMetric("pain", level)}
                     />
+                    <TouchableOpacity onPress={skipPainStep}>
+                      <Text style={styles.skipLink}>Skip</Text>
+                    </TouchableOpacity>
                   </>
                 )}
 
@@ -581,6 +637,7 @@ export default function CheckInScreen() {
                       recents={recentSymptoms}
                       onAddCustom={addCustomSymptom}
                       onHide={handleHideSymptom}
+                      trackingMode={trackingMode}
                     />
                     <TouchableOpacity
                       style={styles.primaryBtn}
@@ -641,12 +698,14 @@ export default function CheckInScreen() {
                         onEdit={onEditMetric("sleep")}
                       />
                     )}
-                    <ReviewRow
-                      label="Pain level"
-                      value={painLevel}
-                      labelMap={METRIC_LABELS.pain}
-                      onEdit={onEditMetric("pain")}
-                    />
+                    {(askPain || painLevel !== null) && (
+                      <ReviewRow
+                        label="Pain level"
+                        value={painLevel}
+                        labelMap={METRIC_LABELS.pain}
+                        onEdit={onEditMetric("pain")}
+                      />
+                    )}
                     <ReviewRow
                       label="Mood level"
                       value={moodLevel}

@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import axios from "axios";
 import { track } from "../lib/analytics";
 import { FiCheckCircle, FiTrendingUp, FiPackage, FiCalendar } from "react-icons/fi";
 import { GiSpoon } from "react-icons/gi";
 import ChronicleMark from "./ChronicleMark";
+import { TRACKING_OPTIONS } from "./TrackingFocusModal";
 
 const FEATURES = [
   [FiCheckCircle, "Daily check-ins", "Note how you're feeling in seconds."],
@@ -15,6 +17,24 @@ const FEATURES = [
 
 export default function WelcomeModal({ onClose }) {
   const { user, token, updateUser } = useAuth();
+
+  // Preselected, and left alone if they skip or dismiss — nobody is made to
+  // answer this to get into the app.
+  const [mode, setMode] = useState("both");
+
+  const chooseMode = async (value) => {
+    setMode(value);
+    try {
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/users/tracking-mode`,
+        { trackingMode: value },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      updateUser({ ...user, trackingMode: value });
+    } catch {
+      // non-fatal — "both" is the default and the Profile row is the other route
+    }
+  };
 
   const dismiss = async () => {
     try {
@@ -58,6 +78,38 @@ export default function WelcomeModal({ onClose }) {
               </div>
             </div>
           ))}
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-center mb-2.5" style={{ color: "#2D2540" }}>
+            What would you like to keep track of?
+          </p>
+          <div className="flex gap-2">
+            {TRACKING_OPTIONS.map((o) => {
+              const active = mode === o.value;
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => chooseMode(o.value)}
+                  role="radio"
+                  aria-checked={active}
+                  aria-label={o.label}
+                  className="flex-1 rounded-xl transition-colors"
+                  style={{
+                    background: active ? "#7C6BAE" : "#F0EBF8",
+                    color: active ? "white" : "#6B5F7A",
+                    border: `1px solid ${active ? "#7C6BAE" : "#DDD5EE"}`,
+                    padding: "14px 8px", fontSize: 14, fontWeight: 700,
+                  }}
+                >
+                  {o.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-center mt-2.5" style={{ color: "#8A7FA0", lineHeight: 1.45 }}>
+            You can change this anytime in Profile. Everything stays searchable either way.
+          </p>
         </div>
         <p className="text-xs text-center" style={{ color: "#8A7FA0" }}>
           No ads, no tracking — just gentle, everyday support. 💜

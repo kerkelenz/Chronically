@@ -172,6 +172,7 @@ const login = async (req, res) => {
         celebratedMilestones: user.celebratedMilestones || [],
         hasSeenWelcome: user.hasSeenWelcome ?? false,
         isAdmin: user.isAdmin === true,
+        trackingMode: user.trackingMode || "both",
       },
     });
   } catch (error) {
@@ -217,6 +218,7 @@ const verifyEmail = async (req, res) => {
         celebratedMilestones: user.celebratedMilestones || [],
         hasSeenWelcome: user.hasSeenWelcome ?? false,
         isAdmin: user.isAdmin === true,
+        trackingMode: user.trackingMode || "both",
       },
     });
   } catch (error) {

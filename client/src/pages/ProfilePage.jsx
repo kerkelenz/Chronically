@@ -11,6 +11,7 @@ import Avatar from "../components/Avatar";
 import MilestoneBadges from "../components/MilestoneBadges";
 import WeatherLocationModal from "../components/WeatherLocationModal";
 import { SUPPORT_ROW_LABEL } from "../utils/supportResources";
+import TrackingFocusModal, { trackingLabel } from "../components/TrackingFocusModal";
 
 function getCroppedImg(imageSrc, croppedAreaPixels) {
   return new Promise((resolve, reject) => {
@@ -114,6 +115,15 @@ function ProfilePage() {
     } finally {
       setPrefsBusy(false);
     }
+  };
+
+  // ── Tracking focus ──────────────────────────────────────────────────────
+  const [showTracking, setShowTracking] = useState(false);
+  const [trackingMode, setTrackingMode] = useState(user?.trackingMode || "both");
+
+  const onTrackingSaved = (mode) => {
+    setTrackingMode(mode);
+    updateUser({ ...user, trackingMode: mode });
   };
 
   // ── Weather ─────────────────────────────────────────────────────────────
@@ -487,6 +497,17 @@ function ProfilePage() {
             {SUPPORT_ROW_LABEL}
             <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
           </button>
+          {/* Changes what's offered first, never what exists */}
+          <button
+            onClick={() => setShowTracking(true)}
+            className="w-full px-4 py-3 text-left text-sm flex justify-between items-center gap-3 transition-colors hover:bg-white/10"
+            style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.2)" }}
+          >
+            Tracking focus
+            <span className="truncate" style={{ color: "rgba(255,255,255,0.5)" }}>
+              {trackingLabel(trackingMode)}
+            </span>
+          </button>
           {/* Typed city, never browser geolocation — no permission prompt */}
           <button
             onClick={() => setShowWeather(true)}
@@ -750,6 +771,14 @@ function ProfilePage() {
           </div>
         </div>
       )}
+
+      <TrackingFocusModal
+        open={showTracking}
+        current={trackingMode}
+        token={token}
+        onClose={() => setShowTracking(false)}
+        onSaved={onTrackingSaved}
+      />
 
       <WeatherLocationModal
         open={showWeather}

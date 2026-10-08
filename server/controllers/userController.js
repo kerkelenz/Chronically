@@ -25,6 +25,7 @@ const getProfile = async (req, res) => {
         notificationPrefs: user.notificationPrefs || DEFAULT_NOTIFICATION_PREFS,
         isAdmin: user.isAdmin === true,
         weatherLocation: user.weatherLocation || null,
+        trackingMode: user.trackingMode || "both",
       },
     });
   } catch (error) {
@@ -265,6 +266,26 @@ const clearWeatherLocation = async (req, res) => {
   }
 };
 
+const TRACKING_MODES = ["physical", "mental", "both"];
+
+// updateTrackingMode handles PUT /api/users/tracking-mode
+// Changes which symptoms are offered first and whether the pain question is
+// asked by default. It never hides anything — search covers the whole catalog
+// in every mode.
+const updateTrackingMode = async (req, res) => {
+  try {
+    const { trackingMode } = req.body;
+    if (!TRACKING_MODES.includes(trackingMode)) {
+      return res.status(400).json({ error: "Invalid tracking mode" });
+    }
+    await User.update({ trackingMode }, { where: { id: req.user.id } });
+    res.status(200).json({ trackingMode });
+  } catch (error) {
+    console.error("Update tracking mode error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
 const markWelcomeSeen = async (req, res) => {
   try {
     await User.update({ hasSeenWelcome: true }, { where: { id: req.user.id } });
@@ -275,4 +296,4 @@ const markWelcomeSeen = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen, updateNotificationPrefs, updateTimezone, searchWeatherLocation, clearWeatherLocation };
+module.exports = { getProfile, updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen, updateNotificationPrefs, updateTimezone, searchWeatherLocation, clearWeatherLocation, updateTrackingMode };

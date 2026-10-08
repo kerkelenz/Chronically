@@ -5,10 +5,12 @@ const User = require("./User");
 
 // defining the CheckIn table - this is what gets stored every time someone does a daily check-in
 const CheckIn = sequelize.define("CheckIn", {
-  // painLevel can only be one of these three values - ENUM prevents anything else getting in
+  // Optional, exactly like sleepLevel: someone with no physical pain should
+  // never be made to rate it. null means "not asked or skipped" — never a
+  // fake zero, and never counted in an average.
   painLevel: {
     type: DataTypes.INTEGER,
-    allowNull: false,
+    allowNull: true,
     validate: {
       min: 1,
       max: 5,

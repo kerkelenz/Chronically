@@ -374,10 +374,14 @@ export function generateReport(checkIns, username, medications = [], medicationL
   // ── 30-Day Averages ── (Sleep column only when the period has sleep data)
   sectionTitle(doc, "30-Day Averages", y, margin);
   y += 3;
-  const avgHead = ["Pain", "Mood", "Energy", "Anxiety", "Appetite"];
-  const avgBody = [avgPain, avgMood, avgEnergy, avgAnxiety, avgAppetite];
+  // A metric nobody answered in this period is left out entirely rather than
+  // printed as a dash a clinician has to interpret. Pain is optional now, so
+  // it earns the same treatment sleep already had.
+  const hasPain = avgPain !== "-";
+  const avgHead = [...(hasPain ? ["Pain"] : []), "Mood", "Energy", "Anxiety", "Appetite"];
+  const avgBody = [...(hasPain ? [avgPain] : []), avgMood, avgEnergy, avgAnxiety, avgAppetite];
   if (hasSleep) { avgHead.push("Sleep"); avgBody.push(avgSleep); }
-  const avgColW = avgHead.length > 5 ? 31 : 38;
+  const avgColW = avgHead.length > 5 ? 31 : avgHead.length === 5 ? 38 : 46;
   const avgColStyles = {};
   avgHead.forEach((_, i) => { avgColStyles[i] = { cellWidth: avgColW }; });
   autoTable(doc, {

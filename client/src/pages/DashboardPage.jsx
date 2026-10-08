@@ -348,6 +348,9 @@ function DashboardPage() {
               const recent = checkIns.filter(
                 (c) => new Date(c.date) >= fourteenDaysAgo,
               );
+              // pain is optional now, so it filters like the others — an
+               // unanswered day must not drag the average toward zero
+              const recentPain     = recent.filter((c) => c.painLevel);
               const recentEnergy   = recent.filter((c) => c.energyLevel);
               const recentAnxiety  = recent.filter((c) => c.anxietyLevel);
               const recentAppetite = recent.filter((c) => c.appetiteLevel);
@@ -373,7 +376,7 @@ function DashboardPage() {
                 .filter(({ n }) => n >= uniqueSymptomDays * 0.3)
                 .sort((a, b) => b.n - a.n)
                 .slice(0, 3);
-              const avgPain     = recent.length > 0         ? recent.reduce((s, c) => s + c.painLevel, 0) / recent.length : 0;
+              const avgPain     = recentPain.length > 0     ? recentPain.reduce((s, c) => s + c.painLevel, 0) / recentPain.length : 0;
               const avgMood     = recent.length > 0         ? recent.reduce((s, c) => s + c.moodLevel, 0) / recent.length : 0;
               const avgEnergy   = recentEnergy.length > 0   ? recentEnergy.reduce((s, c) => s + c.energyLevel, 0) / recentEnergy.length : 0;
               const avgAnxiety  = recentAnxiety.length > 0  ? recentAnxiety.reduce((s, c) => s + c.anxietyLevel, 0) / recentAnxiety.length : 0;

@@ -25,6 +25,7 @@ import BottomSheet from "../../components/BottomSheet";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import WeatherLocationSheet from "../../components/WeatherLocationSheet";
 import { SUPPORT_ROW_LABEL } from "../../theme/supportResources";
+import TrackingFocusSheet, { trackingLabel } from "../../components/TrackingFocusSheet";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { openLink } from "../../lib/openLink";
 import { Ionicons } from "@expo/vector-icons";
@@ -111,6 +112,19 @@ export default function ProfileScreen() {
   const notificationsLive = prefs.enabled && permission === "granted";
 
   // ── Avatar ────────────────────────────────────────────────────────────────
+  // ── Tracking focus ────────────────────────────────────────────────────────
+  const [showTracking, setShowTracking] = useState(false);
+  const [trackingMode, setTrackingMode] = useState(user?.trackingMode || "both");
+
+  useEffect(() => {
+    setTrackingMode(user?.trackingMode || "both");
+  }, [user?.trackingMode]);
+
+  const onTrackingSaved = (mode) => {
+    setTrackingMode(mode);
+    updateUser({ ...user, trackingMode: mode });
+  };
+
   // ── Weather ───────────────────────────────────────────────────────────────
   const [showWeather, setShowWeather] = useState(false);
   const [weatherLocation, setWeatherLocation] = useState(user?.weatherLocation || null);
@@ -477,6 +491,17 @@ export default function ProfileScreen() {
               <Text style={styles.legalText}>{SUPPORT_ROW_LABEL}</Text>
               <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
             </TouchableOpacity>
+            {/* Changes what's offered first, never what exists */}
+            <TouchableOpacity
+              style={[styles.legalRow, styles.chevronRow]}
+              onPress={() => setShowTracking(true)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Tracking focus, ${trackingLabel(trackingMode)}`}
+            >
+              <Text style={styles.legalText}>Tracking focus</Text>
+              <Text style={styles.rowValue} numberOfLines={1}>{trackingLabel(trackingMode)}</Text>
+            </TouchableOpacity>
             {/* Typed city, never GPS — so there is no OS permission prompt */}
             <TouchableOpacity
               style={[styles.legalRow, styles.chevronRow]}
@@ -597,6 +622,13 @@ export default function ProfileScreen() {
       </BottomSheet>
 
       {/* ── Delete confirmation modal ─────────────────────────────────────── */}
+      <TrackingFocusSheet
+        visible={showTracking}
+        current={trackingMode}
+        onClose={() => setShowTracking(false)}
+        onSaved={onTrackingSaved}
+      />
+
       <WeatherLocationSheet
         visible={showWeather}
         current={weatherLocation}

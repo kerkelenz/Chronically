@@ -242,6 +242,10 @@ export function buildReportHtml(data, username, insights = null, logoUri = null)
 
   // Sleep joins the averages row and At a Glance only when the period has data
   const hasSleep = avgSleep !== "-";
+  // A metric nobody answered in this period is left out entirely rather than
+  // printed as a dash a clinician has to interpret. Pain is optional now, so
+  // it earns the same treatment sleep already had.
+  const hasPain = avgPain !== "-";
 
   // Observed Patterns is a bonus section: no insights (API down, or too few
   // days for a pattern to clear the thresholds) simply means no section.
@@ -312,10 +316,10 @@ export function buildReportHtml(data, username, insights = null, logoUri = null)
   <div class="section-title">30-Day Averages</div>
   <table class="averages-table">
     <thead>
-      <tr><th>Pain</th><th>Mood</th><th>Energy</th><th>Anxiety</th><th>Appetite</th>${hasSleep ? "<th>Sleep</th>" : ""}</tr>
+      <tr>${hasPain ? "<th>Pain</th>" : ""}<th>Mood</th><th>Energy</th><th>Anxiety</th><th>Appetite</th>${hasSleep ? "<th>Sleep</th>" : ""}</tr>
     </thead>
     <tbody>
-      <tr><td>${avgPain}</td><td>${avgMood}</td><td>${avgEnergy}</td><td>${avgAnxiety}</td><td>${avgAppetite}</td>${hasSleep ? `<td>${avgSleep}</td>` : ""}</tr>
+      <tr>${hasPain ? `<td>${avgPain}</td>` : ""}<td>${avgMood}</td><td>${avgEnergy}</td><td>${avgAnxiety}</td><td>${avgAppetite}</td>${hasSleep ? `<td>${avgSleep}</td>` : ""}</tr>
     </tbody>
   </table>
 

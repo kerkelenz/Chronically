@@ -99,6 +99,16 @@ const User = sequelize.define("User", {
     allowNull: false,
     defaultValue: false,
   },
+  // What the user wants front and centre: their body, their mind, or both.
+  // It changes which symptoms are offered first and whether the pain question
+  // is asked by default — nothing is ever hidden, search always covers the
+  // whole catalog. Defaults to "both", so existing accounts see no change
+  // until they choose.
+  trackingMode: {
+    type: DataTypes.ENUM("physical", "mental", "both"),
+    allowNull: false,
+    defaultValue: "both",
+  },
   // Weather location — typed by the user, never read from device GPS. No OS
   // permission prompt, no precise coordinates, nothing to declare on the App
   // Store privacy label. City resolution is all a weather correlation needs.

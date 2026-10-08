@@ -6,6 +6,8 @@ import {
   Stomach, Expectorate, Lungs, Coughing, Nose, Mouth, Tissue, Heartbeat, Cardiogram,
   Allergies, Measles, FeverEmotions, Bandaged, Nervous, Angry, Skeleton, Body,
   ThermometerDigital, Bladder, Kidneys, Tongue, Weight,
+  // mood & mind
+  Sad, MentalHealth, SweatingEmotions,
 } from "healthicons-react/outline";
 import { symptomIconName } from "../utils/symptomCatalog";
 
@@ -28,6 +30,8 @@ const SYMPTOM_REGISTRY = {
   Stomach, Expectorate, Lungs, Coughing, Nose, Mouth, Tissue, Heartbeat, Cardiogram,
   Allergies, Measles, FeverEmotions, Bandaged, Nervous, Angry, Skeleton, Body,
   ThermometerDigital, Bladder, Kidneys, Tongue, Weight,
+  // mood & mind
+  Sad, MentalHealth, SweatingEmotions,
 };
 
 // Newer forms — hand-drawn line glyphs (same 48 viewBox + outline weight as the

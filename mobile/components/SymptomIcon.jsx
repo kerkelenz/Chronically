@@ -6,6 +6,8 @@ import {
   Stomach, Expectorate, Lungs, Coughing, Nose, Mouth, Tissue, Heartbeat, Cardiogram,
   Allergies, Measles, FeverEmotions, Bandaged, Nervous, Angry, Skeleton, Body,
   ThermometerDigital, Bladder, Kidneys, Tongue, Weight,
+  // mood & mind
+  Sad, MentalHealth, SweatingEmotions,
 } from "healthicons-react-native/outline";
 import { symptomIconName } from "../theme/symptomCatalog";
 
@@ -122,6 +124,8 @@ const SYMPTOM_REGISTRY = {
   Stomach, Expectorate, Lungs, Coughing, Nose, Mouth, Tissue, Heartbeat, Cardiogram,
   Allergies, Measles, FeverEmotions, Bandaged, Nervous, Angry, Skeleton, Body,
   ThermometerDigital, Bladder, Kidneys, Tongue, Weight,
+  // mood & mind
+  Sad, MentalHealth, SweatingEmotions,
 };
 
 export function SymptomIcon({ symptom, size = 20, color = "white" }) {

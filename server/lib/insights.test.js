@@ -1,4 +1,6 @@
-const { computeInsights } = require("./insights");
+const fs = require("fs");
+const path = require("path");
+const { computeInsights, MENTAL_SYMPTOMS } = require("./insights");
 
 // ── fixtures helpers ──────────────────────────────────────────────────────────
 const ymd = (d) =>
@@ -479,5 +481,156 @@ describe("F6 — pressure drops", () => {
     const withEmpty = computeInsights({ checkIns, weatherDays: [] });
     expect(JSON.stringify(withEmpty)).toBe(JSON.stringify(without));
     expect(without.cards.length).toBeGreaterThan(0);
+  });
+});
+
+
+// ── The tautology guard, and the parity that keeps it honest ────────────────
+
+describe("mental-symptom parity with the client catalog", () => {
+  // The engine keeps its own copy of the mental names because it cannot import
+  // a client ES module. That duplication is exactly how drift starts, so this
+  // reads the catalog as text and insists the two agree.
+  test("engine MENTAL_SYMPTOMS matches every kind:\"mental\" entry in the catalog", () => {
+    const catalogPath = path.join(__dirname, "../../client/src/utils/symptomCatalog.js");
+    const src = fs.readFileSync(catalogPath, "utf8");
+
+    const fromCatalog = new Set();
+    const re = /\{\s*name:\s*"([^"]+)"\s*,\s*icon:\s*"[^"]+"\s*,\s*kind:\s*"([^"]+)"\s*\}/g;
+    let m;
+    let parsed = 0;
+    while ((m = re.exec(src)) !== null) {
+      parsed += 1;
+      if (m[2] === "mental") fromCatalog.add(m[1]);
+    }
+
+    // guard the guard: if the catalog format changes so nothing parses, this
+    // test must fail loudly rather than pass against an empty set
+    expect(parsed).toBeGreaterThan(50);
+    expect(fromCatalog.size).toBeGreaterThan(0);
+
+    const engine = [...MENTAL_SYMPTOMS].sort();
+    const catalog = [...fromCatalog].sort();
+    expect(engine).toEqual(catalog);
+  });
+
+  test("the two paired catalogs are themselves byte-identical", () => {
+    const a = fs.readFileSync(path.join(__dirname, "../../client/src/utils/symptomCatalog.js"));
+    const b = fs.readFileSync(path.join(__dirname, "../../mobile/theme/symptomCatalog.js"));
+    expect(a.equals(b)).toBe(true);
+  });
+});
+
+describe("F1 tautology guard", () => {
+  // n days where the symptom is present and metrics are worse, n where absent
+  const build = (symptom, { withSym, withoutSym }) => {
+    const checkIns = [];
+    for (let i = 0; i < 24; i++) {
+      const on = i % 2 === 0;
+      checkIns.push(ci(dayStr(B, i), {
+        ...(on ? withSym : withoutSym),
+        symptoms: on ? [symptom] : [],
+      }));
+    }
+    return checkIns;
+  };
+
+  test("a mental symptom produces no mood card even with a large mood gap", () => {
+    const checkIns = build("Low mood", {
+      withSym: { mood: 1, energy: 3, pain: 3 },
+      withoutSym: { mood: 5, energy: 3, pain: 3 },
+    });
+    const res = computeInsights({ checkIns });
+    expect(res.cards.some((c) => c.id === "f1-low-mood-mood")).toBe(false);
+    expect(res.cards.some((c) => c.id.startsWith("f1-low-mood-"))).toBe(false);
+  });
+
+  test("a mental symptom produces no anxiety card either", () => {
+    const checkIns = build("Anxiety spike", {
+      withSym: { anxiety: 1, mood: 3, energy: 3 },
+      withoutSym: { anxiety: 5, mood: 3, energy: 3 },
+    });
+    const res = computeInsights({ checkIns });
+    expect(res.cards.some((c) => c.id === "f1-anxiety-spike-anxiety")).toBe(false);
+  });
+
+  test("...but the same mental symptom still earns an energy card", () => {
+    const checkIns = build("Overwhelm", {
+      withSym: { energy: 2, mood: 1, anxiety: 1 },
+      withoutSym: { energy: 4, mood: 5, anxiety: 5 },
+    });
+    const res = computeInsights({ checkIns });
+    const energy = res.cards.find((c) => c.id === "f1-overwhelm-energy");
+    expect(energy).toBeTruthy();
+    expect(energy.body).toContain("your energy averages");
+    // and the restatements are still suppressed
+    expect(res.cards.some((c) => c.id === "f1-overwhelm-mood")).toBe(false);
+    expect(res.cards.some((c) => c.id === "f1-overwhelm-anxiety")).toBe(false);
+  });
+
+  test("a physical symptom's mood and anxiety comparisons are unchanged", () => {
+    const checkIns = build("Migraine", {
+      withSym: { mood: 1, anxiety: 1, energy: 3 },
+      withoutSym: { mood: 5, anxiety: 5, energy: 3 },
+    });
+    const res = computeInsights({ checkIns });
+    expect(res.cards.some((c) => c.id === "f1-migraine-mood")).toBe(true);
+    expect(res.cards.some((c) => c.id === "f1-migraine-anxiety")).toBe(true);
+  });
+
+  test("a custom (user-typed) symptom is compared against every metric", () => {
+    const checkIns = build("Weird jaw thing", {
+      withSym: { mood: 1, anxiety: 1, energy: 3 },
+      withoutSym: { mood: 5, anxiety: 5, energy: 3 },
+    });
+    const res = computeInsights({ checkIns });
+    expect(res.cards.some((c) => c.id.endsWith("-mood"))).toBe(true);
+    expect(res.cards.some((c) => c.id.endsWith("-anxiety"))).toBe(true);
+  });
+
+  test("a `both` symptom keeps its mood comparison", () => {
+    const checkIns = build("Fatigue", {
+      withSym: { mood: 1, energy: 3 },
+      withoutSym: { mood: 5, energy: 3 },
+    });
+    const res = computeInsights({ checkIns });
+    expect(res.cards.some((c) => c.id === "f1-fatigue-mood")).toBe(true);
+  });
+});
+
+describe("F5 composite with optional pain", () => {
+  test("a null-pain day composites over the metrics present, not treating pain as 0", () => {
+    // Thursdays are hard; on some of them pain was never asked. If null were
+    // read as 0 the Thursday composite would crater and the effect would be
+    // wildly overstated.
+    const checkIns = [];
+    for (let i = 0; i < 70; i++) {
+      const date = dayStr(B, i);
+      const isThu = weekdayOf(date) === 4;
+      const base = isThu ? 2 : 4;
+      // every other Thursday has no pain recorded at all
+      const skipPain = isThu && i % 4 === 0;
+      checkIns.push(ci(date, {
+        ...(skipPain ? {} : { pain: base }),
+        mood: base, energy: base, anxiety: base, appetite: base,
+      }));
+    }
+    const res = computeInsights({ checkIns });
+    const card = res.cards.find((c) => c.family === "weekday");
+    expect(card).toBeTruthy();
+    // all metrics equal `base`, so the composite is `base` whether or not pain
+    // is present — the dip is exactly 4 - 2 = 2 scaled by the weekday mix
+    const dipText = card.body.match(/dip ([\d.]+) below/)[1];
+    expect(Number(dipText)).toBeGreaterThan(1.5);
+    expect(Number(dipText)).toBeLessThan(2.1);
+  });
+
+  test("a day with no metrics at all is dropped rather than counted as 0", () => {
+    const checkIns = [];
+    for (let i = 0; i < 40; i++) checkIns.push(ci(dayStr(B, i), { mood: 4, energy: 4 }));
+    checkIns.push(ci(dayStr(B, 40), {})); // entirely empty day
+    const res = computeInsights({ checkIns });
+    // no crash, no NaN anywhere in the output
+    expect(JSON.stringify(res)).not.toContain("NaN");
   });
 });

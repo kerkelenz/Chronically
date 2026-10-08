@@ -46,7 +46,7 @@ function getChartData(checkIns, timeframe) {
           appetites: [],
           sleeps: [],
         };
-      byDate[c.date].pains.push(c.painLevel);
+      if (c.painLevel)     byDate[c.date].pains.push(c.painLevel);
       byDate[c.date].moods.push(c.moodLevel);
       if (c.energyLevel)   byDate[c.date].energies.push(c.energyLevel);
       if (c.anxietyLevel)  byDate[c.date].anxieties.push(c.anxietyLevel);
@@ -61,7 +61,7 @@ function getChartData(checkIns, timeframe) {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, d]) => ({
       date,
-      pain:     avg(d.pains),
+      pain:     d.pains.length ? avg(d.pains) : null,
       mood:     avg(d.moods),
       energy:   d.energies.length   ? avg(d.energies)   : null,
       anxiety:  d.anxieties.length  ? avg(d.anxieties)  : null,
