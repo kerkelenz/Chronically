@@ -13,11 +13,25 @@ const User = require("./User");
 // key no matter which tick picks it up.
 const NotificationLog = sequelize.define("NotificationLog", {
   userId:       { type: DataTypes.INTEGER, allowNull: false },
-  kind:         { type: DataTypes.ENUM("med", "removal", "nudge"), allowNull: false },
-  // medicationId for med/removal, 0 for the nudge (which isn't about any one
-  // medication). NOT NULL on purpose: Postgres treats NULLs as distinct in a
-  // unique index, so a nullable refId would let two identical nudge rows both
-  // insert and defeat the guard this table exists for.
+  // All seven values are declared now, including the two appointment kinds that
+  // nothing sends until wave 2. On Postgres, adding an enum value is an
+  // ALTER TYPE that cannot be undone without recreating the type, so it is
+  // worth doing once in one verified deploy rather than twice.
+  kind: {
+    type: DataTypes.ENUM(
+      "med", "removal", "nudge", "refill", "prn_followup",
+      "appt_reminder", "appt_followup",
+    ),
+    allowNull: false,
+  },
+  // What the notification is about, per kind:
+  //   med / removal / refill  -> medicationId
+  //   prn_followup            -> MedicationLog id (one follow-up per dose)
+  //   nudge                   -> 0 (it isn't about any one thing)
+  //   appt_reminder/_followup -> appointment id (wave 2)
+  // NOT NULL on purpose: Postgres treats NULLs as distinct in a unique index,
+  // so a nullable refId would let two identical nudge rows both insert and
+  // defeat the guard this table exists for.
   refId:        { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   scheduledFor: { type: DataTypes.DATE, allowNull: false },
   sentAt:       { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },

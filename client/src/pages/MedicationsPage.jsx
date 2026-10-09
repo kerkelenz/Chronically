@@ -9,6 +9,7 @@ import {
 import Navigation, { NavHamburger } from "../components/Navigation";
 import HomeLogo from "../components/HomeLogo";
 import FormModal, { ModalFooter, labelClass, ConfirmDialog, PLUM_TINT, SOFT_ERROR } from "../components/FormModal";
+import MedHistoryModal from "../components/MedHistoryModal";
 import {
   formatTime,
   resolvePattern,
@@ -16,6 +17,9 @@ import {
   describeSchedule,
   nextDueDate,
   SKIP_REASONS,
+  supplyLine,
+  helpedLine,
+  HELPED_CHOICES,
 } from "../utils/medicationHelpers";
 import { MedicationTypeIcon } from "../components/SymptomIcon";
 
@@ -30,6 +34,23 @@ const EMPTY_FORM = {
   scheduledTimes: ["08:00"],
   notes: "",
   removalOffsetHours: 12, // patches only — ignored for every other form
+  // supply, all as strings because they come from number inputs. `supplyDirty`
+  // is what lets an edit leave the count alone: the field is prefilled with
+  // the computed *remaining*, so sending it untouched would silently restart
+  // the supply period with a smaller number.
+  supplyCount: "",
+  unitsPerDose: "1",
+  refillReminderDays: "7",
+  remindRefill: true,
+  supplyDirty: false,
+};
+
+// Shared by the medication form and the refill dialog. At module scope because
+// both need it and it never changes between renders.
+const inputStyle = {
+  background: "rgba(255,255,255,0.15)",
+  border: "1px solid rgba(255,255,255,0.3)",
+  color: "white",
 };
 
 const PATTERN_OPTIONS = [
@@ -164,8 +185,12 @@ function AdherenceDot({ med, day, weekLogs, today }) {
 
 // ── Zone 2: cabinet card ──────────────────────────────────────────────────────
 
-function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onDelete }) {
+function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onDelete, onRefill, onHistory }) {
   const paused = !med.active;
+  const isPrn = resolvePattern(med).kind === "as_needed";
+  // computed on the server: the client only holds seven days of logs
+  const supply = supplyLine(med.supply, isPrn);
+  const rated = helpedLine(med.helped);
   return (
     <div
       className="p-4 rounded-2xl flex flex-col gap-3"
@@ -197,6 +222,37 @@ function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onD
             {!paused && nextDoseLabel(med, today) && (
               <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>
                 {nextDoseLabel(med, today)}
+              </p>
+            )}
+            {supply && (
+              <p
+                className="text-[10px] mt-0.5 flex items-center gap-2 flex-wrap"
+                style={{ color: "rgba(255,255,255,0.5)" }}
+              >
+                <span>{supply}</span>
+                <button
+                  type="button"
+                  onClick={() => onRefill?.(med)}
+                  aria-label={`Refilled ${med.name}`}
+                  className="underline hover:text-white/80 transition-colors"
+                  style={{ minHeight: 44, color: "rgba(255,255,255,0.7)" }}
+                >
+                  Refilled
+                </button>
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => onHistory?.(med)}
+              aria-label={`History for ${med.name}`}
+              className="text-[10px] underline self-start hover:text-white/80 transition-colors"
+              style={{ minHeight: 44, color: "rgba(255,255,255,0.5)" }}
+            >
+              History
+            </button>
+            {rated && (
+              <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>
+                {rated}
               </p>
             )}
             {med.notes && med.notes.trim() !== "" && (
@@ -250,6 +306,10 @@ function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onD
 // ── Add/edit modal — five patterns ────────────────────────────────────────────
 
 function MedModal({ form, setForm, onSave, onClose, saving }) {
+  // open already when the medication is being tracked, so an existing count is
+  // visible rather than hidden behind a disclosure
+  const [supplyOpen, setSupplyOpen] = useState(form.supplyCount !== "");
+  const isPrnForm = form.pattern === "as_needed";
   const showTimes = form.pattern !== "as_needed";
   const showStartDate = form.pattern === "every_n_days" || form.pattern === "monthly";
   const needsDays = form.pattern === "specific_days" && form.daysOfWeek.length === 0;
@@ -267,12 +327,6 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
       ? form.daysOfWeek.filter((x) => x !== d)
       : [...form.daysOfWeek, d];
     setForm({ ...form, daysOfWeek: days });
-  };
-
-  const inputStyle = {
-    background: "rgba(255,255,255,0.15)",
-    border: "1px solid rgba(255,255,255,0.3)",
-    color: "white",
   };
 
   return (
@@ -519,6 +573,79 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
           />
         </div>
 
+        {/* Track supply — optional, and collapsed until asked for. The count is
+            the user's own; nothing here tells them what to do with it. */}
+        {!supplyOpen ? (
+          <button
+            type="button"
+            onClick={() => setSupplyOpen(true)}
+            className="text-xs text-white/55 hover:text-white/80 transition-colors text-left"
+            style={{ minHeight: 44 }}
+          >
+            + Track supply (optional)
+          </button>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div>
+              <p className={labelClass}>How many on hand</p>
+              <input
+                type="number"
+                min={0}
+                max={9999}
+                value={form.supplyCount}
+                onChange={(e) => setForm({ ...form, supplyCount: e.target.value, supplyDirty: true })}
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                style={inputStyle}
+                placeholder="e.g. 60"
+              />
+              <p className="text-[11px] mt-1 text-white/50">
+                Pills, patches, pens — whatever you count by.
+              </p>
+            </div>
+            <div>
+              <p className={labelClass}>Per dose</p>
+              <input
+                type="number"
+                min={0.5}
+                max={50}
+                step={0.5}
+                value={form.unitsPerDose}
+                onChange={(e) => setForm({ ...form, unitsPerDose: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                style={inputStyle}
+              />
+            </div>
+            {isPrnForm ? (
+              <p className="text-[11px] text-white/50">
+                As-needed medications show a count, without an estimate.
+              </p>
+            ) : (
+              <div className="flex items-center gap-2 flex-wrap">
+                <label className="flex items-center gap-2 cursor-pointer" style={{ minHeight: 44 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.remindRefill}
+                    onChange={(e) => setForm({ ...form, remindRefill: e.target.checked })}
+                    className="w-4 h-4 accent-white cursor-pointer"
+                  />
+                  <span className="text-sm text-white/80">Remind me when about</span>
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={form.refillReminderDays}
+                  disabled={!form.remindRefill}
+                  onChange={(e) => setForm({ ...form, refillReminderDays: e.target.value })}
+                  className="px-2 py-1.5 rounded-lg text-sm outline-none w-16"
+                  style={{ ...inputStyle, opacity: form.remindRefill ? 1 : 0.5 }}
+                />
+                <span className="text-sm text-white/80">days are left</span>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </FormModal>
   );
@@ -535,6 +662,11 @@ function MedicationsPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [refillFor, setRefillFor] = useState(null);
+  const [historyFor, setHistoryFor] = useState(null);
+  const [refillCount, setRefillCount] = useState("");
+  const [refillBusy, setRefillBusy] = useState(false);
+  const [refillError, setRefillError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [reasonEditKey, setReasonEditKey] = useState(null);
   const [actionError, setActionError] = useState(null);
@@ -591,6 +723,13 @@ function MedicationsPage() {
       scheduledTimes: med.scheduledTimes || [],
       notes: med.notes || "",
       removalOffsetHours: med.removalOffsetHours ?? 12,
+      // prefilled with what is actually left, not the number last counted:
+      // that is the figure the user would recount against
+      supplyCount: med.supply ? String(med.supply.remaining) : "",
+      unitsPerDose: String(med.unitsPerDose ?? 1),
+      refillReminderDays: String(med.refillReminderDays ?? 7),
+      remindRefill: med.refillReminderDays != null,
+      supplyDirty: false,
     });
     setShowModal(true);
   };
@@ -617,7 +756,15 @@ function MedicationsPage() {
             : null,
         notes: form.notes.trim() || null,
         removalOffsetHours: form.type === "patch" ? form.removalOffsetHours : null,
+        unitsPerDose: Number(form.unitsPerDose) || 1,
+        refillReminderDays: form.remindRefill ? Number(form.refillReminderDays) || 7 : null,
       };
+      // Only sent when the field was actually edited. Sending the prefilled
+      // remaining would restart the supply period at a lower number every time
+      // somebody opened the form to change something else.
+      if (form.supplyDirty) {
+        payload.supplyCount = form.supplyCount === "" ? null : Number(form.supplyCount);
+      }
       if (form.id) {
         const res = await axios.put(
           `${import.meta.env.VITE_API_URL}/api/medications/${form.id}`,
@@ -638,6 +785,33 @@ function MedicationsPage() {
       console.error("Error saving medication:", err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openRefill = (med) => {
+    // prefilled with what was last counted, not what is left: a refill is a
+    // fresh count of a full pack
+    setRefillCount(String(med.supplyCount ?? ""));
+    setRefillError("");
+    setRefillFor(med);
+  };
+
+  const handleRefill = async () => {
+    if (!refillFor || refillBusy) return;
+    setRefillBusy(true);
+    setRefillError("");
+    try {
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/medications/${refillFor.id}/refill`,
+        { supplyCount: Number(refillCount) },
+        { headers: hdrs },
+      );
+      setMedications((prev) => prev.map((m) => (m.id === refillFor.id ? res.data.medication : m)));
+      setRefillFor(null);
+    } catch (err) {
+      setRefillError(err?.response?.data?.error || "Couldn't save that. Please try again.");
+    } finally {
+      setRefillBusy(false);
     }
   };
 
@@ -670,6 +844,14 @@ function MedicationsPage() {
 
   // ── Dose actions ────────────────────────────────────────────────────────────
 
+  // Log responses carry the medication, decorated with its recomputed supply
+  // and rating counts, so the card updates without a refetch. Older server
+  // builds don't send it, hence the guard.
+  const applyMedFromLog = (res) => {
+    const med = res?.data?.medication;
+    if (med) setMedications((prev) => prev.map((m) => (m.id === med.id ? med : m)));
+  };
+
   const handleTake = async (dose) => {
     const { med, slot, doseKey } = dose;
     setActionError(null);
@@ -681,6 +863,7 @@ function MedicationsPage() {
       );
       track("medication_logged", { status: "taken" });
       setWeekLogs((prev) => [...prev, res.data.log]);
+      applyMedFromLog(res);
     } catch (err) {
       console.error("Error logging take:", err);
       setActionError(doseKey);
@@ -699,6 +882,7 @@ function MedicationsPage() {
       );
       track("medication_logged", { status: "skipped" });
       setWeekLogs((prev) => [...prev, res.data.log]);
+      applyMedFromLog(res);
     } catch (err) {
       console.error("Error logging skip:", err);
       setActionError(doseKey);
@@ -714,6 +898,7 @@ function MedicationsPage() {
         { headers: hdrs },
       );
       setWeekLogs((prev) => prev.map((l) => (l.id === log.id ? res.data.log : l)));
+      applyMedFromLog(res);
       setReasonEditKey(null);
     } catch (err) {
       console.error("Error saving skip reason:", err);
@@ -732,19 +917,43 @@ function MedicationsPage() {
       );
       track("medication_logged", { status: "taken" });
       setWeekLogs((prev) => [...prev, res.data.log]);
+      applyMedFromLog(res);
     } catch (err) {
       console.error("Error logging dose:", err);
       setActionError(doseKey);
     }
   };
 
+  // Optimistic: the chip responds at once and reverts if the save fails.
+  // Tapping the selected one again clears the rating back to null.
+  const handleHelped = async (log, value) => {
+    const next = log.helped === value ? null : value;
+    const previous = log.helped ?? null;
+    setActionError(null);
+    setWeekLogs((prev) => prev.map((l) => (l.id === log.id ? { ...l, helped: next } : l)));
+    try {
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/medications/logs/${log.id}`,
+        { helped: next },
+        { headers: hdrs },
+      );
+      setWeekLogs((prev) => prev.map((l) => (l.id === log.id ? res.data.log : l)));
+      applyMedFromLog(res);
+    } catch (err) {
+      console.error("Error saving rating:", err);
+      setWeekLogs((prev) => prev.map((l) => (l.id === log.id ? { ...l, helped: previous } : l)));
+      setActionError(`helped-${log.id}`);
+    }
+  };
+
   const handleUndoLog = async (logId, doseKey) => {
     setActionError(null);
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL}/api/medications/logs/${logId}`, {
+      const res = await axios.delete(`${import.meta.env.VITE_API_URL}/api/medications/logs/${logId}`, {
         headers: hdrs,
       });
       setWeekLogs((prev) => prev.filter((l) => l.id !== logId));
+      applyMedFromLog(res);
     } catch (err) {
       console.error("Error undoing log:", err);
       setActionError(doseKey);
@@ -1099,21 +1308,60 @@ function MedicationsPage() {
                           {logs.map((l) => (
                             <div
                               key={l.id}
-                              className="flex items-center justify-between mt-2 pt-2"
+                              className="mt-2 pt-2"
                               style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}
                             >
-                              <p className="text-[10px]" style={{ color: "#D6F2DF" }}>
-                                Taken at {formatTakenAt(l.takenAt)}
-                              </p>
-                              <button
-                                onClick={() => handleUndoLog(l.id, `log-${l.id}`)}
-                                title="Undo"
-                                aria-label="Undo this dose"
-                                className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
-                                style={{ background: "rgba(255,255,255,0.25)" }}
+                              <div className="flex items-center justify-between">
+                                <p className="text-[10px]" style={{ color: "#D6F2DF" }}>
+                                  Taken at {formatTakenAt(l.takenAt)}
+                                </p>
+                                <button
+                                  onClick={() => handleUndoLog(l.id, `log-${l.id}`)}
+                                  title="Undo"
+                                  aria-label="Undo this dose"
+                                  className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
+                                  style={{ background: "rgba(255,255,255,0.25)" }}
+                                >
+                                  <FiRotateCcw size={12} color="white" />
+                                </button>
+                              </div>
+                              {/* Their own note on how it went. Optional, and
+                                  tapping the chosen one again clears it. */}
+                              <div
+                                role="radiogroup"
+                                aria-label={`Did it help? ${med.name}, taken at ${formatTakenAt(l.takenAt)}`}
+                                className="flex items-center gap-1.5 mt-1 flex-wrap"
                               >
-                                <FiRotateCcw size={12} color="white" />
-                              </button>
+                                <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>
+                                  Did it help?
+                                </span>
+                                {HELPED_CHOICES.map((choice) => {
+                                  const selected = l.helped === choice.value;
+                                  return (
+                                    <button
+                                      key={choice.value}
+                                      role="radio"
+                                      aria-checked={selected}
+                                      onClick={() => handleHelped(l, choice.value)}
+                                      className="px-2.5 rounded-full text-[10px] transition-all duration-200 hover:opacity-90"
+                                      style={{
+                                        minHeight: 44,
+                                        background: selected ? "white" : "rgba(255,255,255,0.12)",
+                                        border: "1px solid rgba(255,255,255,0.25)",
+                                        color: selected ? "#7C6BAE" : "white",
+                                        fontWeight: selected ? 700 : 400,
+                                      }}
+                                    >
+                                      {choice.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {actionError === `helped-${l.id}` && (
+                                <p className="text-[10px] mt-0.5" style={{ color: SOFT_ERROR }}>
+                                  Couldn't save, try again
+                                </p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -1151,6 +1399,8 @@ function MedicationsPage() {
                         onEdit={openEdit}
                         onSetActive={handleSetActive}
                         onDelete={setDeleteConfirm}
+                        onRefill={openRefill}
+                        onHistory={setHistoryFor}
                       />
                     ))}
 
@@ -1172,6 +1422,8 @@ function MedicationsPage() {
                             onEdit={openEdit}
                             onSetActive={handleSetActive}
                             onDelete={setDeleteConfirm}
+                            onRefill={openRefill}
+                            onHistory={setHistoryFor}
                           />
                         ))}
                       </>
@@ -1192,6 +1444,46 @@ function MedicationsPage() {
           onSave={handleSave}
           onClose={() => setShowModal(false)}
           saving={saving}
+        />
+      )}
+
+      {refillFor && (
+        <FormModal
+          open
+          onClose={() => setRefillFor(null)}
+          title={`Refilled ${refillFor.name}`}
+          footer={
+            <ModalFooter
+              onCancel={() => setRefillFor(null)}
+              onSave={handleRefill}
+              saving={refillBusy}
+              canSave={refillCount !== ""}
+              error={refillError}
+            />
+          }
+        >
+          <div className="pb-1">
+            <label htmlFor="refill-count" className={labelClass}>How many now?</label>
+            <input
+              id="refill-count"
+              type="number"
+              min={0}
+              max={9999}
+              value={refillCount}
+              onChange={(e) => setRefillCount(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              style={inputStyle}
+            />
+          </div>
+        </FormModal>
+      )}
+
+      {historyFor && (
+        <MedHistoryModal
+          open
+          med={historyFor}
+          token={token}
+          onClose={() => setHistoryFor(null)}
         />
       )}
 

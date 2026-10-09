@@ -9,6 +9,14 @@ import { SymptomIcon } from "./SymptomIcon";
 import { SUPPORT_TOAST_LINK } from "../utils/supportResources";
 import { METRIC_LABELS } from "../utils/metricLabels";
 
+// Mirrors NOTE_MAX in server/lib/checkInNote.js, which is the authority and has
+// the test. Both maxLength counts and the server measure the same UTF-16 units,
+// so the field cannot hold a note the API would then refuse.
+const NOTE_MAX = 280;
+// The counter stays hidden until the limit is close; shown from the first
+// keystroke it would turn a note into a word budget.
+const NOTE_COUNTER_FROM = 240;
+
 const AFFIRMATIONS = [
   { title: "Well done 🌟", message: "You showed up today. That matters." },
   { title: "Check-in complete 🌿", message: "Tracking your health is an act of self-care. Keep going." },
@@ -522,6 +530,12 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
   // value returns to the review instead of marching forward through the flow
   const [returnToReview, setReturnToReview] = useState(false);
   const [sleepSkipped, setSleepSkipped] = useState(false);
+  // Today's note belongs to today, so it is never copied from `prefill` — the
+  // same reasoning that leaves sleep out of the quick path.
+  const [note, setNote] = useState("");
+  const [noteOpen, setNoteOpen] = useState(false);
+  // open once asked for, and stay open if there is already text to show
+  const noteExpanded = noteOpen || note.trim() !== "";
   const [recentSymptoms, setRecentSymptoms] = useState([]);
   const [symptomSearch, setSymptomSearch] = useState("");
   const [error, setError] = useState("");
@@ -704,6 +718,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
           sleepLevel,
           symptoms: symptoms.length > 0 ? symptoms : null,
           date: today,
+          note: note.trim() || null,
         },
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -970,6 +985,57 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
                 + add symptoms
               </button>
             )}
+
+            {/* Optional note. Collapsed until asked for — nothing here should
+                read as a prompt to explain yourself. */}
+            {noteExpanded ? (
+              <div
+                className="w-full p-3 rounded-2xl flex flex-col gap-2"
+                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
+              >
+                <label htmlFor="checkin-note" className="text-white/60 text-xs">
+                  Anything else about today?
+                </label>
+                <textarea
+                  id="checkin-note"
+                  rows={2}
+                  maxLength={NOTE_MAX}
+                  value={note}
+                  autoFocus
+                  onChange={(e) => setNote(e.target.value)}
+                  // one line: Enter must neither break the line nor submit the check-in
+                  onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+                  placeholder="A few words, if you like"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none placeholder-white/40"
+                  style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)", color: "white", fontFamily: "Lato, sans-serif" }}
+                />
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => { setNote(""); setNoteOpen(false); }}
+                    aria-label="Remove note"
+                    className="text-white/50 text-xs hover:text-white/80 transition-colors min-h-[44px] px-3 -ml-3 text-left"
+                  >
+                    Remove
+                  </button>
+                  {/* only once the limit is near — a counter from the first
+                      keystroke would turn a note into a word budget */}
+                  {note.length >= NOTE_COUNTER_FROM && (
+                    <span className="text-white/60 text-[11px]" aria-live="polite">
+                      {note.length}/{NOTE_MAX}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setNoteOpen(true)}
+                aria-label="Add a note to this check-in"
+                className="text-white/50 text-xs hover:text-white/80 transition-colors text-center min-h-[44px] px-3"
+              >
+                + add a note
+              </button>
+            )}
+
             <button
               onClick={handleSubmit}
               className="w-full py-3 rounded-full bg-white font-medium hover:scale-105 transition-all duration-200 shockwave-btn"

@@ -286,6 +286,34 @@ export function generateReport(checkIns, username, medications = [], medicationL
     return row;
   });
 
+
+  // Notes for one day, in the order they were written. A single note prints as
+  // itself; several are prefixed with their times so a clinician can tell them
+  // apart. No "Note:" label and no quotes — the italic grey row marks it.
+  // Mirrored verbatim in mobile/lib/reportData.js.
+  const dayNoteText = (dayCheckins) => {
+    const noted = dayCheckins
+      .filter((c) => typeof c.note === "string" && c.note.trim() !== "")
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    if (noted.length === 0) return "";
+    if (noted.length === 1) return noted[0].note.trim();
+    return noted
+      .map((c) => {
+        // Newer browsers (CLDR 42+) put U+202F, a narrow no-break space, before
+        // AM/PM. jsPDF has no Unicode font: one non-WinAnsi character makes it
+        // re-encode the whole cell as UTF-16BE while the font stays WinAnsi, and
+        // the entire line renders as garbage — not just that one space. The em
+        // dash is fine (WinAnsi 0x97); this is only about the space.
+        const t = new Date(c.createdAt)
+          .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+          .replace(/\u202f/g, " ");
+        return `${t} — ${c.note.trim()}`;
+      })
+      .join("\n");
+  };
+  // aligned to dailyData/dailyRows; "" means the day has no note and gets no row
+  const dailyNotes = dailyData.map((d) => dayNoteText(periodCheckIns.filter((c) => c.date === d.date)));
+
   // ─── BUILD PDF ──────────────────────────────────────────────────────────────
   const doc        = new jsPDF({ orientation: "portrait" });
   const pageWidth  = doc.internal.pageSize.getWidth();
@@ -707,7 +735,17 @@ export function generateReport(checkIns, username, medications = [], medicationL
   autoTable(doc, {
     startY: y3,
     head: [dailyHead],
-    body: dailyRows,
+    // each day row, with its note on a full-width row beneath it. colSpan uses
+    // dailyHead.length so the span stays right when Pain or Weather drop out.
+    body: dailyRows.flatMap((row, i) => {
+      const note = dailyNotes[i];
+      if (!note) return [row];
+      return [row, [{
+        content: note,
+        colSpan: dailyHead.length,
+        styles: { fontSize: 7.5, fontStyle: "italic", textColor: GRAY, cellPadding: { top: 1, bottom: 1.5, left: 5, right: 2 } },
+      }]];
+    }),
     headStyles: {
       fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9,
       cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },

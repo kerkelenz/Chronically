@@ -1,5 +1,6 @@
 const { Op } = require("sequelize");
 const CheckIn = require("../models/CheckIn");
+const { parseNote } = require("../lib/checkInNote");
 const User = require("../models/User");
 const WeatherDay = require("../models/WeatherDay");
 const { captureWeatherInBackground } = require("../jobs/weatherCapture");
@@ -13,7 +14,12 @@ const validLevel = (v) =>
 const createCheckIn = async (req, res) => {
   try {
     // pull the check-in data out of the request body
-    const { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel, symptoms, followUpData, date } = req.body;
+    const { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel, symptoms, followUpData, date, note } = req.body;
+
+    // A note that is too long or not text is the one thing here worth refusing
+    // outright: silently truncating somebody's own words would be worse.
+    const parsedNote = parseNote(note);
+    if (parsedNote.error) return res.status(400).json({ error: parsedNote.error });
 
     // mood is the only required metric. Pain is optional like sleep — a user
     // tracking their mind may never be asked it at all.
@@ -35,6 +41,8 @@ const createCheckIn = async (req, res) => {
       symptoms: symptoms || null,
       date: date || new Date(),
       followUpData: followUpData || null,
+      // already validated above; `?? null` so "not sent" stores as null
+      note: parsedNote.value ?? null,
     });
 
     // using a symptom again un-hides it from suggestions — non-fatal so a
@@ -167,7 +175,10 @@ const updateCheckIn = async (req, res) => {
     }
 
     // grab whatever fields the user wants to update from the request body
-    const { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel, symptoms, followUpData } = req.body;
+    const { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel, symptoms, followUpData, note } = req.body;
+
+    const parsedNote = parseNote(note);
+    if (parsedNote.error) return res.status(400).json({ error: parsedNote.error });
 
     await checkIn.update({
       // `undefined` means "not sent, leave it"; an explicit null clears it.
@@ -180,6 +191,8 @@ const updateCheckIn = async (req, res) => {
       sleepLevel: sleepLevel !== undefined ? validLevel(sleepLevel) : checkIn.sleepLevel,
       symptoms: symptoms !== undefined ? symptoms : checkIn.symptoms,
       followUpData: followUpData || checkIn.followUpData,
+      // undefined leaves the note alone; null or "" (both parse to null) clear it
+      note: parsedNote.value !== undefined ? parsedNote.value : checkIn.note,
     });
 
     // Sequelize automatically updates the checkIn object after update()

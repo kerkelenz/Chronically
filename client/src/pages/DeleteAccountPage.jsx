@@ -30,7 +30,7 @@ export default function DeleteAccountPage() {
         </h1>
         <p style={{ color: "rgba(255,255,255,0.9)", lineHeight: 1.6, marginBottom: 12 }}>
           You can permanently delete your Chronically account and all of your data at any time. This includes your
-          daily check-ins, symptom logs, medications and medication history, doctor appointments, saved doctors, and Spoon
+          daily check-ins, symptom logs, medications and medication history, doctor appointments, saved doctors, flares, and Spoon
           Center data. Deletion is permanent and cannot be undone — we do not keep a backup copy.
         </p>
 

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -15,7 +15,8 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import BottomSheet from "../../components/BottomSheet";
 import { SheetHeader, SheetFooter, formStyles, PLUM_TINT, SOFT_ERROR } from "../../components/FormSheet";
 import ConfirmDialog from "../../components/ConfirmDialog";
-import { useFocusEffect } from "expo-router";
+import MedHistorySheet from "../../components/MedHistorySheet";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../../components/ScreenBackground";
 import api from "../../lib/api";
@@ -28,6 +29,9 @@ import {
   expectedDosesOn,
   describeSchedule,
   nextDueDate,
+  supplyLine,
+  helpedLine,
+  HELPED_CHOICES,
 } from "../../theme/medications";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -43,6 +47,15 @@ const EMPTY_FORM = {
   scheduledTimes: ["08:00"],
   notes: "",
   removalOffsetHours: 12, // patches only — ignored for every other form
+  // supply, as strings because they come from text inputs. `supplyDirty` is
+  // what lets an edit leave the count alone: the field is prefilled with the
+  // computed *remaining*, so sending it untouched would silently restart the
+  // supply period with a smaller number.
+  supplyCount: "",
+  unitsPerDose: "1",
+  refillReminderDays: "7",
+  remindRefill: true,
+  supplyDirty: false,
 };
 
 const TYPE_OPTIONS = ["pill", "injection", "infusion", "supplement", "sublingual", "topical", "patch", "gummy", "drops"];
@@ -331,8 +344,12 @@ function AdherenceDot({ med, day, weekLogs, today }) {
 
 // ── Zone 2: cabinet card ──────────────────────────────────────────────────────
 
-function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onDeleteRequest }) {
+function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onDeleteRequest, onRefill, onHistory }) {
   const paused = !med.active;
+  const isPrn = resolvePattern(med).kind === "as_needed";
+  // computed on the server: the client only holds seven days of logs
+  const supply = supplyLine(med.supply, isPrn);
+  const rated = helpedLine(med.helped);
   return (
     <View style={styles.medCard}>
       <View style={styles.medCardTop}>
@@ -346,6 +363,30 @@ function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onD
           {!paused && nextDoseLabel(med, today) && (
             <Text style={styles.nextDoseLine}>{nextDoseLabel(med, today)}</Text>
           )}
+          {supply ? (
+            <View style={styles.supplyRow} accessible accessibilityLabel={supply}>
+              <Text style={styles.nextDoseLine}>{supply}</Text>
+              <TouchableOpacity
+                onPress={() => onRefill?.(med)}
+                hitSlop={{ top: 16, bottom: 16, left: 8, right: 16 }}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Refilled ${med.name}`}
+              >
+                <Text style={styles.refilledLink}>Refilled</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+          {rated ? <Text style={styles.nextDoseLine}>{rated}</Text> : null}
+          <TouchableOpacity
+            onPress={() => onHistory?.(med)}
+            hitSlop={{ top: 16, bottom: 16, left: 8, right: 16 }}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`History for ${med.name}`}
+          >
+            <Text style={styles.historyLink}>History</Text>
+          </TouchableOpacity>
           {med.notes && med.notes.trim() !== "" && (
             <Text style={styles.medCardNotes}>{med.notes}</Text>
           )}
@@ -403,6 +444,9 @@ function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onD
 function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError }) {
   const [editingTimeIndex, setEditingTimeIndex] = useState(null);
   const [editingStartDate, setEditingStartDate] = useState(false);
+  // open already when the medication is being tracked, so an existing count is
+  // visible rather than hidden behind a disclosure
+  const [supplyOpen, setSupplyOpen] = useState(form.supplyCount !== "");
 
   const showTimes = form.pattern !== "as_needed";
   const showStartDate = form.pattern === "every_n_days" || form.pattern === "monthly";
@@ -755,6 +799,76 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
               numberOfLines={3}
               textAlignVertical="top"
             />
+
+            {/* Track supply — optional, collapsed until asked for. The count is
+                the user's own; nothing here tells them what to do with it. */}
+            {!supplyOpen ? (
+              <TouchableOpacity
+                onPress={() => setSupplyOpen(true)}
+                style={styles.supplyToggleBtn}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Track supply, optional"
+              >
+                <Text style={styles.supplyToggleText}>+ Track supply (optional)</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <Text style={formStyles.label}>How many on hand</Text>
+                <TextInput
+                  style={formStyles.input}
+                  placeholder="e.g. 60"
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  value={form.supplyCount}
+                  onChangeText={(v) => setForm({ ...form, supplyCount: v, supplyDirty: true })}
+                  keyboardType="number-pad"
+                  accessibilityLabel="How many on hand"
+                />
+                <Text style={styles.supplyHint}>
+                  Pills, patches, pens — whatever you count by.
+                </Text>
+
+                <Text style={formStyles.label}>Per dose</Text>
+                <TextInput
+                  style={formStyles.input}
+                  value={form.unitsPerDose}
+                  onChangeText={(v) => setForm({ ...form, unitsPerDose: v })}
+                  keyboardType="decimal-pad"
+                  accessibilityLabel="Units per dose"
+                />
+
+                {form.pattern === "as_needed" ? (
+                  <Text style={styles.supplyHint}>
+                    As-needed medications show a count, without an estimate.
+                  </Text>
+                ) : (
+                  <View style={styles.supplyRemindRow}>
+                    <TouchableOpacity
+                      onPress={() => setForm({ ...form, remindRefill: !form.remindRefill })}
+                      style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 44 }}
+                      activeOpacity={0.75}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: !!form.remindRefill }}
+                      accessibilityLabel="Remind me when running low"
+                    >
+                      <View style={[styles.checkBox, form.remindRefill && styles.checkBoxOn]}>
+                        {form.remindRefill ? <Text style={styles.checkTick}>✓</Text> : null}
+                      </View>
+                      <Text style={styles.supplyToggleText}>Remind me when about</Text>
+                    </TouchableOpacity>
+                    <TextInput
+                      style={[styles.supplyDaysInput, !form.remindRefill && { opacity: 0.5 }]}
+                      value={form.refillReminderDays}
+                      editable={!!form.remindRefill}
+                      onChangeText={(v) => setForm({ ...form, refillReminderDays: v })}
+                      keyboardType="number-pad"
+                      accessibilityLabel="Days left before reminding"
+                    />
+                    <Text style={styles.supplyToggleText}>days are left</Text>
+                  </View>
+                )}
+              </>
+            )}
           </ScrollView>
 
           {/* ── Footer (pinned) ── */}
@@ -792,6 +906,13 @@ export default function MedicationsScreen() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [refillFor, setRefillFor] = useState(null);
+  const [historyFor, setHistoryFor] = useState(null);
+  // set when a "did it help?" push brought us here
+  const [helpedPrompt, setHelpedPrompt] = useState(null);
+  const [refillCount, setRefillCount] = useState("");
+  const [refillBusy, setRefillBusy] = useState(false);
+  const [refillError, setRefillError] = useState("");
   const [deleting, setDeleting] = useState(false);
 
   const isFirstLoadRef = useRef(true);
@@ -863,6 +984,7 @@ export default function MedicationsScreen() {
       });
       track("medication_logged", { status: "taken" });
       setWeekLogs((prev) => [...prev, res.data.log]);
+      applyMedFromLog(res);
     } catch {
       setActionError(doseKey);
     } finally {
@@ -884,6 +1006,7 @@ export default function MedicationsScreen() {
       });
       track("medication_logged", { status: "skipped" });
       setWeekLogs((prev) => [...prev, res.data.log]);
+      applyMedFromLog(res);
     } catch {
       setActionError(doseKey);
     } finally {
@@ -901,6 +1024,7 @@ export default function MedicationsScreen() {
       setWeekLogs((prev) =>
         prev.map((l) => (l.id === log.id ? res.data.log : l))
       );
+      applyMedFromLog(res);
       setReasonEditKey(null);
     } catch {
       setActionError(doseKey);
@@ -923,6 +1047,7 @@ export default function MedicationsScreen() {
       });
       track("medication_logged", { status: "taken" });
       setWeekLogs((prev) => [...prev, res.data.log]);
+      applyMedFromLog(res);
     } catch {
       setActionError(doseKey);
     } finally {
@@ -930,11 +1055,54 @@ export default function MedicationsScreen() {
     }
   }
 
+  // Optimistic: the chip responds at once and reverts if the save fails.
+  // Tapping the selected one again clears the rating back to null.
+  async function handleHelped(log, value) {
+    const next = log.helped === value ? null : value;
+    const previous = log.helped ?? null;
+    setActionError(null);
+    setWeekLogs((prev) => prev.map((l) => (l.id === log.id ? { ...l, helped: next } : l)));
+    try {
+      const res = await api.put(`/api/medications/logs/${log.id}`, { helped: next });
+      setWeekLogs((prev) => prev.map((l) => (l.id === log.id ? res.data.log : l)));
+      applyMedFromLog(res);
+    } catch (err) {
+      console.error("Error saving rating:", err);
+      setWeekLogs((prev) => prev.map((l) => (l.id === log.id ? { ...l, helped: previous } : l)));
+      setActionError(`helped-${log.id}`);
+    }
+  }
+
+  // A tap on the follow-up push lands here with ?helpedLogId=. Wait until the
+  // logs are loaded, then open the sheet only if that dose still exists, was
+  // taken and is unrated. The param is cleared either way, so coming back to
+  // the tab does not reopen it.
+  const params = useLocalSearchParams();
+  const router = useRouter();
+  const handledHelpedParam = useRef(null);
+
+  useEffect(() => {
+    const raw = params?.helpedLogId;
+    const id = Array.isArray(raw) ? raw[0] : raw;
+    if (!id || loading) return;
+    if (handledHelpedParam.current === id) return;
+    handledHelpedParam.current = id;
+
+    const log = weekLogs.find((l) => String(l.id) === String(id));
+    const med = log && medications.find((m) => m.id === log.medicationId);
+    if (log && med && log.status === "taken" && log.helped == null) {
+      setHelpedPrompt({ log, med });
+    }
+    router.setParams({ helpedLogId: undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params?.helpedLogId, loading, weekLogs, medications]);
+
   async function handleUndo(logId, doseKey) {
     setActionLoading(doseKey);
     setActionError(null);
     try {
-      await api.delete(`/api/medications/logs/${logId}`);
+      const res = await api.delete(`/api/medications/logs/${logId}`);
+      applyMedFromLog(res);
       setWeekLogs((prev) => prev.filter((l) => l.id !== logId));
     } catch {
       setActionError(doseKey);
@@ -970,6 +1138,13 @@ export default function MedicationsScreen() {
       scheduledTimes: med.scheduledTimes || [],
       notes: med.notes || "",
       removalOffsetHours: med.removalOffsetHours ?? 12,
+      // prefilled with what is actually left, not the number last counted:
+      // that is the figure the user would recount against
+      supplyCount: med.supply ? String(med.supply.remaining) : "",
+      unitsPerDose: String(med.unitsPerDose ?? 1),
+      refillReminderDays: String(med.refillReminderDays ?? 7),
+      remindRefill: med.refillReminderDays != null,
+      supplyDirty: false,
     });
     setSaveError("");
     setShowModal(true);
@@ -996,7 +1171,15 @@ export default function MedicationsScreen() {
           : null,
       notes: form.notes.trim() || null,
       removalOffsetHours: form.type === "patch" ? form.removalOffsetHours : null,
+      unitsPerDose: Number(form.unitsPerDose) || 1,
+      refillReminderDays: form.remindRefill ? Number(form.refillReminderDays) || 7 : null,
     };
+    // Only sent when the field was actually edited. Sending the prefilled
+    // remaining would restart the supply period at a lower number every time
+    // somebody opened the sheet to change something else.
+    if (form.supplyDirty) {
+      payload.supplyCount = form.supplyCount === "" ? null : Number(form.supplyCount);
+    }
     try {
       if (form.id) {
         const res = await api.put(`/api/medications/${form.id}`, payload);
@@ -1012,6 +1195,39 @@ export default function MedicationsScreen() {
       setSaveError("Couldn't save. Please try again.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Log responses carry the medication, decorated with its recomputed supply
+  // and rating counts, so the card updates without a refetch. Older server
+  // builds don't send it, hence the guard.
+  function applyMedFromLog(res) {
+    const med = res?.data?.medication;
+    if (med) setMedications((prev) => prev.map((m) => (m.id === med.id ? med : m)));
+  }
+
+  function openRefill(med) {
+    // prefilled with what was last counted, not what is left: a refill is a
+    // fresh count of a full pack
+    setRefillCount(String(med.supplyCount ?? ""));
+    setRefillError("");
+    setRefillFor(med);
+  }
+
+  async function handleRefill() {
+    if (!refillFor || refillBusy) return;
+    setRefillBusy(true);
+    setRefillError("");
+    try {
+      const res = await api.post(`/api/medications/${refillFor.id}/refill`, {
+        supplyCount: Number(refillCount),
+      });
+      setMedications((prev) => prev.map((m) => (m.id === refillFor.id ? res.data.medication : m)));
+      setRefillFor(null);
+    } catch (err) {
+      setRefillError(err?.response?.data?.error || "Couldn't save that. Please try again.");
+    } finally {
+      setRefillBusy(false);
     }
   }
 
@@ -1220,24 +1436,56 @@ export default function MedicationsScreen() {
                       </TouchableOpacity>
                     </View>
                     {logs.map((l) => (
-                      <View key={l.id} style={styles.prnLogRow}>
-                        <Text style={styles.prnLogText}>
-                          Taken at {formatTakenAt(l.takenAt)}
-                        </Text>
-                        <TouchableOpacity
-                          onPress={() => handleUndo(l.id, `log-${l.id}`)}
-                          disabled={actionLoading === `log-${l.id}`}
-                          activeOpacity={0.7}
-                          style={styles.undoBtn}
-                          accessibilityRole="button"
-                          accessibilityLabel="Undo this dose"
+                      <View key={l.id}>
+                        <View style={styles.prnLogRow}>
+                          <Text style={styles.prnLogText}>
+                            Taken at {formatTakenAt(l.takenAt)}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={() => handleUndo(l.id, `log-${l.id}`)}
+                            disabled={actionLoading === `log-${l.id}`}
+                            activeOpacity={0.7}
+                            style={styles.undoBtn}
+                            accessibilityRole="button"
+                            accessibilityLabel="Undo this dose"
+                          >
+                            {actionLoading === `log-${l.id}` ? (
+                              <ActivityIndicator size="small" color="rgba(255,255,255,0.6)" />
+                            ) : (
+                              <Ionicons name="arrow-undo" size={15} color="rgba(255,255,255,0.6)" />
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                        {/* Their own note on how it went. Optional, and tapping
+                            the chosen one again clears it. */}
+                        <View
+                          style={styles.helpedRow}
+                          accessibilityRole="radiogroup"
+                          accessibilityLabel={`Did it help? ${med.name}, taken at ${formatTakenAt(l.takenAt)}`}
                         >
-                          {actionLoading === `log-${l.id}` ? (
-                            <ActivityIndicator size="small" color="rgba(255,255,255,0.6)" />
-                          ) : (
-                            <Ionicons name="arrow-undo" size={15} color="rgba(255,255,255,0.6)" />
-                          )}
-                        </TouchableOpacity>
+                          <Text style={styles.helpedPrompt}>Did it help?</Text>
+                          {HELPED_CHOICES.map((choice) => {
+                            const selected = l.helped === choice.value;
+                            return (
+                              <TouchableOpacity
+                                key={choice.value}
+                                onPress={() => handleHelped(l, choice.value)}
+                                style={[styles.helpedChip, selected && styles.helpedChipOn]}
+                                activeOpacity={0.8}
+                                accessibilityRole="radio"
+                                accessibilityState={{ selected }}
+                                accessibilityLabel={choice.label}
+                              >
+                                <Text style={[styles.helpedChipText, selected && styles.helpedChipTextOn]}>
+                                  {choice.label}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                        {actionError === `helped-${l.id}` ? (
+                          <Text style={styles.doseError}>Couldn't save, try again</Text>
+                        ) : null}
                       </View>
                     ))}
                   </View>
@@ -1280,6 +1528,8 @@ export default function MedicationsScreen() {
                     onEdit={openEdit}
                     onSetActive={handleSetActive}
                     onDeleteRequest={setDeleteConfirm}
+                    onRefill={openRefill}
+                    onHistory={setHistoryFor}
                   />
                 ))}
 
@@ -1296,6 +1546,8 @@ export default function MedicationsScreen() {
                         onEdit={openEdit}
                         onSetActive={handleSetActive}
                         onDeleteRequest={setDeleteConfirm}
+                        onRefill={openRefill}
+                        onHistory={setHistoryFor}
                       />
                     ))}
                   </>
@@ -1316,6 +1568,82 @@ export default function MedicationsScreen() {
         saving={saving}
         saveError={saveError}
       />
+
+      {/* Refilled — one number, because that is the whole interaction */}
+      <BottomSheet
+        visible={!!refillFor}
+        onClose={() => setRefillFor(null)}
+        scrollable={false}
+        cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}
+      >
+        <SheetHeader title={refillFor ? `Refilled ${refillFor.name}` : ""} />
+        <View style={{ paddingHorizontal: 20 }}>
+          <Text style={[formStyles.label, { marginTop: 0 }]}>How many now?</Text>
+          <TextInput
+            style={formStyles.input}
+            value={refillCount}
+            onChangeText={setRefillCount}
+            keyboardType="number-pad"
+            accessibilityLabel="How many now?"
+          />
+        </View>
+        <SheetFooter
+          onCancel={() => setRefillFor(null)}
+          onSave={handleRefill}
+          saving={refillBusy}
+          canSave={refillCount !== ""}
+          error={refillError}
+        />
+      </BottomSheet>
+
+      {/* Opened by tapping the "Did it help?" push. One tap answers and closes;
+          nothing is required, hence "Not now" rather than a cancel. */}
+      <BottomSheet
+        visible={!!helpedPrompt}
+        onClose={() => setHelpedPrompt(null)}
+        scrollable={false}
+        cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}
+      >
+        <SheetHeader
+          title={helpedPrompt ? `Did ${helpedPrompt.med.name} help?` : ""}
+          subtitle={helpedPrompt ? `Taken at ${formatTakenAt(helpedPrompt.log.takenAt)}` : undefined}
+        />
+        <View style={styles.helpedSheetBody}>
+          {HELPED_CHOICES.map((choice) => (
+            <TouchableOpacity
+              key={choice.value}
+              style={styles.helpedSheetChip}
+              onPress={async () => {
+                const target = helpedPrompt;
+                setHelpedPrompt(null);
+                if (target) await handleHelped(target.log, choice.value);
+              }}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={choice.label}
+            >
+              <Text style={styles.helpedSheetChipText}>{choice.label}</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity
+            style={styles.helpedSheetSkip}
+            onPress={() => setHelpedPrompt(null)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Not now"
+          >
+            <Text style={styles.helpedSheetSkipText}>Not now</Text>
+          </TouchableOpacity>
+        </View>
+      </BottomSheet>
+
+      {historyFor ? (
+        <MedHistorySheet
+          visible
+          med={historyFor}
+          onClose={() => setHistoryFor(null)}
+        />
+      ) : null}
 
       <ConfirmDialog
         visible={!!deleteConfirm}
@@ -1567,6 +1895,51 @@ const styles = StyleSheet.create({
   },
 
   // PRN lane
+  helpedSheetBody: { paddingHorizontal: 20, paddingBottom: 20, gap: 10 },
+  helpedSheetChip: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+    borderRadius: 999,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  helpedSheetChipText: { fontFamily: "Lato_400Regular", fontSize: 16, color: "white" },
+  helpedSheetSkip: { minHeight: 44, alignItems: "center", justifyContent: "center" },
+  helpedSheetSkipText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.6)",
+  },
+  helpedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+    marginTop: 6,
+  },
+  helpedPrompt: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.5)",
+  },
+  helpedChip: {
+    paddingHorizontal: 10,
+    minHeight: 44,
+    justifyContent: "center",
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+  },
+  helpedChipOn: { backgroundColor: "white", borderColor: "white" },
+  helpedChipText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "white",
+  },
+  helpedChipTextOn: { fontFamily: "Lato_700Bold", color: "#7C6BAE" },
   prnLogRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1674,6 +2047,65 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.5)",
     marginTop: 2,
   },
+  supplyRow: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
+  historyLink: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.5)",
+    textDecorationLine: "underline",
+    marginTop: 4,
+  },
+  refilledLink: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.7)",
+    textDecorationLine: "underline",
+    marginTop: 2,
+  },
+  supplyHint: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.5)",
+    marginTop: 4,
+  },
+  supplyToggleBtn: { minHeight: 44, justifyContent: "center" },
+  supplyToggleText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.55)",
+  },
+  supplyRemindRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+    marginTop: 14,
+  },
+  supplyDaysInput: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    minWidth: 56,
+    textAlign: "center",
+    fontFamily: "Lato_400Regular",
+    fontSize: 15,
+    color: "white",
+  },
+  checkBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  checkBoxOn: { backgroundColor: "white", borderColor: "white" },
+  checkTick: { color: "#7C6BAE", fontSize: 13, fontWeight: "700", lineHeight: 16 },
   medCardNotes: {
     fontFamily: "Lato_400Regular",
     fontSize: 13,

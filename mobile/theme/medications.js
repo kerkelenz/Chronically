@@ -278,3 +278,151 @@ export const SKIP_REASONS = [
   "Already took it",
   "Too painful to take",
 ];
+
+// ── Supply and rating copy ──────────────────────────────────────────────────
+// The maths lives on the server (server/lib/medStats.js): the clients only ever
+// fetch seven days of logs, so they could not compute remaining supply or the
+// rating counts even if they wanted to. These are formatters only, kept here so
+// both platforms read identically word for word.
+
+/** "1 day" / "5 days" — the app's count-agrees-with-its-noun rule. */
+export function pluralDays(n) {
+  return `${n} ${n === 1 ? "day" : "days"}`;
+}
+
+/**
+ * The muted line under a medication's schedule. Returns "" when there is
+ * nothing to say, so a caller can render nothing rather than an empty row.
+ *
+ * Never alarming: "Running low" is a fact about a number the user gave us, and
+ * a recount is an invitation, not a warning.
+ */
+export function supplyLine(supply, isPrn) {
+  if (!supply) return "";
+  if (supply.recount) return "Your count may need updating";
+  if (isPrn || supply.daysLeft === null) return `${supply.remaining} left`;
+  const base = `${supply.remaining} left · about ${pluralDays(supply.daysLeft)}`;
+  return supply.low ? `Running low · ${base}` : base;
+}
+
+/**
+ * The user's own ratings, played back as counts. Deliberately never a verdict,
+ * a percentage, or the word "works" — it reports what they noted, nothing more.
+ */
+export function helpedLine(helped) {
+  if (!helped || !helped.rated) return "";
+  const parts = [];
+  if (helped.yes) parts.push(`helped ${helped.yes}`);
+  if (helped.a_little) parts.push(`a little ${helped.a_little}`);
+  if (helped.no) parts.push(`not really ${helped.no}`);
+  const doses = `${helped.rated} ${helped.rated === 1 ? "dose" : "doses"}`;
+  return `Last 90 days: you rated ${doses} — ${parts.join(" · ")}`;
+}
+
+/** The three rating choices, in the order they are offered. */
+export const HELPED_CHOICES = [
+  { value: "yes", label: "Yes" },
+  { value: "a_little", label: "A little" },
+  { value: "no", label: "Not really" },
+];
+
+// ── Dose-change history copy ────────────────────────────────────────────────
+// What changed, in the words the app uses elsewhere. The server decides whether
+// something changed (server/lib/medHistory.js compares the canonical schedule,
+// so a legacy rewrite is not a change); this only phrases it.
+
+// DAY_NAMES is already declared above, for describeSchedule.
+
+const FORM_LABELS = {
+  pill: "Pill", injection: "Injection", infusion: "Infusion",
+  supplement: "Supplement", sublingual: "Sublingual", topical: "Topical",
+  patch: "Patch", gummy: "Gummy", drops: "Drops",
+};
+
+const SCHEDULE_LABELS = {
+  daily: "Every day",
+  specific_days: "Specific days",
+  every_n_days: "Every N days",
+  monthly: "Monthly",
+  as_needed: "As needed",
+};
+
+// A date at local noon, so formatting can't slip to the previous day.
+function ymdToLabel(ymd) {
+  if (!ymd) return "none";
+  const [y, m, d] = String(ymd).split("-").map(Number);
+  const date = new Date(y, m - 1, d, 12, 0, 0, 0);
+  const opts = { month: "short", day: "numeric" };
+  if (date.getFullYear() !== new Date().getFullYear()) opts.year = "numeric";
+  return date.toLocaleDateString("en-US", opts);
+}
+
+/** One field's value, phrased. Null always reads "none" rather than blank. */
+export function describeValue(field, value) {
+  if (value === null || value === undefined) return "none";
+  switch (field) {
+    case "type": return FORM_LABELS[value] || String(value);
+    case "frequency": return SCHEDULE_LABELS[value] || String(value);
+    case "daysOfWeek":
+      return Array.isArray(value) && value.length
+        ? value.map((d) => DAY_NAMES[d] ?? d).join(", ")
+        : "none";
+    case "intervalDays": return `every ${value} ${value === 1 ? "day" : "days"}`;
+    case "startDate": return ymdToLabel(value);
+    case "scheduledTimes":
+      return Array.isArray(value) && value.length
+        ? value.map(formatTime).join(" & ")
+        : "none";
+    default: return String(value);
+  }
+}
+
+const FIELD_LABELS = {
+  type: "Form",
+  dosage: "Dosage",
+  frequency: "Schedule",
+  daysOfWeek: "Days",
+  startDate: "Starting",
+  scheduledTimes: "Times",
+};
+
+/**
+ * The lines for one history entry. The UI calls deactivation pause, because
+ * that is the word on the button.
+ */
+export function describeChange(entry) {
+  if (!entry) return [];
+  if (entry.kind === "deactivated") return ["Paused"];
+  if (entry.kind === "reactivated") return ["Resumed"];
+
+  if (entry.kind === "created") {
+    const changes = Array.isArray(entry.changes) ? entry.changes : [];
+    // a derived entry carries no values: we don't know what they were
+    if (changes.length === 0) return ["Added"];
+    const parts = changes
+      .filter((c) => c.field !== "type")
+      .map((c) => (c.field === "dosage" ? c.to : describeValue(c.field, c.to)))
+      .filter(Boolean);
+    return [`Added · ${parts.join(" · ")}`];
+  }
+
+  return (Array.isArray(entry.changes) ? entry.changes : []).map((c) => {
+    const from = c.field === "dosage" ? (c.from ?? "none") : describeValue(c.field, c.from);
+    const to = c.field === "dosage" ? (c.to ?? "none") : describeValue(c.field, c.to);
+    // the interval already reads as a phrase, so it carries no separate label
+    if (c.field === "intervalDays") {
+      return `${from.charAt(0).toUpperCase()}${from.slice(1)} → ${to}`;
+    }
+    const label = FIELD_LABELS[c.field] || c.field;
+    return `${label} ${from} → ${to}`;
+  });
+}
+
+/** The date line above an entry's changes. */
+export function describeChangeDate(changedAt) {
+  const d = new Date(changedAt);
+  if (Number.isNaN(d.getTime())) return "";
+  const opts = { month: "short", day: "numeric" };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = "numeric";
+  return d.toLocaleDateString("en-US", opts);
+}

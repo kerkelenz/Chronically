@@ -15,7 +15,10 @@ const {
   instantForLocal,
   dueTimesInWindow,
   removalsInWindow,
+  resolvePattern,
+  prnFollowupsInWindow,
 } = require("../lib/medSchedule");
+const { supplyStatus } = require("../lib/medStats");
 
 const expo = new Expo();
 
@@ -24,6 +27,8 @@ const TICK_CRON = "*/5 * * * *";
 // run would otherwise drop a dose silently. Overlap is free — NotificationLog's
 // unique index makes a repeat impossible — whereas a gap is a missed dose.
 const LOOKBACK_MINUTES = 10;
+// How long after an as-needed dose to ask how it went.
+const PRN_FOLLOWUP_MINUTES = 60;
 // Local wall-clock time the daily check-in nudge becomes eligible.
 const NUDGE_AT = "20:00";
 
@@ -60,6 +65,11 @@ function prefsOf(user) {
     enabled: p.enabled !== false,
     medReminders: p.medReminders !== false,
     checkinNudge: p.checkinNudge !== false,
+    // `!== false` so an existing user whose stored JSON predates these keys is
+    // treated as opted in. No data migration, and nobody is silently opted out
+    // of something the Profile screen shows as on.
+    refillReminders: p.refillReminders !== false,
+    prnFollowups: p.prnFollowups !== false,
   };
 }
 
@@ -119,6 +129,118 @@ async function planMedReminders(user, tz, segments, messages) {
           data: { kind: "med", medicationId: med.id, date: seg.date, scheduledTime: time },
         });
       }
+    }
+  }
+}
+
+/**
+ * A refill nudge, at most once per supply period.
+ *
+ * `scheduledFor = supplyUpdatedAt` is what makes it once-per-period: the claim
+ * is unique on (user, kind, refId, scheduledFor), so the same count can never
+ * fire twice however many ticks run, and recording a refill moves
+ * supplyUpdatedAt, which opens a new period.
+ */
+async function planRefills(user, tz, now, messages) {
+  // Not at 3 a.m. A refill is never urgent enough to wake anybody.
+  const { hour } = localPartsIn(now, tz);
+  if (!(hour >= 10 && hour < 20)) return;
+
+  const meds = await Medication.findAll({
+    where: {
+      userId: user.id,
+      active: true,
+      supplyCount: { [Op.ne]: null },
+      refillReminderDays: { [Op.ne]: null },
+    },
+    raw: true,
+  });
+  // as-needed meds have no rate, so there is nothing to be running low against
+  const tracked = meds.filter((m) => resolvePattern(m).kind !== "as_needed");
+  if (tracked.length === 0) return;
+
+  const earliest = new Date(Math.min(
+    ...tracked.map((m) => (m.supplyUpdatedAt ? new Date(m.supplyUpdatedAt).getTime() : 0)),
+  ));
+  const logs = await MedicationLog.findAll({
+    attributes: ["medicationId", "date", "scheduledTime", "status", "takenAt", "createdAt"],
+    where: {
+      userId: user.id,
+      medicationId: { [Op.in]: tracked.map((m) => m.id) },
+      status: "taken",
+      createdAt: { [Op.gte]: earliest },
+    },
+    raw: true,
+  });
+
+  for (const med of tracked) {
+    const status = supplyStatus(med, logs.filter((l) => l.medicationId === med.id), now);
+    if (!status || !status.low) continue;
+    if (!(await claim(user.id, "refill", med.id, med.supplyUpdatedAt))) continue;
+
+    const n = status.daysLeft;
+    messages.push({
+      userId: user.id,
+      title: `Running low on ${med.name}`,
+      body: n > 0
+        ? (n === 1 ? "About 1 day left, by your count." : `About ${n} days left, by your count.`)
+        : "By your count, it may be time for a refill.",
+      data: { kind: "refill", medicationId: med.id },
+    });
+  }
+}
+
+
+/**
+ * The "did it help?" follow-up, one per dose, an hour afterwards.
+ *
+ * `claim` is keyed on the MedicationLog id, so a dose can only ever prompt
+ * once. Questions that would land overnight are dropped rather than deferred:
+ * the chips are in the app whenever they want them, and a 2 a.m. notification
+ * asking how a dose went is worse than no notification.
+ */
+async function planPrnFollowups(user, tz, now, messages) {
+  const meds = await Medication.findAll({
+    where: { userId: user.id, active: true },
+    raw: true,
+  });
+  const prn = meds.filter((m) => resolvePattern(m).kind === "as_needed");
+  if (prn.length === 0) return;
+
+  const windowEnd = now;
+  const windowStart = new Date(now.getTime() - LOOKBACK_MINUTES * 60 * 1000);
+  // far enough back to catch any dose whose question falls in this window
+  const since = new Date(
+    windowStart.getTime() - (PRN_FOLLOWUP_MINUTES + LOOKBACK_MINUTES) * 60 * 1000,
+  );
+
+  const logs = await MedicationLog.findAll({
+    where: {
+      userId: user.id,
+      medicationId: { [Op.in]: prn.map((m) => m.id) },
+      status: "taken",
+      helped: null,
+      takenAt: { [Op.gte]: since },
+    },
+    raw: true,
+  });
+
+  for (const med of prn) {
+    const mine = logs.filter((l) => l.medicationId === med.id);
+    for (const { log, due } of prnFollowupsInWindow(
+      med, mine, windowStart, windowEnd, PRN_FOLLOWUP_MINUTES,
+    )) {
+      const { hour } = localPartsIn(due, tz);
+      // 22:00-08:00 local: let it go, they can answer in the app
+      if (hour >= 22 || hour < 8) continue;
+      if (!(await claim(user.id, "prn_followup", log.id, due))) continue;
+
+      messages.push({
+        userId: user.id,
+        title: `Did ${med.name} help?`,
+        body: "Tap to note how it went — only if you want to.",
+        data: { kind: "prn_followup", logId: log.id, medicationId: med.id },
+      });
     }
   }
 }
@@ -265,6 +387,15 @@ async function runTick(now = new Date(), send = deliver) {
           await planMedReminders(user, tz, segments, messages);
           await planRemovals(user, tz, now, messages);
         }
+      }
+      // Same timezone rule as dose reminders: a push at the wrong hour is
+      // worse than none, and this one is explicitly hour-bounded.
+      if (prefs.refillReminders && isValidTimezone(user.timezone)) {
+        await planRefills(user, tz, now, messages);
+      }
+      // same timezone rule: the question is time-of-day sensitive
+      if (prefs.prnFollowups && isValidTimezone(user.timezone)) {
+        await planPrnFollowups(user, tz, now, messages);
       }
       if (prefs.checkinNudge) await planNudge(user, tz, now, messages);
     } catch (err) {

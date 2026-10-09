@@ -117,6 +117,9 @@ const css = `
   .notable-table td { border: none; }
   .notable-cell { padding: 3px 0; font-size: 8pt; }
 
+  /* a day row and its note stay together, like the medication groups */
+  tbody.day-group { page-break-inside: avoid; }
+
   /* Observed Patterns — borderless cards, one per row so none is torn */
   .framing { font-size: 7.5pt; font-style: italic; color: #6B5F7A; margin-bottom: 6px; }
   .patterns-table { border: none; }
@@ -167,7 +170,7 @@ export function buildReportHtml(data, username, insights = null, logoUri = null)
     medications, prnTaken,
     medListRows, medListNotes, adherenceRows, medLogRows,
     dailyRows, adherenceByDay, skipReasonRows, recentAppts, upcomingAppts, hasWeather,
-    hasPain, hasSleep, untrackedNote,
+    hasPain, hasSleep, untrackedNote, dailyNotes,
   } = data;
 
   // ── Page 1 helpers ────────────────────────────────────────────────────────
@@ -238,7 +241,22 @@ export function buildReportHtml(data, username, insights = null, logoUri = null)
   // hardcoded: 4 metrics without pain, 5 with.
   const dailyMetricCount = hasPain ? 5 : 4;
   const dailyCenterCols = Array.from({ length: dailyMetricCount }, (_, i) => i + 1);
-  const dailyBodyHtml = trows(dailyRows, dailyCenterCols);
+  // One <tbody> per day so a note can never be torn from the row it belongs to.
+  // The note is the user's own free text, so it goes through esc() — trows()
+  // does not escape, which is safe for the numbers it normally carries.
+  const dailyColCount = dailyRows.length > 0 ? dailyRows[0].length : dailyMetricCount + 2;
+  const dailyBodyHtml = dailyRows.map((cells, i) => {
+    const row = `<tr>${cells.map((c, col) =>
+      `<td${dailyCenterCols.includes(col) ? ' class="center"' : ""}>${c ?? "—"}</td>`
+    ).join("")}</tr>`;
+    const note = (dailyNotes || [])[i];
+    const noteRow = note
+      ? `<tr class="note-row"><td colspan="${dailyColCount}">${
+          note.split("\n").map((line) => esc(line)).join("<br/>")
+        }</td></tr>`
+      : "";
+    return `<tbody class="day-group">${row}${noteRow}</tbody>`;
+  }).join("\n    ");
   const dailyMetricW = hasWeather ? 8 : 9;
   const dailyHeadHtml = [
     `<th style="width:8%">Date</th>`,
@@ -447,9 +465,7 @@ ${patternsHtml}
         ${dailyHeadHtml}
       </tr>
     </thead>
-    <tbody>
     ${dailyBodyHtml}
-    </tbody>
   </table>
 
   <div class="section-title">Daily Medication Log</div>

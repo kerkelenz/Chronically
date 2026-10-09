@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
+import FlaresModal from "../components/FlaresModal";
 import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
@@ -14,6 +15,10 @@ import ChronicleMark from "../components/ChronicleMark";
 
 function TrendsPage() {
   const { user, token } = useAuth();
+  // Flares live here because wave 2 draws them as bands on these charts; the
+  // list sits beside the thing it will annotate.
+  const [flares, setFlares] = useState([]);
+  const [showFlares, setShowFlares] = useState(false);
   const [checkIns, setCheckIns] = useState([]);
   const [medications, setMedications] = useState([]);
   const [medLogs, setMedLogs] = useState([]);
@@ -23,6 +28,22 @@ function TrendsPage() {
 
   // Insights are fetched independently and silent-fail: on error the section
   // simply doesn't render.
+  const fetchFlares = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/flares`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setFlares(res.data.flares || []);
+    } catch (err) {
+      console.error("Failed to fetch flares:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (token) fetchFlares();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
   useEffect(() => {
     if (!token) return;
     axios
@@ -151,7 +172,15 @@ function TrendsPage() {
               Trends
             </h1>
           </div>
-          <NavHamburger />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowFlares(true)}
+              className="text-sm text-white/70 hover:text-white transition-colors"
+            >
+              Your flares
+            </button>
+            <NavHamburger />
+          </div>
         </div>
       </div>
 
@@ -400,6 +429,17 @@ function TrendsPage() {
       </div>
 
       <Navigation />
+
+      {showFlares && (
+        <FlaresModal
+          open
+          mode="list"
+          flares={flares}
+          token={token}
+          onClose={() => setShowFlares(false)}
+          onChanged={fetchFlares}
+        />
+      )}
     </div>
   );
 }

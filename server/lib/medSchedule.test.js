@@ -193,3 +193,96 @@ describe("removalsInWindow", () => {
     expect(removalsInWindow(patch, [{ takenAt: null }], s, e)).toHaveLength(0);
   });
 });
+
+// ── prnFollowupsInWindow ─────────────────────────────────────────────────────
+describe("prnFollowupsInWindow", () => {
+  const { prnFollowupsInWindow } = require("./medSchedule");
+  const PRN = { frequency: "as_needed", type: "pill" };
+  const SCHEDULED = { frequency: "daily", type: "pill", scheduledTimes: ["08:00"] };
+
+  const T = (iso) => new Date(iso);
+  const log = (id, takenAt, over = {}) =>
+    ({ id, status: "taken", takenAt: takenAt && T(takenAt), helped: null, ...over });
+
+  // a five-minute window, as a tick sees it
+  const win = (startIso, endIso) => [T(startIso), T(endIso)];
+
+  test("a dose an hour ago is due now", () => {
+    const [s, e] = win("2026-10-09T12:00:00Z", "2026-10-09T12:05:00Z");
+    const out = prnFollowupsInWindow(PRN, [log(1, "2026-10-09T11:02:00Z")], s, e);
+    expect(out).toHaveLength(1);
+    expect(out[0].log.id).toBe(1);
+    expect(out[0].due.toISOString()).toBe("2026-10-09T12:02:00.000Z");
+  });
+
+  test("a dose taken too recently is not due yet", () => {
+    const [s, e] = win("2026-10-09T12:00:00Z", "2026-10-09T12:05:00Z");
+    expect(prnFollowupsInWindow(PRN, [log(1, "2026-10-09T11:40:00Z")], s, e)).toHaveLength(0);
+  });
+
+  test("a dose whose question already passed is not repeated", () => {
+    const [s, e] = win("2026-10-09T12:00:00Z", "2026-10-09T12:05:00Z");
+    expect(prnFollowupsInWindow(PRN, [log(1, "2026-10-09T09:00:00Z")], s, e)).toHaveLength(0);
+  });
+
+  test("an already-rated dose never qualifies", () => {
+    const [s, e] = win("2026-10-09T12:00:00Z", "2026-10-09T12:05:00Z");
+    const rated = log(1, "2026-10-09T11:02:00Z", { helped: "yes" });
+    expect(prnFollowupsInWindow(PRN, [rated], s, e)).toHaveLength(0);
+  });
+
+  test("a log with no takenAt has nothing to count from", () => {
+    const [s, e] = win("2026-10-09T12:00:00Z", "2026-10-09T12:05:00Z");
+    expect(prnFollowupsInWindow(PRN, [log(1, null)], s, e)).toHaveLength(0);
+  });
+
+  test("three doses in an hour produce one question, about the last", () => {
+    // 11:02, 11:22, 11:42 — the first two are superseded before their hour is up
+    const logs = [
+      log(1, "2026-10-09T11:02:00Z"),
+      log(2, "2026-10-09T11:22:00Z"),
+      log(3, "2026-10-09T11:42:00Z"),
+    ];
+    const [s, e] = win("2026-10-09T12:40:00Z", "2026-10-09T12:45:00Z");
+    const out = prnFollowupsInWindow(PRN, logs, s, e);
+    expect(out).toHaveLength(1);
+    expect(out[0].log.id).toBe(3);
+  });
+
+  test("two doses twenty minutes apart: only the later one is asked about", () => {
+    const logs = [log(1, "2026-10-09T11:00:00Z"), log(2, "2026-10-09T11:20:00Z")];
+    // the first dose's question would have been at 12:00, the second's at 12:20
+    expect(prnFollowupsInWindow(PRN, logs, T("2026-10-09T11:58:00Z"), T("2026-10-09T12:03:00Z")))
+      .toHaveLength(0);
+    const out = prnFollowupsInWindow(PRN, logs, T("2026-10-09T12:18:00Z"), T("2026-10-09T12:23:00Z"));
+    expect(out).toHaveLength(1);
+    expect(out[0].log.id).toBe(2);
+  });
+
+  test("doses more than an hour apart each get their own question", () => {
+    const logs = [log(1, "2026-10-09T09:00:00Z"), log(2, "2026-10-09T11:02:00Z")];
+    const first = prnFollowupsInWindow(PRN, logs, T("2026-10-09T09:58:00Z"), T("2026-10-09T10:03:00Z"));
+    expect(first.map((x) => x.log.id)).toEqual([1]);
+    const second = prnFollowupsInWindow(PRN, logs, T("2026-10-09T12:00:00Z"), T("2026-10-09T12:05:00Z"));
+    expect(second.map((x) => x.log.id)).toEqual([2]);
+  });
+
+  test("a scheduled medication is never asked about", () => {
+    const [s, e] = win("2026-10-09T12:00:00Z", "2026-10-09T12:05:00Z");
+    expect(prnFollowupsInWindow(SCHEDULED, [log(1, "2026-10-09T11:02:00Z")], s, e)).toHaveLength(0);
+  });
+
+  test("skipped doses are never asked about", () => {
+    const [s, e] = win("2026-10-09T12:00:00Z", "2026-10-09T12:05:00Z");
+    const skipped = log(1, "2026-10-09T11:02:00Z", { status: "skipped" });
+    expect(prnFollowupsInWindow(SCHEDULED, [skipped], s, e)).toHaveLength(0);
+  });
+
+  test("the delay is configurable", () => {
+    const out = prnFollowupsInWindow(
+      PRN, [log(1, "2026-10-09T11:32:00Z")],
+      T("2026-10-09T12:00:00Z"), T("2026-10-09T12:05:00Z"), 30,
+    );
+    expect(out).toHaveLength(1);
+  });
+});

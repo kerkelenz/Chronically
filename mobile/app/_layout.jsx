@@ -12,6 +12,7 @@ import {
 import { Lato_300Light, Lato_400Regular, Lato_700Bold } from "@expo-google-fonts/lato";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as Sentry from "@sentry/react-native";
+import * as Notifications from "expo-notifications";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import ErrorBoundary from "../components/ErrorBoundary";
 
@@ -48,6 +49,54 @@ function AuthGate() {
   return null;
 }
 
+/**
+ * Sends a notification tap to the right place. Rendered inside AuthProvider so
+ * it can wait for a session: routing a cold start before auth resolves would
+ * push a tab the AuthGate is about to replace with the login screen.
+ *
+ * Two sources, because they cover different cases: useLastNotificationResponse
+ * reports the tap that launched a killed app, while the listener covers taps
+ * while it is running. Both can report the same response, so ids are
+ * remembered and handled once.
+ */
+function NotificationRouter() {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+  const lastResponse = Notifications.useLastNotificationResponse();
+  const handled = useRef(new Set());
+
+  const route = (response) => {
+    if (!response) return;
+    const id = response.notification?.request?.identifier;
+    if (id) {
+      if (handled.current.has(id)) return;
+      handled.current.add(id);
+    }
+    const data = response.notification?.request?.content?.data || {};
+    if (data.kind === "prn_followup" && data.logId != null) {
+      router.push({ pathname: "/(tabs)/medications", params: { helpedLogId: String(data.logId) } });
+    } else if (data.kind === "refill" && data.medicationId != null) {
+      router.push({ pathname: "/(tabs)/medications", params: { medId: String(data.medicationId) } });
+    }
+    // every other kind keeps today's behaviour: the app simply opens
+  };
+
+  useEffect(() => {
+    if (isLoading || !user) return;
+    route(lastResponse);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastResponse, user, isLoading]);
+
+  useEffect(() => {
+    if (isLoading || !user) return undefined;
+    const sub = Notifications.addNotificationResponseReceivedListener(route);
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isLoading]);
+
+  return null;
+}
+
 export const unstable_settings = {
   initialRouteName: "(tabs)",
 };
@@ -76,6 +125,7 @@ export default function RootLayout() {
       <AuthProvider>
         <ErrorBoundary>
           <AuthGate />
+          <NotificationRouter />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen
               name="checkin"

@@ -12,6 +12,14 @@ import Avatar from "../components/Avatar";
 import MilestoneCelebration from "../components/MilestoneCelebration";
 import WelcomeModal from "../components/WelcomeModal";
 import { ConfirmDialog, PLUM_TINT, SOFT_ERROR } from "../components/FormModal";
+import FlaresModal from "../components/FlaresModal";
+import { flareSinceLabel, flareCardLabel, localToday } from "../utils/flareHelpers";
+
+// Mirrors NOTE_MAX in server/lib/checkInNote.js, which is the authority.
+const NOTE_MAX = 280;
+const NOTE_COUNTER_FROM = 240;
+
+const FLARE_CARD_BG = "rgba(52,38,86,0.98)";
 import AnnouncementCard from "../components/AnnouncementCard";
 import { formatWeatherLine, deviceLocale } from "../utils/weatherFormat";
 import { MILESTONES, totalCheckInDays } from "../utils/milestones";
@@ -53,6 +61,12 @@ function DashboardPage() {
   const [checkInPrefill, setCheckInPrefill] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editingCheckIn, setEditingCheckIn] = useState(null);
+  const [editError, setEditError] = useState("");
+  // Flares are a convenience on this screen, so a failed fetch leaves `flares`
+  // null and the whole block renders nothing — we never offer to start a
+  // second flare without knowing whether one is already going.
+  const [flares, setFlares] = useState(null);
+  const [flareView, setFlareView] = useState(null); // "start" | "ease" | "edit"
 
   const [appointments, setAppointments] = useState([]);
   const [announcement, setAnnouncement] = useState(null);
@@ -89,19 +103,40 @@ function DashboardPage() {
     }
   };
 
+  const fetchFlares = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/flares`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setFlares(res.data.flares || []);
+    } catch (err) {
+      console.error("Failed to fetch flares:", err);
+      setFlares(null);
+    }
+  };
+
+  useEffect(() => {
+    if (token) fetchFlares();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
   const handleUpdate = async (
-    id, painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel, symptoms,
+    id, painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel, symptoms, note,
   ) => {
+    setEditError("");
     try {
       const response = await axios.put(
         `${import.meta.env.VITE_API_URL}/api/checkins/${id}`,
-        { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel, symptoms },
+        { painLevel, moodLevel, energyLevel, anxietyLevel, appetiteLevel, sleepLevel, symptoms, note },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       setCheckIns(checkIns.map((c) => (c.id === id ? response.data.checkIn : c)));
       setEditingCheckIn(null);
     } catch (error) {
       console.error("Error updating check-in:", error);
+      // a rejected note used to vanish into the console while the dialog sat
+      // there looking as though nothing had happened
+      setEditError(error.response?.data?.error || "Couldn't save that change. Please try again.");
     }
   };
 
@@ -338,6 +373,58 @@ function DashboardPage() {
             </button>
           </div>
         )}
+
+        {/* Flares. Nothing renders if the fetch failed (flares === null): better
+            no control than offering to start a second flare blind. */}
+        {flares !== null && (() => {
+          const ongoing = flares.find((f) => !f.endDate);
+          const today = localToday();
+          if (!ongoing) {
+            return (
+              <div className="flex justify-center">
+                <button
+                  onClick={() => setFlareView("start")}
+                  className="text-sm text-white/70 hover:text-white transition-colors min-h-[44px] px-4"
+                >
+                  Having a flare?
+                </button>
+              </div>
+            );
+          }
+          return (
+            <div
+              className="w-full p-4 rounded-2xl flex flex-col gap-3"
+              style={{ background: FLARE_CARD_BG, border: "1px solid rgba(255,255,255,0.18)" }}
+              aria-label={flareCardLabel(ongoing.startDate, today)}
+            >
+              <p
+                className="text-white text-base"
+                style={{ fontFamily: "Playfair Display, Georgia, serif" }}
+              >
+                {flareSinceLabel(ongoing.startDate, today)}
+              </p>
+              {ongoing.note ? (
+                <p className="text-xs text-white/70 truncate">{ongoing.note}</p>
+              ) : null}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setFlareView("ease")}
+                  aria-label="End this flare"
+                  className="px-5 py-2.5 rounded-full text-sm font-bold transition-all hover:opacity-90"
+                  style={{ background: "white", color: "#7C6BAE", minHeight: 44 }}
+                >
+                  It&apos;s eased
+                </button>
+                <button
+                  onClick={() => setFlareView("edit")}
+                  className="text-sm text-white/70 hover:text-white transition-colors min-h-[44px] px-3"
+                >
+                  Edit
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {checkIns.length > 0 && (
           <div className="flex flex-col gap-4">
@@ -614,6 +701,13 @@ function DashboardPage() {
                                 ))}
                               </div>
                             )}
+                            {/* their own words, shown back as written; nothing
+                                renders at all when there is no note */}
+                            {c.note && (
+                              <p className="text-xs italic break-words mt-1" style={{ color: "rgba(255,255,255,0.8)" }}>
+                                {c.note}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="flex-shrink-0 flex flex-col gap-2 self-center">
@@ -808,9 +902,39 @@ function DashboardPage() {
                 })}
               </div>
             </div>
+
+            {/* Note — always shown here, unlike the check-in review: this is an
+                edit form, and an existing note has to be visible to be changed.
+                Emptying the field and saving clears it. */}
+            <div className="mb-4">
+              <label htmlFor="edit-note" className="block text-xs mb-2" style={{ color: "rgba(255,255,255,0.8)" }}>
+                Note
+              </label>
+              <textarea
+                id="edit-note"
+                rows={2}
+                maxLength={NOTE_MAX}
+                value={editingCheckIn.note ?? ""}
+                onChange={(e) => setEditingCheckIn({ ...editingCheckIn, note: e.target.value })}
+                onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+                placeholder="A few words, if you like"
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none placeholder-white/40"
+                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }}
+              />
+              {(editingCheckIn.note ?? "").length >= NOTE_COUNTER_FROM && (
+                <p className="text-[11px] text-right mt-1" style={{ color: "rgba(255,255,255,0.6)" }} aria-live="polite">
+                  {(editingCheckIn.note ?? "").length}/{NOTE_MAX}
+                </p>
+              )}
+            </div>
+
+            {editError && (
+              <p className="text-xs mb-3" style={{ color: SOFT_ERROR }}>{editError}</p>
+            )}
+
             <div className="flex gap-3">
               <button
-                onClick={() => setEditingCheckIn(null)}
+                onClick={() => { setEditError(""); setEditingCheckIn(null); }}
                 className="flex-1 py-2 rounded-full text-sm"
                 style={{ background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.8)" }}
               >
@@ -827,6 +951,8 @@ function DashboardPage() {
                     editingCheckIn.appetiteLevel,
                     editingCheckIn.sleepLevel,
                     editingCheckIn.symptoms?.length > 0 ? editingCheckIn.symptoms : null,
+                    // always sent, so emptying the field clears the note
+                    (editingCheckIn.note ?? "").trim() || null,
                   )
                 }
                 className="flex-1 py-2 rounded-full text-sm text-white"
@@ -837,6 +963,18 @@ function DashboardPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {flareView && (
+        <FlaresModal
+          open
+          mode={flareView}
+          flare={(flares || []).find((f) => !f.endDate) || null}
+          flares={flares || []}
+          token={token}
+          onClose={() => setFlareView(null)}
+          onChanged={fetchFlares}
+        />
       )}
 
       {/* check-in modal */}

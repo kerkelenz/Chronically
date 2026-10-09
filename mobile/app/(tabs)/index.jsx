@@ -3,6 +3,9 @@ import {
   View,
   Text,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  TextInput,
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
@@ -13,7 +16,13 @@ import {
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../../components/ScreenBackground";
-import { PLUM_TINT } from "../../components/FormSheet";
+import { PLUM_TINT, SOFT_ERROR } from "../../components/FormSheet";
+import FlaresSheet from "../../components/FlaresSheet";
+import { flareSinceLabel, flareCardLabel, localToday } from "../../theme/flareHelpers";
+
+// Mirrors NOTE_MAX in server/lib/checkInNote.js, which is the authority.
+const NOTE_MAX = 280;
+const NOTE_COUNTER_FROM = 240;
 import CircularDial from "../../components/CircularDial";
 import Avatar from "../../components/Avatar";
 import { useAuth } from "../../context/AuthContext";
@@ -44,6 +53,7 @@ const BAR_COLORS = {
 
 function CheckInRow({ checkIn, onEdit, onDelete, isLatest }) {
   const symptoms = Array.isArray(checkIn.symptoms) ? checkIn.symptoms : [];
+  const note = typeof checkIn.note === "string" ? checkIn.note.trim() : "";
   const time = new Date(checkIn.createdAt).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -104,6 +114,8 @@ function CheckInRow({ checkIn, onEdit, onDelete, isLatest }) {
           ))}
         </View>
       )}
+      {/* their own words, shown back as written; nothing renders when absent */}
+      {note ? <Text style={styles.rowNote}>{note}</Text> : null}
     </View>
   );
 }
@@ -133,6 +145,11 @@ export default function DashboardScreen() {
   const [announcement, setAnnouncement] = useState(null);
   const [weather, setWeather] = useState([]);
   const [editingCheckIn, setEditingCheckIn] = useState(null);
+  const [editError, setEditError] = useState("");
+  // null means "we don't know" — the fetch failed, so the block renders nothing
+  // rather than offering to start a second flare blind.
+  const [flares, setFlares] = useState(null);
+  const [flareView, setFlareView] = useState(null); // "start" | "ease" | "edit"
   const [celebration, setCelebration] = useState(null);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showPrimer, setShowPrimer] = useState(false);
@@ -148,18 +165,21 @@ export default function DashboardScreen() {
 
       (async () => {
         try {
-          const [checkInsRes, apptRes, ann] = await Promise.all([
+          const [checkInsRes, apptRes, ann, flareList] = await Promise.all([
             api.get("/api/checkins"),
             api.get("/api/appointments"),
             // Chronicle's card is a bonus — it must never turn the dashboard
             // into an error state
             api.get("/api/announcements").then((r) => r.data.announcement).catch(() => null),
+            // same for flares: a failure leaves the block out entirely
+            api.get("/api/flares").then((r) => r.data.flares || []).catch(() => null),
           ]);
           if (active) {
             setCheckIns(checkInsRes.data.checkIns || []);
             setWeather(checkInsRes.data.weather || []);
             setAppointments(apptRes.data.appointments || []);
             setAnnouncement(ann || null);
+            setFlares(flareList);
             setError(null);
             isFirstLoadRef.current = false;
           }
@@ -220,18 +240,29 @@ export default function DashboardScreen() {
       .catch(() => {});
   }, [checkIns, user, loading]);
 
+  async function refetchFlares() {
+    try {
+      const r = await api.get("/api/flares");
+      setFlares(r.data.flares || []);
+    } catch {
+      setFlares(null);
+    }
+  }
+
   async function onRefresh() {
     setRefreshing(true);
     try {
-      const [checkInsRes, apptRes, ann] = await Promise.all([
+      const [checkInsRes, apptRes, ann, flareList] = await Promise.all([
         api.get("/api/checkins"),
         api.get("/api/appointments"),
         api.get("/api/announcements").then((r) => r.data.announcement).catch(() => null),
+        api.get("/api/flares").then((r) => r.data.flares || []).catch(() => null),
       ]);
       setCheckIns(checkInsRes.data.checkIns || []);
       setWeather(checkInsRes.data.weather || []);
       setAppointments(apptRes.data.appointments || []);
       setAnnouncement(ann || null);
+      setFlares(flareList);
       setError(null);
     } catch {
       setError("Could not load your data. Pull down to try again.");
@@ -269,6 +300,7 @@ export default function DashboardScreen() {
 
   const handleUpdateCheckIn = async () => {
     if (!editingCheckIn) return;
+    setEditError("");
     try {
       const res = await api.put(`/api/checkins/${editingCheckIn.id}`, {
         painLevel: editingCheckIn.painLevel,
@@ -279,6 +311,8 @@ export default function DashboardScreen() {
         sleepLevel: editingCheckIn.sleepLevel,
         symptoms:
           editingCheckIn.symptoms?.length > 0 ? editingCheckIn.symptoms : null,
+        // always sent, so emptying the field clears the note
+        note: (editingCheckIn.note ?? "").trim() || null,
       });
       setCheckIns((prev) =>
         prev.map((c) => (c.id === editingCheckIn.id ? res.data.checkIn : c)),
@@ -286,6 +320,9 @@ export default function DashboardScreen() {
       setEditingCheckIn(null);
     } catch (e) {
       console.error("Update check-in failed:", e);
+      // a rejected note used to vanish into the console while the dialog sat
+      // there looking as though nothing had happened
+      setEditError(e.response?.data?.error || "Couldn't save that change. Please try again.");
     }
   };
 
@@ -497,6 +534,65 @@ export default function DashboardScreen() {
           </View>
         )}
 
+        {/* Flares. Hidden while loading or in the error state, and hidden
+            entirely if the fetch failed — better no control than offering to
+            start a second flare blind. */}
+        {!error && !loading && flares !== null ? (
+          (() => {
+            const ongoing = flares.find((f) => !f.endDate);
+            const today = localToday();
+            if (!ongoing) {
+              return (
+                <View style={styles.flareLinkWrap}>
+                  <TouchableOpacity
+                    onPress={() => setFlareView("start")}
+                    style={styles.flareLinkBtn}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Having a flare?"
+                  >
+                    <Text style={styles.flareLinkText}>Having a flare?</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            }
+            return (
+              <View
+                style={styles.flareCard}
+                accessible
+                accessibilityLabel={flareCardLabel(ongoing.startDate, today)}
+              >
+                <Text style={styles.flareCardTitle}>
+                  {flareSinceLabel(ongoing.startDate, today)}
+                </Text>
+                {ongoing.note ? (
+                  <Text style={styles.flareCardNote} numberOfLines={1}>{ongoing.note}</Text>
+                ) : null}
+                <View style={styles.flareCardActions}>
+                  <TouchableOpacity
+                    style={styles.flareEasedBtn}
+                    onPress={() => setFlareView("ease")}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="End this flare"
+                  >
+                    <Text style={styles.flareEasedText}>It&apos;s eased</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.flareEditBtn}
+                    onPress={() => setFlareView("edit")}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Edit this flare"
+                  >
+                    <Text style={styles.flareEditText}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })()
+        ) : null}
+
         {checkIns.length > 0 && (
           <>
             {/* 14-day dials */}
@@ -613,7 +709,12 @@ export default function DashboardScreen() {
         animationType="fade"
         onRequestClose={() => setEditingCheckIn(null)}
       >
-        <View style={styles.modalOverlay}>
+        {/* this dialog predates the kits and had no keyboard avoidance; the
+            note field is the first thing in it that opens a keyboard */}
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
           <View style={styles.editModalCard}>
             <ScrollView
               contentContainerStyle={{ gap: 14, padding: 20 }}
@@ -684,10 +785,37 @@ export default function DashboardScreen() {
                   })}
                 </View>
               </View>
+
+              {/* Note — always shown here, unlike the check-in review: this is
+                  an edit form, and an existing note has to be visible to be
+                  changed. Emptying the field and saving clears it. */}
+              <View>
+                <Text style={styles.editLabel}>Note</Text>
+                <TextInput
+                  style={styles.editNoteInput}
+                  value={editingCheckIn?.note ?? ""}
+                  onChangeText={(v) => setEditingCheckIn((prev) => ({ ...prev, note: v }))}
+                  multiline
+                  maxLength={NOTE_MAX}
+                  blurOnSubmit
+                  returnKeyType="done"
+                  placeholder="A few words, if you like"
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  accessibilityLabel="Note"
+                />
+                {(editingCheckIn?.note ?? "").length >= NOTE_COUNTER_FROM ? (
+                  <Text style={styles.editNoteCounter} accessibilityLiveRegion="polite">
+                    {(editingCheckIn?.note ?? "").length}/{NOTE_MAX}
+                  </Text>
+                ) : null}
+              </View>
+
+              {editError ? <Text style={styles.editErrorText}>{editError}</Text> : null}
+
               <View style={styles.editActions}>
                 <TouchableOpacity
                   style={styles.editCancelBtn}
-                  onPress={() => setEditingCheckIn(null)}
+                  onPress={() => { setEditError(""); setEditingCheckIn(null); }}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.editCancelText}>Cancel</Text>
@@ -702,7 +830,7 @@ export default function DashboardScreen() {
               </View>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
@@ -715,6 +843,17 @@ export default function DashboardScreen() {
           onDismiss={() => setCelebration(null)}
         />
       )}
+
+      {flareView ? (
+        <FlaresSheet
+          visible
+          mode={flareView}
+          flare={(flares || []).find((f) => !f.endDate) || null}
+          flares={flares || []}
+          onClose={() => setFlareView(null)}
+          onChanged={refetchFlares}
+        />
+      ) : null}
 
       <ConfirmDialog
         visible={!!deleteCheckInId}
@@ -1045,6 +1184,40 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.8)",
     marginBottom: 8,
   },
+  editNoteInput: {
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 10,
+    minHeight: 58,
+    fontFamily: "Lato_400Regular",
+    fontSize: 15,
+    color: "white",
+    textAlignVertical: "top",
+  },
+  editNoteCounter: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.6)",
+    textAlign: "right",
+    marginTop: 4,
+  },
+  editErrorText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: SOFT_ERROR,
+  },
+  // the note as written, under the row's symptom icons
+  rowNote: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    fontStyle: "italic",
+    color: "rgba(255,255,255,0.8)",
+    marginTop: 4,
+  },
   levelRow: { flexDirection: "row", gap: 6 },
   levelBtn: {
     flex: 1,
@@ -1102,6 +1275,44 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     gap: 8,
   },
+  // a quiet text link, not a second button competing with the check-in prompt
+  flareLinkWrap: { alignItems: "center" },
+  flareLinkBtn: { minHeight: 44, justifyContent: "center", paddingHorizontal: 16 },
+  flareLinkText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.7)",
+  },
+  flareCard: {
+    backgroundColor: "rgba(52,38,86,0.98)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    borderRadius: 18,
+    padding: 16,
+    gap: 10,
+  },
+  flareCardTitle: {
+    fontFamily: "PlayfairDisplay_500Medium",
+    fontSize: 17,
+    color: "white",
+  },
+  flareCardNote: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.7)",
+  },
+  flareCardActions: { flexDirection: "row", alignItems: "center", gap: 6 },
+  flareEasedBtn: {
+    backgroundColor: "white",
+    borderRadius: 999,
+    paddingHorizontal: 20,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  flareEasedText: { fontFamily: "Lato_700Bold", fontSize: 14, color: "#7C6BAE" },
+  flareEditBtn: { minHeight: 44, justifyContent: "center", paddingHorizontal: 12 },
+  flareEditText: { fontFamily: "Lato_400Regular", fontSize: 14, color: "rgba(255,255,255,0.7)" },
   recheckText: {
     fontFamily: "Lato_400Regular",
     fontSize: 14,

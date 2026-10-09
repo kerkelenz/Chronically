@@ -3,6 +3,8 @@ import {
   View,
   Text,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
   TouchableOpacity,
   TextInput,
   StyleSheet,
@@ -13,6 +15,14 @@ import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../components/ScreenBackground";
 import { SOFT_ERROR } from "../components/FormSheet";
+
+// Mirrors NOTE_MAX in server/lib/checkInNote.js, which is the authority and has
+// the test. RN's maxLength counts the same UTF-16 units the server measures, so
+// the field cannot hold a note the API would then refuse.
+const NOTE_MAX = 280;
+// The counter stays hidden until the limit is close; shown from the first
+// keystroke it would turn a note into a word budget.
+const NOTE_COUNTER_FROM = 240;
 import LavenderConfetti from "../components/LavenderConfetti";
 import LevelButtons from "../components/LevelButtons";
 import api from "../lib/api";
@@ -280,6 +290,12 @@ export default function CheckInScreen() {
   // value returns to the review instead of marching forward through the flow
   const [returnToReview, setReturnToReview] = useState(false);
   const [sleepSkipped, setSleepSkipped] = useState(false);
+  // Today's note belongs to today, so it is never copied from the prefill — the
+  // same reasoning that leaves sleep out of the quick path.
+  const [note, setNote] = useState("");
+  const [noteOpen, setNoteOpen] = useState(false);
+  // open once asked for, and stay open if there is already text to show
+  const noteExpanded = noteOpen || note.trim() !== "";
   const [recentSymptoms, setRecentSymptoms] = useState([]);
   const [symptomSearch, setSymptomSearch] = useState("");
   const [error, setError] = useState("");
@@ -483,6 +499,7 @@ export default function CheckInScreen() {
         sleepLevel,
         symptoms: symptoms.length > 0 ? symptoms : null,
         date: today,
+        note: note.trim() || null,
       });
       track("checkin_completed");
       setStep(8);
@@ -530,10 +547,18 @@ export default function CheckInScreen() {
             ) : null}
           </Animated.View>
         ) : (
+          // The note field sits low on the review step and this screen had no
+          // keyboard avoidance at all. Same behaviour choice BottomSheet makes:
+          // iOS needs padding, Android resizes the window itself.
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+          >
           <ScrollView
             style={{ flex: 1 }}
             contentContainerStyle={{ flexGrow: 1 }}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.outerWrap}>
@@ -775,6 +800,55 @@ export default function CheckInScreen() {
                       </TouchableOpacity>
                     )}
 
+                    {/* Optional note. Collapsed until asked for — nothing here
+                        should read as a prompt to explain yourself. */}
+                    {noteExpanded ? (
+                      <View style={styles.noteBox}>
+                        <Text style={styles.reviewLabel}>Anything else about today?</Text>
+                        <TextInput
+                          style={styles.noteInput}
+                          value={note}
+                          onChangeText={setNote}
+                          multiline
+                          maxLength={NOTE_MAX}
+                          blurOnSubmit
+                          returnKeyType="done"
+                          autoFocus
+                          placeholder="A few words, if you like"
+                          placeholderTextColor="rgba(255,255,255,0.4)"
+                          accessibilityLabel="Anything else about today?"
+                        />
+                        <View style={styles.noteFooter}>
+                          <TouchableOpacity
+                            onPress={() => { setNote(""); setNoteOpen(false); }}
+                            style={styles.noteRemoveBtn}
+                            activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel="Remove note"
+                          >
+                            <Text style={styles.noteRemoveText}>Remove</Text>
+                          </TouchableOpacity>
+                          {/* only once the limit is near — a counter from the
+                              first keystroke would turn a note into a budget */}
+                          {note.length >= NOTE_COUNTER_FROM ? (
+                            <Text style={styles.noteCounter} accessibilityLiveRegion="polite">
+                              {note.length}/{NOTE_MAX}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => setNoteOpen(true)}
+                        style={styles.addNoteBtn}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Add a note to this check-in"
+                      >
+                        <Text style={styles.addSymptomsLink}>+ add a note</Text>
+                      </TouchableOpacity>
+                    )}
+
                     <TouchableOpacity
                       style={[
                         styles.primaryBtn,
@@ -841,6 +915,7 @@ export default function CheckInScreen() {
               )}
             </View>
           </ScrollView>
+          </KeyboardAvoidingView>
         )}
         {step === 8 && <LavenderConfetti />}
       </ScreenBackground>
@@ -1078,6 +1153,54 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "rgba(255,255,255,0.55)",
     textAlign: "center",
+  },
+  // the collapsed link needs a real target, not just its text box
+  addNoteBtn: {
+    minHeight: 44,
+    justifyContent: "center",
+  },
+  // matches reviewSymptomsBox so the note reads as one of the review rows
+  noteBox: {
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    gap: 8,
+  },
+  noteInput: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 10,
+    minHeight: 58,
+    fontFamily: "Lato_400Regular",
+    fontSize: 15,
+    color: "white",
+    textAlignVertical: "top",
+  },
+  noteFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  noteRemoveBtn: {
+    minHeight: 44,
+    justifyContent: "center",
+    paddingRight: 8,
+  },
+  noteRemoveText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.55)",
+  },
+  noteCounter: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.6)",
   },
   skipLink: {
     fontFamily: "Lato_400Regular",

@@ -23,6 +23,20 @@ const Medication = sequelize.define("Medication", {
   // would be worse than saying nothing.
   removalOffsetHours: { type: DataTypes.INTEGER, allowNull: true },
   active:         { type: DataTypes.BOOLEAN, defaultValue: true },
+
+  // ── supply ──────────────────────────────────────────────────────────
+  // What was counted, and when it was counted. Remaining supply is never
+  // stored: it is supplyCount minus what has been logged since
+  // supplyUpdatedAt, computed at read time — the same principle as missed
+  // doses. A running counter would drift the first time a log was edited.
+  supplyCount:        { type: DataTypes.INTEGER, allowNull: true },  // null = not tracking
+  // Server-set only; never accepted from a client, or a stale app could move
+  // the start of the period and silently change the arithmetic.
+  supplyUpdatedAt:    { type: DataTypes.DATE, allowNull: true },
+  // FLOAT rather than DECIMAL: pg returns DECIMAL as a string, and this is
+  // multiplied in the supply maths. Halves allow half-tablet doses.
+  unitsPerDose:       { type: DataTypes.FLOAT, allowNull: false, defaultValue: 1 },
+  refillReminderDays: { type: DataTypes.INTEGER, allowNull: true, defaultValue: 7 },  // null = no reminder
 });
 
 User.hasMany(Medication, { foreignKey: "userId", onDelete: "CASCADE" });

@@ -58,7 +58,7 @@ export default function ProfileScreen() {
   const [success, setSuccess] = useState("");
 
   // ── Notifications ─────────────────────────────────────────────────────────
-  const DEFAULT_PREFS = { enabled: true, medReminders: true, checkinNudge: true };
+  const DEFAULT_PREFS = { enabled: true, medReminders: true, checkinNudge: true, refillReminders: true, prnFollowups: true };
   const [prefs, setPrefs] = useState({ ...DEFAULT_PREFS, ...(user?.notificationPrefs || {}) });
   const [permission, setPermission] = useState("undetermined");
   const [prefsBusy, setPrefsBusy] = useState(false);
@@ -434,6 +434,7 @@ export default function ProfileScreen() {
                     </Text>
                   </View>
                   <Switch
+                    accessibilityLabel="Medication reminders"
                     value={prefs.medReminders !== false}
                     onValueChange={(v) => savePrefs({ medReminders: v })}
                     disabled={prefsBusy}
@@ -443,7 +444,7 @@ export default function ProfileScreen() {
                   />
                 </View>
 
-                <View style={[styles.toggleRow, styles.toggleRowNested, styles.toggleRowLast]}>
+                <View style={[styles.toggleRow, styles.toggleRowNested]}>
                   <View style={{ flex: 1, paddingRight: 12 }}>
                     <Text style={styles.toggleLabel}>Check-in nudge</Text>
                     <Text style={styles.toggleHint}>
@@ -451,11 +452,48 @@ export default function ProfileScreen() {
                     </Text>
                   </View>
                   <Switch
+                    accessibilityLabel="Check-in nudge"
                     value={prefs.checkinNudge !== false}
                     onValueChange={(v) => savePrefs({ checkinNudge: v })}
                     disabled={prefsBusy}
                     trackColor={{ false: "rgba(255,255,255,0.25)", true: "#B9A9E0" }}
                     thumbColor={prefs.checkinNudge !== false ? "#FFFFFF" : "#EFEAF7"}
+                    ios_backgroundColor="rgba(255,255,255,0.25)"
+                  />
+                </View>
+
+                <View style={[styles.toggleRow, styles.toggleRowNested]}>
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={styles.toggleLabel}>Refill reminders</Text>
+                    <Text style={styles.toggleHint}>
+                      When your count says a medication is running low.
+                    </Text>
+                  </View>
+                  <Switch
+                    accessibilityLabel="Refill reminders"
+                    value={prefs.refillReminders !== false}
+                    onValueChange={(v) => savePrefs({ refillReminders: v })}
+                    disabled={prefsBusy}
+                    trackColor={{ false: "rgba(255,255,255,0.25)", true: "#B9A9E0" }}
+                    thumbColor={prefs.refillReminders !== false ? "#FFFFFF" : "#EFEAF7"}
+                    ios_backgroundColor="rgba(255,255,255,0.25)"
+                  />
+                </View>
+
+                <View style={[styles.toggleRow, styles.toggleRowNested, styles.toggleRowLast]}>
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={styles.toggleLabel}>As-needed follow-up</Text>
+                    <Text style={styles.toggleHint}>
+                      About an hour after an as-needed dose, a quick “did it help?”
+                    </Text>
+                  </View>
+                  <Switch
+                    accessibilityLabel="As-needed follow-up"
+                    value={prefs.prnFollowups !== false}
+                    onValueChange={(v) => savePrefs({ prnFollowups: v })}
+                    disabled={prefsBusy}
+                    trackColor={{ false: "rgba(255,255,255,0.25)", true: "#B9A9E0" }}
+                    thumbColor={prefs.prnFollowups !== false ? "#FFFFFF" : "#EFEAF7"}
                     ios_backgroundColor="rgba(255,255,255,0.25)"
                   />
                 </View>

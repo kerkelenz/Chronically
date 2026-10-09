@@ -89,7 +89,7 @@ const User = sequelize.define("User", {
   notificationPrefs: {
     type: DataTypes.JSON,
     allowNull: false,
-    defaultValue: { enabled: true, medReminders: true, checkinNudge: true },
+    defaultValue: { enabled: true, medReminders: true, checkinNudge: true, refillReminders: true, prnFollowups: true },
   },
   // Grants access to the admin endpoints (announcement authoring). Only ever
   // set directly in the database — nothing in the app can raise it, and the

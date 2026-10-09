@@ -90,7 +90,7 @@ function ProfilePage() {
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   // ── Notification preferences ────────────────────────────────────────────
-  const DEFAULT_PREFS = { enabled: true, medReminders: true, checkinNudge: true };
+  const DEFAULT_PREFS = { enabled: true, medReminders: true, checkinNudge: true, refillReminders: true, prnFollowups: true };
   const [prefs, setPrefs] = useState({ ...DEFAULT_PREFS, ...(user?.notificationPrefs || {}) });
   const [prefsBusy, setPrefsBusy] = useState(false);
 
@@ -455,7 +455,7 @@ function ProfilePage() {
 
           <ToggleRow
             label="Notifications"
-            hint="Medication reminders and the evening check-in nudge."
+            hint="Medication reminders, refills and the evening check-in nudge."
             checked={prefs.enabled !== false}
             disabled={prefsBusy}
             onChange={(v) => savePrefs({ enabled: v })}
@@ -472,12 +472,28 @@ function ProfilePage() {
               />
               <ToggleRow
                 nested
-                last
                 label="Check-in nudge"
                 hint="One gentle reminder in the evening, only if you haven't logged."
                 checked={prefs.checkinNudge !== false}
                 disabled={prefsBusy}
                 onChange={(v) => savePrefs({ checkinNudge: v })}
+              />
+              <ToggleRow
+                nested
+                label="Refill reminders"
+                hint="When your count says a medication is running low."
+                checked={prefs.refillReminders !== false}
+                disabled={prefsBusy}
+                onChange={(v) => savePrefs({ refillReminders: v })}
+              />
+              <ToggleRow
+                nested
+                last
+                label="As-needed follow-up"
+                hint={"About an hour after an as-needed dose, a quick “did it help?”"}
+                checked={prefs.prnFollowups !== false}
+                disabled={prefsBusy}
+                onChange={(v) => savePrefs({ prnFollowups: v })}
               />
             </>
           )}

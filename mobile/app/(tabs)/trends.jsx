@@ -15,6 +15,7 @@ import MetricsLineChart from "../../components/MetricsLineChart";
 import AdherenceBars from "../../components/AdherenceBars";
 import AdherenceLineChart from "../../components/AdherenceLineChart";
 import api from "../../lib/api";
+import FlaresSheet from "../../components/FlaresSheet";
 import { adherenceStats } from "../../theme/medications";
 import ChronicleMark from "../../components/ChronicleMark";
 
@@ -97,6 +98,10 @@ function getAdherenceView(medications, medLogs, timeframe) {
 
 export default function TrendsScreen() {
   const { width } = useWindowDimensions();
+  // Flares live on Trends because wave 2 draws them as bands over these charts;
+  // the list sits beside the thing it will annotate.
+  const [flares, setFlares] = useState([]);
+  const [showFlares, setShowFlares] = useState(false);
   const [checkIns, setCheckIns] = useState([]);
   const [medications, setMedications] = useState([]);
   const [medLogs, setMedLogs] = useState([]);
@@ -106,6 +111,15 @@ export default function TrendsScreen() {
   const [timeframe, setTimeframe] = useState(2);
   const [insights, setInsights] = useState(null);
   const isFirstLoadRef = useRef(true);
+
+  async function fetchFlares() {
+    try {
+      const r = await api.get("/api/flares");
+      setFlares(r.data.flares || []);
+    } catch {
+      // a bonus list; never turn the screen into an error state over it
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -215,7 +229,18 @@ export default function TrendsScreen() {
       >
         {/* Page header + timeframe pills (shared by all charts) */}
         <View style={styles.pageHeader}>
-          <Text style={styles.pageTitle}>Trends</Text>
+          <View style={styles.pageTitleRow}>
+            <Text style={styles.pageTitle}>Trends</Text>
+            <TouchableOpacity
+              onPress={() => { fetchFlares(); setShowFlares(true); }}
+              style={styles.flareLinkBtn}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Your flares"
+            >
+              <Text style={styles.flareLinkText}>Your flares</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.timeframePills}>
             {TIMEFRAME_TABS.map((t) => (
               <TouchableOpacity
@@ -327,6 +352,16 @@ export default function TrendsScreen() {
           </>
         )}
       </ScrollView>
+
+      {showFlares ? (
+        <FlaresSheet
+          visible
+          mode="list"
+          flares={flares}
+          onClose={() => setShowFlares(false)}
+          onChanged={fetchFlares}
+        />
+      ) : null}
     </ScreenBackground>
   );
 }
@@ -367,6 +402,17 @@ const styles = StyleSheet.create({
     fontFamily: "PlayfairDisplay_500Medium",
     fontSize: 28,
     color: "white",
+  },
+  pageTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  flareLinkBtn: { minHeight: 44, justifyContent: "center", paddingLeft: 12 },
+  flareLinkText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.7)",
   },
   timeframePills: {
     flexDirection: "row",

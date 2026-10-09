@@ -201,6 +201,42 @@ function removalsInWindow(medication, takenLogs, windowStart, windowEnd) {
   return out;
 }
 
+
+/**
+ * When to ask "did it help?" about an as-needed dose.
+ *
+ * Due an hour after the dose, and only one question per run of doses: somebody
+ * who takes three in an hour because the first two did nothing should not get
+ * three notifications. The rule is that a dose is skipped if a *later* dose was
+ * taken before this one's question was due — so the question that survives is
+ * the one about the last dose of the run.
+ *
+ * Already-rated doses never qualify, and a log with no takenAt has no anchor to
+ * count an hour from.
+ */
+function prnFollowupsInWindow(medication, takenLogs, windowStart, windowEnd, delayMinutes = 60) {
+  if (resolvePattern(medication).kind !== "as_needed") return [];
+  const delayMs = delayMinutes * 60 * 1000;
+
+  const withTime = takenLogs
+    .filter((l) => l.takenAt && l.status === "taken")
+    .map((l) => ({ log: l, at: new Date(l.takenAt).getTime() }))
+    .filter((x) => !Number.isNaN(x.at))
+    .sort((a, b) => a.at - b.at);
+
+  const out = [];
+  for (let i = 0; i < withTime.length; i++) {
+    const { log, at } = withTime[i];
+    if (log.helped != null) continue;
+    const due = new Date(at + delayMs);
+    // superseded by a later dose taken before this question was due
+    const supersededBy = withTime.slice(i + 1).some((later) => later.at < due.getTime());
+    if (supersededBy) continue;
+    if (due >= windowStart && due < windowEnd) out.push({ log, due });
+  }
+  return out;
+}
+
 module.exports = {
   DEFAULT_TIMEZONE,
   isValidTimezone,
@@ -210,4 +246,5 @@ module.exports = {
   isMedicationDueOn,
   dueTimesInWindow,
   removalsInWindow,
+  prnFollowupsInWindow,
 };

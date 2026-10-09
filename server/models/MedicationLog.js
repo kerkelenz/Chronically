@@ -11,6 +11,10 @@ const MedicationLog = sequelize.define("MedicationLog", {
   takenAt:       { type: DataTypes.DATE, allowNull: true },
   status:        { type: DataTypes.ENUM("taken", "skipped", "missed"), allowNull: false },
   skipReason:    { type: DataTypes.STRING, allowNull: true },
+  // The user's own note on whether an as-needed dose helped. Null means they
+  // did not say — never "no", never counted, never turned into a verdict about
+  // whether the medication works.
+  helped:        { type: DataTypes.ENUM("yes", "a_little", "no"), allowNull: true },
 }, {
   // logs are read per user and day (Today checklist, adherence dots)
   indexes: [{ fields: ["userId", "date"] }],

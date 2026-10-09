@@ -60,6 +60,14 @@ const CheckIn = sequelize.define("CheckIn", {
     type: DataTypes.JSON,
     allowNull: true,
   },
+  // One optional line of the user's own words — the context a 1-to-5 scale
+  // cannot hold. At most 280 characters (enforced in lib/checkInNote.js), null
+  // when not given, and deliberately never read by the insight engine: see the
+  // explicit `attributes` list in controllers/insightController.js.
+  note: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
   // storing just the date without time - we only need to know which day the check-in was for
   date: {
     type: DataTypes.DATEONLY,
