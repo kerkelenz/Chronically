@@ -8,7 +8,7 @@ import { useAuth } from "../hooks/useAuth";
 import { track } from "../lib/analytics";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import HomeLogo from "../components/HomeLogo";
-import FormModal, { ModalFooter } from "../components/FormModal";
+import FormModal, { ModalFooter, labelClass, ConfirmDialog } from "../components/FormModal";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -61,13 +61,68 @@ function formatMonthLabel(month) {
 }
 
 // the calendar starts expanded; collapsing it is remembered across visits
+// Sunday-first, to match buildMonthGrid. Never mix the two conventions.
+function weekStartOf(dateStr) {
+  const d = parseDateStr(dateStr);
+  d.setDate(d.getDate() - d.getDay());
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// whole days, via local noon like parseDateStr, so a clock change cannot shift it
+function shiftDateStr(dateStr, delta) {
+  const d = parseDateStr(dateStr);
+  d.setDate(d.getDate() + delta);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// "Oct 4 - 10", "Sep 27 - Oct 3", "Dec 27, 2026 - Jan 2, 2027"
+function formatWeekLabel(startStr) {
+  const start = parseDateStr(startStr);
+  const end = parseDateStr(shiftDateStr(startStr, 6));
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const thisYear = new Date().getFullYear();
+  const withYear = !sameYear || start.getFullYear() !== thisYear;
+
+  const left = start.toLocaleDateString("en-US",
+    withYear ? { month: "short", day: "numeric", year: "numeric" } : { month: "short", day: "numeric" });
+  const right = end.toLocaleDateString("en-US",
+    withYear
+      ? { month: "short", day: "numeric", year: "numeric" }
+      : start.getMonth() === end.getMonth()
+        ? { day: "numeric" }
+        : { month: "short", day: "numeric" });
+  return `${left} \u2013 ${right}`;
+}
+
 const CAL_OPEN_KEY = "spoonCalendarOpen";
+const CAL_MODE_KEY = "spoonCalendarMode";
+
+// Today's card only appears in the evening: asking at 9am how the day went is
+// a question nobody can answer yet.
+const REFLECTION_OPENS_HOUR = 17;
+const REFLECTION_NOTE_MAX = 280;
+const REFLECTION_COUNTER_FROM = 240;
+const REFLECTION_CHOICES = [
+  { value: "lighter", label: "Lighter than planned" },
+  { value: "about_right", label: "About right" },
+  { value: "heavier", label: "Heavier than planned" },
+];
 
 function readCalOpenPref() {
   try {
     return localStorage.getItem(CAL_OPEN_KEY) !== "0";
   } catch {
     return true;
+  }
+}
+
+// Week is the default: seven days with real numbers answers "how is this week
+// going" better than a month of 3px bars. The choice is remembered per device.
+function readCalModePref() {
+  try {
+    return localStorage.getItem(CAL_MODE_KEY) === "month" ? "month" : "week";
+  } catch {
+    return "week";
   }
 }
 
@@ -321,10 +376,169 @@ function MonthCalendar({
   );
 }
 
-function LegendItem({ color, label }) {
+/**
+ * Seven days at once, Sunday to Saturday. The month grid only has room for a
+ * 3px bar; a week has room for the numbers, which is the whole reason this mode
+ * exists. Colours and the bar come from CalendarDay rather than a new palette.
+ *
+ * A day with no plan shows only its date: no 0/12, no dash. Null is nothing.
+ */
+function WeekStrip({
+  weekStart,
+  weekDays,
+  selectedDate,
+  today,
+  loading,
+  onSelectDate,
+  onMoveWeek,
+  onJumpToWeek,
+}) {
+  const dates = Array.from({ length: 7 }, (_, i) => shiftDateStr(weekStart, i));
+  const viewingOtherWeek = weekStart !== weekStartOf(today);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <button
+          onClick={() => onMoveWeek(-1)}
+          aria-label="Previous week"
+          className="p-1.5 rounded-full hover:opacity-70 transition-opacity"
+          style={{ background: "rgba(255,255,255,0.15)" }}
+        >
+          <FiChevronLeft size={14} color="white" />
+        </button>
+        <div className="flex items-center gap-2">
+          <span
+            className="text-white text-sm"
+            style={{ fontFamily: "Playfair Display, Georgia, serif" }}
+          >
+            {formatWeekLabel(weekStart)}
+          </span>
+          {viewingOtherWeek && (
+            <button
+              onClick={onJumpToWeek}
+              className="px-2 py-0.5 rounded-full text-xs hover:opacity-80 transition-opacity"
+              style={{ background: "rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.85)" }}
+            >
+              This week
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => onMoveWeek(1)}
+          aria-label="Next week"
+          className="p-1.5 rounded-full hover:opacity-70 transition-opacity"
+          style={{ background: "rgba(255,255,255,0.15)" }}
+        >
+          <FiChevronRight size={14} color="white" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1" style={{ opacity: loading ? 0.5 : 1 }}>
+        {dates.map((date, i) => (
+          <WeekCell
+            key={date}
+            date={date}
+            initial={WEEKDAY_INITIALS[i]}
+            summary={weekDays?.[date]}
+            isSelected={date === selectedDate}
+            isToday={date === today}
+            isFuture={date > today}
+            onSelect={onSelectDate}
+          />
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mt-3">
+        <LegendItem color="white" label="Spoons used" />
+        <LegendItem color="#4F4178" label="Planned ahead" />
+        <LegendItem color="#E6C79A" label="Over budget" />
+        <LegendItem color="#DEC8DA" label="Reflected" dot />
+      </div>
+    </div>
+  );
+}
+
+function WeekCell({ date, initial, summary, isSelected, isToday, isFuture, onSelect }) {
+  const planned = !!summary && summary.planned > 0;
+  const over = planned && summary.budget > 0 && summary.spent > summary.budget;
+  const ratio = planned && summary.budget > 0 ? Math.min(summary.spent / summary.budget, 1) : 0;
+  // a future day cannot have been reflected on, so it never shows the dot
+  const reflected = !!summary && summary.reflection != null && !isFuture;
+
+  const REFLECTION_WORDS = {
+    lighter: "lighter than planned",
+    about_right: "about right",
+    heavier: "heavier than planned",
+  };
+  const label = `${formatFullDate(date)}${
+    planned
+      ? `: ${summary.spent} of ${summary.budget} ${summary.budget === 1 ? "spoon" : "spoons"} ${isFuture ? "planned" : "used"}`
+      : ": nothing planned"
+  }${reflected ? `. You noted it felt ${REFLECTION_WORDS[summary.reflection]}` : ""}`;
+
+  const barColor = over ? "#E6C79A" : isFuture ? "#4F4178" : "white";
+
+  return (
+    <button
+      onClick={() => onSelect(date)}
+      aria-label={label}
+      aria-current={isSelected ? "date" : undefined}
+      title={label}
+      className="flex flex-col items-center justify-start gap-0.5 rounded-lg py-1.5 transition-all hover:opacity-80"
+      style={{
+        minHeight: 72,
+        background: isSelected ? "rgba(255,255,255,0.9)" : "transparent",
+        border: isToday && !isSelected ? "1.5px solid #B7A6D9" : "1.5px solid transparent",
+      }}
+    >
+      <span style={{ fontSize: 10, lineHeight: 1, color: isSelected ? "rgba(124,107,174,0.75)" : "rgba(255,255,255,0.45)" }}>
+        {initial}
+      </span>
+      <span
+        style={{
+          fontSize: 13,
+          lineHeight: 1.3,
+          color: isSelected ? "#7C6BAE" : planned ? "white" : "rgba(255,255,255,0.62)",
+          fontWeight: isToday || isSelected ? 600 : 400,
+        }}
+      >
+        {Number(date.slice(8))}
+      </span>
+      {planned && (
+        <>
+          <span style={{ fontSize: 11, lineHeight: 1.2, color: isSelected ? "#7C6BAE" : "rgba(255,255,255,0.85)" }}>
+            {summary.spent}/{summary.budget}
+          </span>
+          <span
+            style={{
+              width: 18, height: 3, borderRadius: 2, overflow: "hidden",
+              background: isSelected ? "rgba(124,107,174,0.25)" : "rgba(255,255,255,0.22)",
+            }}
+          >
+            <span
+              style={{
+                display: "block", height: "100%",
+                width: `${Math.max(Math.round(ratio * 100), 12)}%`,
+                background: isSelected && !over ? "#7C6BAE" : barColor,
+              }}
+            />
+          </span>
+        </>
+      )}
+      {reflected && (
+        <span style={{ width: 6, height: 6, borderRadius: 3, background: "#DEC8DA", marginTop: 2 }} />
+      )}
+    </button>
+  );
+}
+
+function LegendItem({ color, label, dot }) {
   return (
     <span className="flex items-center gap-1.5">
-      <span style={{ width: 12, height: 3, borderRadius: 2, background: color }} />
+      <span style={dot
+        ? { width: 6, height: 6, borderRadius: 3, background: color }
+        : { width: 12, height: 3, borderRadius: 2, background: color }} />
       <span style={{ fontSize: 10, color: "rgba(255,255,255,0.55)" }}>{label}</span>
     </span>
   );
@@ -348,6 +562,17 @@ export default function SpoonCenterPage() {
   // map from the previous month is never mistaken for the one on screen
   const [monthDays,    setMonthDays]      = useState(null);
   const [calOpen,      setCalOpen]        = useState(readCalOpenPref);
+  const [calMode,      setCalMode]        = useState(readCalModePref);
+  const [calWeekStart, setCalWeekStart]   = useState(() => weekStartOf(todayDateStr()));
+  // { start, days: { [date]: summary } } — the key travels with the map so a
+  // previous week's summaries are never drawn for the week on screen
+  const [weekDays,     setWeekDays]       = useState(null);
+
+  // the end-of-day reflection
+  const [reflectError, setReflectError]   = useState("");
+  const [showNoteEditor, setShowNoteEditor] = useState(false);
+  const [noteDraft,    setNoteDraft]      = useState("");
+  const [clearConfirm, setClearConfirm]   = useState(false);
 
   // the previous day's entries, offered as a starting point on an empty day
   const [prevEntries,  setPrevEntries]    = useState([]);
@@ -493,6 +718,30 @@ export default function SpoonCenterPage() {
     return () => { active = false; };
   }, [token, calMonth, selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // one request per week, for the same reasons as the month: read-only, so
+  // paging never creates rows, and it re-runs when the viewed day changes so an
+  // edited day keeps its numbers in the strip
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+    (async () => {
+      try {
+        const res = await axios.get(`${API}/api/spoons/week?date=${calWeekStart}`, {
+          headers: hdrs,
+        });
+        if (!active) return;
+        const days = {};
+        for (const d of res.data.days || []) days[d.date] = d;
+        setWeekDays({ start: calWeekStart, days });
+      } catch (err) {
+        console.error("Week fetch failed:", err);
+        // an empty strip, never an error banner: the week is a convenience
+        if (active) setWeekDays({ start: calWeekStart, days: {} });
+      }
+    })();
+    return () => { active = false; };
+  }, [token, calWeekStart, selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // remember whether the calendar is expanded between visits
   useEffect(() => {
     try {
@@ -502,6 +751,15 @@ export default function SpoonCenterPage() {
     }
   }, [calOpen]);
 
+  // and which mode it was left in
+  useEffect(() => {
+    try {
+      localStorage.setItem(CAL_MODE_KEY, calMode);
+    } catch {
+      // private mode / storage disabled - the preference just won't stick
+    }
+  }, [calMode]);
+
   // ── Date nav ────────────────────────────────────────────────────────────────
 
   // every path that changes the day goes through here so the calendar's month
@@ -510,12 +768,52 @@ export default function SpoonCenterPage() {
     if (date === selectedDate) return;
     setSelectedDate(date);
     setCalMonth(monthOf(date));
+    setCalWeekStart(weekStartOf(date));
   };
 
   const moveDay = (delta) => {
     const d = parseDateStr(selectedDate);
     d.setDate(d.getDate() + delta);
     selectDate(d.toLocaleDateString("en-CA"));
+  };
+
+  // ── Reflection ──────────────────────────────────────────────────────────────
+
+  // Optimistic: the pill answers at once. A failure puts the old value back and
+  // says so quietly in the card, never red.
+  const saveReflection = async (body, optimistic) => {
+    if (!day) return;
+    const previous = { reflection: day.reflection ?? null, reflectionNote: day.reflectionNote ?? null };
+    setReflectError("");
+    setDay((d) => ({ ...d, ...optimistic }));
+    try {
+      const res = await axios.put(`${API}/api/spoons/day/${day.id}/reflection`, body, { headers: hdrs });
+      setDay(res.data.day);
+    } catch (err) {
+      console.error("Reflection save failed:", err);
+      setDay((d) => ({ ...d, ...previous }));
+      setReflectError("Couldn't save that \u2014 try again in a moment.");
+    }
+  };
+
+  // no note key, so an existing note survives changing the answer
+  const pickReflection = (value) => {
+    if (!day || day.reflection === value) return;
+    saveReflection({ reflection: value }, { reflection: value });
+  };
+
+  const saveReflectionNote = async () => {
+    const text = noteDraft.trim();
+    await saveReflection(
+      { reflection: day.reflection, reflectionNote: text || null },
+      { reflectionNote: text || null },
+    );
+    setShowNoteEditor(false);
+  };
+
+  const clearReflection = async () => {
+    setClearConfirm(false);
+    await saveReflection({ reflection: null }, { reflection: null, reflectionNote: null });
   };
 
   // ── Entry actions ───────────────────────────────────────────────────────────
@@ -720,10 +1018,46 @@ export default function SpoonCenterPage() {
               spent,
               planned: entries.length,
               completed: entries.filter((e) => e.completed).length,
+              reflection: day.reflection ?? null,
+              hasNote: !!(day.reflectionNote && day.reflectionNote.trim()),
             },
           }
         : monthDays.days
       : null;
+
+  // the selected day's cell is drawn from live state, so a reflection or a
+  // completed activity shows in the strip without waiting for a refetch
+  const liveCell = day && day.date === selectedDate
+    ? {
+        date: selectedDate,
+        budget: day.budget,
+        budgetEdited: day.budgetEdited,
+        spent,
+        planned: entries.length,
+        completed: entries.filter((e) => e.completed).length,
+        reflection: day.reflection ?? null,
+        hasNote: !!(day.reflectionNote && day.reflectionNote.trim()),
+      }
+    : null;
+
+  const weekCells =
+    weekDays && weekDays.start === calWeekStart
+      ? liveCell && selectedDate >= calWeekStart && selectedDate <= shiftDateStr(calWeekStart, 6)
+        ? { ...weekDays.days, [selectedDate]: liveCell }
+        : weekDays.days
+      : null;
+
+  /**
+   * Never for a future day. For today, only from the evening — or already, if
+   * they have answered. For a past day, only when there was a plan to compare
+   * with, or an answer already given.
+   */
+  const showReflection = (() => {
+    if (!day || selectedDate > today) return false;
+    if (day.reflection) return true;
+    if (selectedDate === today) return new Date().getHours() >= REFLECTION_OPENS_HOUR;
+    return entries.length > 0;
+  })();
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -780,6 +1114,7 @@ export default function SpoonCenterPage() {
         <div className="flex items-center justify-center gap-3">
           <button
             onClick={() => moveDay(-1)}
+            aria-label="Previous day"
             className="p-2 rounded-full hover:opacity-70 transition-opacity"
             style={{ background: "rgba(255,255,255,0.2)" }}
           >
@@ -793,6 +1128,7 @@ export default function SpoonCenterPage() {
           </span>
           <button
             onClick={() => moveDay(1)}
+            aria-label="Next day"
             className="p-2 rounded-full hover:opacity-70 transition-opacity"
             style={{ background: "rgba(255,255,255,0.2)" }}
           >
@@ -855,36 +1191,87 @@ export default function SpoonCenterPage() {
           className="rounded-2xl px-5 py-4"
           style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
         >
-          <button
-            onClick={() => setCalOpen((v) => !v)}
-            aria-expanded={calOpen}
-            className="w-full flex items-center justify-between hover:opacity-80 transition-opacity"
-          >
-            <span className="text-sm text-white">Calendar</span>
-            <span className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              onClick={() => setCalOpen((v) => !v)}
+              aria-expanded={calOpen}
+              className="flex-1 flex items-center justify-between gap-2 hover:opacity-80 transition-opacity text-left"
+            >
+              <span className="text-sm text-white">Calendar</span>
               {!calOpen && (
                 <span className="text-xs" style={{ color: "rgba(255,255,255,0.55)" }}>
-                  {formatMonthLabel(calMonth)}
+                  {calMode === "week" ? formatWeekLabel(calWeekStart) : formatMonthLabel(calMonth)}
                 </span>
               )}
+            </button>
+
+            {/* Week | Month. One card, two modes: the card already owns
+                collapse, day selection and the live overlay. */}
+            {calOpen && (
+              <div
+                className="flex rounded-full p-0.5"
+                style={{ background: "rgba(255,255,255,0.15)" }}
+                role="group"
+                aria-label="Calendar mode"
+              >
+                {[["week", "Week"], ["month", "Month"]].map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    onClick={() => setCalMode(mode)}
+                    aria-pressed={calMode === mode}
+                    className="px-4 rounded-full text-xs transition-all"
+                    style={{
+                      minHeight: 44,
+                      background: calMode === mode ? "white" : "transparent",
+                      color: calMode === mode ? "#7C6BAE" : "rgba(255,255,255,0.75)",
+                      fontWeight: calMode === mode ? 700 : 400,
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={() => setCalOpen((v) => !v)}
+              aria-expanded={calOpen}
+              aria-label={calOpen ? "Collapse calendar" : "Expand calendar"}
+              className="p-2 hover:opacity-80 transition-opacity"
+            >
               {calOpen
                 ? <FiChevronUp size={16} color="rgba(255,255,255,0.7)" />
                 : <FiChevronDown size={16} color="rgba(255,255,255,0.7)" />}
-            </span>
-          </button>
+            </button>
+          </div>
           {calOpen && (
-            <div className="mt-3">
-              <MonthCalendar
-                month={calMonth}
-                monthDays={calendarDays}
-                selectedDate={selectedDate}
-                today={today}
-                loading={!calendarDays}
-                onSelectDate={selectDate}
-                onMoveMonth={(delta) => setCalMonth((m) => shiftMonth(m, delta))}
-                onJumpToMonth={() => setCalMonth(monthOf(today))}
-              />
-            </div>
+            <>
+              <div className="mt-3">
+                {calMode === "week" ? (
+                  <WeekStrip
+                    weekStart={calWeekStart}
+                    weekDays={weekCells}
+                    selectedDate={selectedDate}
+                    today={today}
+                    loading={!weekCells}
+                    onSelectDate={selectDate}
+                    onMoveWeek={(delta) => setCalWeekStart((w) => shiftDateStr(w, delta * 7))}
+                    onJumpToWeek={() => setCalWeekStart(weekStartOf(today))}
+                  />
+                ) : (
+                  <MonthCalendar
+                    month={calMonth}
+                    monthDays={calendarDays}
+                    selectedDate={selectedDate}
+                    today={today}
+                    loading={!calendarDays}
+                    onSelectDate={selectDate}
+                    onMoveMonth={(delta) => setCalMonth((m) => shiftMonth(m, delta))}
+                    onJumpToMonth={() => setCalMonth(monthOf(today))}
+                  />
+                )}
+              </div>
+            </>
           )}
         </div>
 
@@ -1018,9 +1405,131 @@ export default function SpoonCenterPage() {
                 </>
               )}
             </div>
+
+            {/* ── End-of-day reflection ────────────────────────────────────── */}
+            {showReflection && (
+              <div
+                className="rounded-2xl px-5 py-4 flex flex-col gap-3"
+                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
+              >
+                <div>
+                  <p className="text-white" style={{ fontSize: 15 }}>
+                    {selectedDate === today ? "How did today actually go?" : "How did this day actually go?"}
+                  </p>
+                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
+                    One tap is enough. Only you see this.
+                  </p>
+                </div>
+
+                <div
+                  role="radiogroup"
+                  aria-label={selectedDate === today ? "How did today actually go?" : "How did this day actually go?"}
+                  className="flex flex-wrap gap-2"
+                >
+                  {REFLECTION_CHOICES.map((choice) => {
+                    const selected = day.reflection === choice.value;
+                    return (
+                      <button
+                        key={choice.value}
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => pickReflection(choice.value)}
+                        className="px-4 rounded-full text-sm transition-all hover:opacity-90"
+                        style={{
+                          minHeight: 44,
+                          background: selected ? "white" : "rgba(255,255,255,0.12)",
+                          border: "1px solid rgba(255,255,255,0.18)",
+                          color: selected ? "#7C6BAE" : "white",
+                          fontWeight: selected ? 700 : 400,
+                        }}
+                      >
+                        {choice.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {day.reflection && (
+                  <>
+                    {day.reflectionNote && (
+                      <p style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", whiteSpace: "pre-line" }}>
+                        {day.reflectionNote}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={() => { setNoteDraft(day.reflectionNote || ""); setShowNoteEditor(true); }}
+                        className="text-xs underline hover:opacity-80 transition-opacity"
+                        style={{ color: "rgba(255,255,255,0.7)", minHeight: 44 }}
+                      >
+                        {day.reflectionNote ? "Edit note" : "Add a note"}
+                      </button>
+                      <button
+                        onClick={() => (day.reflectionNote ? setClearConfirm(true) : clearReflection())}
+                        className="text-xs underline hover:opacity-80 transition-opacity"
+                        style={{ color: "rgba(255,255,255,0.7)", minHeight: 44 }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {reflectError && (
+                  <p style={{ fontSize: 12, color: "#DEC8DA" }}>{reflectError}</p>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
+
+      {/* ── Reflection note editor ──────────────────────────────────────────── */}
+      {showNoteEditor && (
+        <FormModal
+          open
+          onClose={() => setShowNoteEditor(false)}
+          title="A note about this day"
+          footer={
+            <ModalFooter
+              onCancel={() => setShowNoteEditor(false)}
+              onSave={saveReflectionNote}
+              canSave={noteDraft.length <= REFLECTION_NOTE_MAX}
+            />
+          }
+        >
+          <div className="pb-1">
+            <label htmlFor="reflection-note" className={labelClass}>
+              Note (optional)
+            </label>
+            <textarea
+              id="reflection-note"
+              rows={3}
+              maxLength={REFLECTION_NOTE_MAX}
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              placeholder="What made it lighter or heavier?"
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none placeholder-white/40"
+              style={frostedInput}
+            />
+            {noteDraft.length >= REFLECTION_COUNTER_FROM && (
+              <p className="text-[11px] text-right mt-1 text-white/60" aria-live="polite">
+                {noteDraft.length}/{REFLECTION_NOTE_MAX}
+              </p>
+            )}
+          </div>
+        </FormModal>
+      )}
+
+      <ConfirmDialog
+        open={clearConfirm}
+        onCancel={() => setClearConfirm(false)}
+        onConfirm={clearReflection}
+        title="Clear this reflection?"
+        message="Your note for this day will be removed too."
+        confirmLabel="Clear"
+        cancelLabel="Keep"
+      />
 
       {/* ── Add Activity modal ──────────────────────────────────────────────── */}
       {showAdd && (

@@ -15,6 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomSheet from "../../components/BottomSheet";
 import { SheetHeader, SheetFooter, formStyles } from "../../components/FormSheet";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Circle } from "react-native-svg";
@@ -82,8 +83,59 @@ function formatMonthLabel(month) {
   });
 }
 
+// ── Week helpers (a week key is the Sunday, "YYYY-MM-DD") ────────────────────
+
+// Sunday-first, to match buildMonthGrid. Never mix the two conventions.
+function weekStartOf(dateStr) {
+  const d = parseDateStr(dateStr);
+  return shiftDate(dateStr, -d.getDay());
+}
+
+// "Oct 4 - 10", "Sep 27 - Oct 3", "Dec 27, 2026 - Jan 2, 2027"
+function formatWeekLabel(startStr) {
+  const start = parseDateStr(startStr);
+  const end = parseDateStr(shiftDate(startStr, 6));
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const withYear = !sameYear || start.getFullYear() !== new Date().getFullYear();
+
+  const left = start.toLocaleDateString(
+    "en-US",
+    withYear
+      ? { month: "short", day: "numeric", year: "numeric" }
+      : { month: "short", day: "numeric" },
+  );
+  const right = end.toLocaleDateString(
+    "en-US",
+    withYear
+      ? { month: "short", day: "numeric", year: "numeric" }
+      : start.getMonth() === end.getMonth()
+        ? { day: "numeric" }
+        : { month: "short", day: "numeric" },
+  );
+  return `${left} \u2013 ${right}`;
+}
+
 // the calendar starts expanded; collapsing it is remembered across visits
 const CAL_OPEN_KEY = "spoon_calendar_open";
+const CAL_MODE_KEY = "spoon_calendar_mode";
+
+// ── End-of-day reflection ─────────────────────────────────────────────────────
+
+// The card only appears in the evening: asking at 9am how the day went is a
+// question nobody can answer yet.
+const REFLECTION_OPENS_HOUR = 17;
+const REFLECTION_NOTE_MAX = 280;
+const REFLECTION_COUNTER_FROM = 240;
+const REFLECTION_CHOICES = [
+  { value: "lighter", label: "Lighter than planned" },
+  { value: "about_right", label: "About right" },
+  { value: "heavier", label: "Heavier than planned" },
+];
+const REFLECTION_WORDS = {
+  lighter: "lighter than planned",
+  about_right: "about right",
+  heavier: "heavier than planned",
+};
 
 // ── Budget ring ───────────────────────────────────────────────────────────────
 
@@ -301,10 +353,160 @@ function MonthCalendar({
   );
 }
 
-function LegendItem({ color, label }) {
+/**
+ * Seven days at once, Sunday to Saturday. The month grid only has room for a
+ * 3px bar; a week has room for the numbers, which is the whole reason this mode
+ * exists. Colours and the bar come from CalendarDay rather than a new palette.
+ *
+ * A day with no plan shows only its date: no 0/12, no dash. Null is nothing.
+ */
+function WeekStrip({
+  weekStart,
+  weekDays,
+  selectedDate,
+  today,
+  onSelectDate,
+  onMoveWeek,
+  onJumpToWeek,
+}) {
+  const dates = Array.from({ length: 7 }, (_, i) => shiftDate(weekStart, i));
+  const viewingOtherWeek = weekStart !== weekStartOf(today);
+
+  return (
+    <View>
+      {/* Week header */}
+      <View style={styles.calHeader}>
+        <TouchableOpacity
+          onPress={() => onMoveWeek(-1)}
+          style={styles.calNavBtn}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Previous week"
+        >
+          <Ionicons name="chevron-back" size={14} color="white" />
+        </TouchableOpacity>
+        <View style={styles.calHeaderMid}>
+          <Text style={styles.calMonthLabel}>{formatWeekLabel(weekStart)}</Text>
+          {viewingOtherWeek && (
+            <TouchableOpacity
+              onPress={onJumpToWeek}
+              style={styles.calThisMonthBtn}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.calThisMonthText}>This week</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        <TouchableOpacity
+          onPress={() => onMoveWeek(1)}
+          style={styles.calNavBtn}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Next week"
+        >
+          <Ionicons name="chevron-forward" size={14} color="white" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Seven columns */}
+      <View style={styles.calRow}>
+        {dates.map((date, i) => (
+          <WeekCell
+            key={date}
+            date={date}
+            initial={WEEKDAY_INITIALS[i]}
+            summary={weekDays?.[date]}
+            isSelected={date === selectedDate}
+            isToday={date === today}
+            isFuture={date > today}
+            onSelect={onSelectDate}
+          />
+        ))}
+      </View>
+
+      {/* Legend */}
+      <View style={styles.calLegend}>
+        <LegendItem color="white" label="Spoons used" />
+        <LegendItem color="#4F4178" label="Planned ahead" />
+        <LegendItem color="#E6C79A" label="Over budget" />
+        <LegendItem color="#DEC8DA" label="Reflected" dot />
+      </View>
+    </View>
+  );
+}
+
+function WeekCell({ date, initial, summary, isSelected, isToday, isFuture, onSelect }) {
+  const planned = !!summary && summary.planned > 0;
+  const over = planned && summary.budget > 0 && summary.spent > summary.budget;
+  const ratio =
+    planned && summary.budget > 0 ? Math.min(summary.spent / summary.budget, 1) : 0;
+  // a future day cannot have been reflected on, so it never shows the dot
+  const reflected = !!summary && summary.reflection != null && !isFuture;
+
+  const label = `${formatFullDate(date)}${
+    planned
+      ? `: ${summary.spent} of ${summary.budget} ${summary.budget === 1 ? "spoon" : "spoons"} ${isFuture ? "planned" : "used"}`
+      : ": nothing planned"
+  }${reflected ? `. You noted it felt ${REFLECTION_WORDS[summary.reflection]}` : ""}`;
+
+  const barColor = over ? "#E6C79A" : isFuture ? "#4F4178" : "white";
+
+  return (
+    <TouchableOpacity
+      onPress={() => onSelect(date)}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: isSelected }}
+      style={[
+        styles.weekCell,
+        isSelected && styles.calCellSelected,
+        isToday && !isSelected && styles.calCellToday,
+      ]}
+    >
+      <Text style={[styles.weekCellInitial, isSelected && styles.weekCellInitialSelected]}>
+        {initial}
+      </Text>
+      <Text
+        style={[
+          styles.calCellNum,
+          !planned && !isSelected && styles.calCellNumEmpty,
+          isSelected && styles.calCellNumSelected,
+          (isToday || isSelected) && styles.calCellNumStrong,
+        ]}
+      >
+        {Number(date.slice(8))}
+      </Text>
+      {planned && (
+        <>
+          <Text style={[styles.weekCellCount, isSelected && styles.calCellNumSelected]}>
+            {summary.spent}/{summary.budget}
+          </Text>
+          <View style={[styles.calBarTrack, styles.calBarTrackOn, isSelected && styles.calBarTrackSelected]}>
+            <View
+              style={{
+                height: "100%",
+                width: `${Math.max(Math.round(ratio * 100), 12)}%`,
+                backgroundColor: isSelected && !over ? "#7C6BAE" : barColor,
+              }}
+            />
+          </View>
+        </>
+      )}
+      {reflected && <View style={styles.weekCellDot} />}
+    </TouchableOpacity>
+  );
+}
+
+function LegendItem({ color, label, dot }) {
   return (
     <View style={styles.legendItem}>
-      <View style={[styles.legendSwatch, { backgroundColor: color }]} />
+      <View
+        style={[
+          dot ? styles.legendDot : styles.legendSwatch,
+          { backgroundColor: color },
+        ]}
+      />
       <Text style={styles.legendLabel}>{label}</Text>
     </View>
   );
@@ -340,6 +542,22 @@ export default function SpoonCenterScreen() {
   // map from the previous month is never mistaken for the one on screen
   const [monthDays, setMonthDays] = useState(null);
   const [calOpen, setCalOpen] = useState(true);
+  // Week is the default: seven days with real numbers answers "how is this week
+  // going" better than a month of 3px bars. The choice is remembered per device.
+  const [calMode, setCalMode] = useState("week");
+  const [calWeekStart, setCalWeekStart] = useState(weekStartOf(todayStr()));
+  // { start, days: { [date]: summary } } — the key travels with the map so a
+  // previous week's summaries are never drawn for the week on screen
+  const [weekDays, setWeekDays] = useState(null);
+
+  // the end-of-day reflection
+  const [reflectError, setReflectError] = useState("");
+  const [showNoteEditor, setShowNoteEditor] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [clearConfirm, setClearConfirm] = useState(false);
+  // the 17:00 gate is re-read on focus, so coming back to the app in the
+  // evening shows the card without a reload
+  const [nowHour, setNowHour] = useState(new Date().getHours());
 
   // the previous day's entries, offered as a starting point on an empty day
   const [prevEntries, setPrevEntries] = useState([]);
@@ -474,6 +692,39 @@ export default function SpoonCenterScreen() {
     }, [calMonth, selectedDate])
   );
 
+  // one request per week, for the same reasons as the month: read-only, so
+  // paging never creates rows, and it re-runs when the viewed day changes so an
+  // edited day keeps its numbers in the strip
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        try {
+          const res = await api.get(`/api/spoons/week?date=${calWeekStart}`);
+          if (!active) return;
+          const days = {};
+          for (const d of res.data.days || []) days[d.date] = d;
+          setWeekDays({ start: calWeekStart, days });
+        } catch (err) {
+          console.error("Week fetch failed:", err);
+          // an empty strip, never an error banner: the week is a convenience
+          if (active) setWeekDays({ start: calWeekStart, days: {} });
+        }
+      })();
+      return () => {
+        active = false;
+      };
+    }, [calWeekStart, selectedDate])
+  );
+
+  // the evening gate depends on the clock, so re-read it whenever the screen
+  // comes back into view
+  useFocusEffect(
+    useCallback(() => {
+      setNowHour(new Date().getHours());
+    }, [])
+  );
+
   // remember whether the calendar is expanded between visits
   useEffect(() => {
     let active = true;
@@ -494,6 +745,24 @@ export default function SpoonCenterScreen() {
     });
   }
 
+  // and which mode it was left in
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem(CAL_MODE_KEY)
+      .then((v) => {
+        if (active && v === "month") setCalMode("month");
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  function chooseCalMode(mode) {
+    setCalMode(mode);
+    AsyncStorage.setItem(CAL_MODE_KEY, mode).catch(() => {});
+  }
+
   // ── Date navigation ────────────────────────────────────────────────────────
 
   // every path that changes the day goes through here so the calendar's month
@@ -503,6 +772,7 @@ export default function SpoonCenterScreen() {
     setLoading(true);
     setSelectedDate(date);
     setCalMonth(monthOf(date));
+    setCalWeekStart(weekStartOf(date));
   }
 
   function navigateDay(delta) {
@@ -511,6 +781,48 @@ export default function SpoonCenterScreen() {
 
   function jumpToToday() {
     selectDate(todayStr());
+  }
+
+  // ── Reflection ─────────────────────────────────────────────────────────────
+
+  // Optimistic: the pill answers at once. A failure puts the old value back and
+  // says so quietly in the card, never red.
+  async function saveReflection(body, optimistic) {
+    if (!day) return;
+    const previous = {
+      reflection: day.reflection ?? null,
+      reflectionNote: day.reflectionNote ?? null,
+    };
+    setReflectError("");
+    setDay((d) => ({ ...d, ...optimistic }));
+    try {
+      const res = await api.put(`/api/spoons/day/${day.id}/reflection`, body);
+      setDay(res.data.day);
+    } catch (err) {
+      console.error("Reflection save failed:", err);
+      setDay((d) => ({ ...d, ...previous }));
+      setReflectError("Couldn't save that \u2014 try again in a moment.");
+    }
+  }
+
+  // no note key, so an existing note survives changing the answer
+  function pickReflection(value) {
+    if (!day || day.reflection === value) return;
+    saveReflection({ reflection: value }, { reflection: value });
+  }
+
+  async function saveReflectionNote() {
+    const text = noteDraft.trim();
+    await saveReflection(
+      { reflection: day.reflection, reflectionNote: text || null },
+      { reflectionNote: text || null },
+    );
+    setShowNoteEditor(false);
+  }
+
+  async function clearReflection() {
+    setClearConfirm(false);
+    await saveReflection({ reflection: null }, { reflection: null, reflectionNote: null });
   }
 
   // ── Entry actions ──────────────────────────────────────────────────────────
@@ -706,10 +1018,49 @@ export default function SpoonCenterScreen() {
               spent,
               planned: entries.length,
               completed: entries.filter((e) => e.completed).length,
+              reflection: day.reflection ?? null,
+              hasNote: !!(day.reflectionNote && day.reflectionNote.trim()),
             },
           }
         : monthDays.days
       : null;
+
+  // the selected day's cell is drawn from live state, so a reflection or a
+  // completed activity shows in the strip without waiting for a refetch
+  const liveCell =
+    day && day.date === selectedDate
+      ? {
+          date: selectedDate,
+          budget: day.budget,
+          budgetEdited: day.budgetEdited,
+          spent,
+          planned: entries.length,
+          completed: entries.filter((e) => e.completed).length,
+          reflection: day.reflection ?? null,
+          hasNote: !!(day.reflectionNote && day.reflectionNote.trim()),
+        }
+      : null;
+
+  const weekCells =
+    weekDays && weekDays.start === calWeekStart
+      ? liveCell
+        && selectedDate >= calWeekStart
+        && selectedDate <= shiftDate(calWeekStart, 6)
+        ? { ...weekDays.days, [selectedDate]: liveCell }
+        : weekDays.days
+      : null;
+
+  /**
+   * Never for a future day. For today, only from the evening — or already, if
+   * they have answered. For a past day, only when there was a plan to compare
+   * with, or an answer already given.
+   */
+  const showReflection = (() => {
+    if (!day || selectedDate > today) return false;
+    if (day.reflection) return true;
+    if (selectedDate === today) return nowHour >= REFLECTION_OPENS_HOUR;
+    return entries.length > 0;
+  })();
 
   // ── Loading state ──────────────────────────────────────────────────────────
 
@@ -757,6 +1108,8 @@ export default function SpoonCenterScreen() {
             onPress={() => navigateDay(-1)}
             style={styles.chevronBtn}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Previous day"
           >
             <Ionicons name="chevron-back" size={18} color="white" />
           </TouchableOpacity>
@@ -767,6 +1120,8 @@ export default function SpoonCenterScreen() {
             onPress={() => navigateDay(1)}
             style={styles.chevronBtn}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Next day"
           >
             <Ionicons name="chevron-forward" size={18} color="white" />
           </TouchableOpacity>
@@ -823,36 +1178,82 @@ export default function SpoonCenterScreen() {
         {/* Calendar — outside the day's loading branch so switching days never
             takes the grid away mid-navigation */}
         <Card>
-          <TouchableOpacity
-            onPress={toggleCalendar}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: calOpen }}
-            style={styles.calToggle}
-          >
-            <Text style={styles.calToggleLabel}>Calendar</Text>
-            <View style={styles.calToggleRight}>
+          {/* the label is the collapse target; the chevron is its own so the
+              Week | Month control can sit between them */}
+          <View style={styles.calToggle}>
+            <TouchableOpacity
+              onPress={toggleCalendar}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Calendar"
+              accessibilityState={{ expanded: calOpen }}
+              style={styles.calToggleLeft}
+            >
+              <Text style={styles.calToggleLabel}>Calendar</Text>
               {!calOpen && (
-                <Text style={styles.calToggleMonth}>{formatMonthLabel(calMonth)}</Text>
+                <Text style={styles.calToggleMonth}>
+                  {calMode === "week" ? formatWeekLabel(calWeekStart) : formatMonthLabel(calMonth)}
+                </Text>
               )}
+            </TouchableOpacity>
+
+            {calOpen && (
+              <View style={styles.segTrack} accessibilityRole="tablist">
+                {[["week", "Week"], ["month", "Month"]].map(([mode, label]) => (
+                  <TouchableOpacity
+                    key={mode}
+                    onPress={() => chooseCalMode(mode)}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: calMode === mode }}
+                    style={[styles.segBtn, calMode === mode && styles.segBtnOn]}
+                  >
+                    <Text style={[styles.segText, calMode === mode && styles.segTextOn]}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <TouchableOpacity
+              onPress={toggleCalendar}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={calOpen ? "Collapse calendar" : "Expand calendar"}
+              accessibilityState={{ expanded: calOpen }}
+              hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+            >
               <Ionicons
                 name={calOpen ? "chevron-up" : "chevron-down"}
                 size={16}
                 color="rgba(255,255,255,0.7)"
               />
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
           {calOpen && (
             <View style={{ marginTop: 12 }}>
-              <MonthCalendar
-                month={calMonth}
-                monthDays={calendarDays}
-                selectedDate={selectedDate}
-                today={today}
-                onSelectDate={selectDate}
-                onMoveMonth={(delta) => setCalMonth((m) => shiftMonth(m, delta))}
-                onJumpToMonth={() => setCalMonth(monthOf(today))}
-              />
+              {calMode === "week" ? (
+                <WeekStrip
+                  weekStart={calWeekStart}
+                  weekDays={weekCells}
+                  selectedDate={selectedDate}
+                  today={today}
+                  onSelectDate={selectDate}
+                  onMoveWeek={(delta) => setCalWeekStart((w) => shiftDate(w, delta * 7))}
+                  onJumpToWeek={() => setCalWeekStart(weekStartOf(today))}
+                />
+              ) : (
+                <MonthCalendar
+                  month={calMonth}
+                  monthDays={calendarDays}
+                  selectedDate={selectedDate}
+                  today={today}
+                  onSelectDate={selectDate}
+                  onMoveMonth={(delta) => setCalMonth((m) => shiftMonth(m, delta))}
+                  onJumpToMonth={() => setCalMonth(monthOf(today))}
+                />
+              )}
             </View>
           )}
         </Card>
@@ -982,9 +1383,124 @@ export default function SpoonCenterScreen() {
                 </>
               )}
             </Card>
+
+            {/* End-of-day reflection */}
+            {showReflection && (
+              <Card>
+                <Text style={styles.reflectHeading}>
+                  {selectedDate === today
+                    ? "How did today actually go?"
+                    : "How did this day actually go?"}
+                </Text>
+                <Text style={styles.reflectSub}>One tap is enough. Only you see this.</Text>
+
+                <View style={styles.reflectPills}>
+                  {REFLECTION_CHOICES.map((choice) => {
+                    const selected = day.reflection === choice.value;
+                    return (
+                      <TouchableOpacity
+                        key={choice.value}
+                        onPress={() => pickReflection(choice.value)}
+                        activeOpacity={0.85}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: selected }}
+                        style={[styles.reflectPill, selected && styles.reflectPillOn]}
+                      >
+                        <Text style={[styles.reflectPillText, selected && styles.reflectPillTextOn]}>
+                          {choice.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {day.reflection ? (
+                  <>
+                    {day.reflectionNote ? (
+                      <Text style={styles.reflectNote}>{day.reflectionNote}</Text>
+                    ) : null}
+                    <View style={styles.reflectLinks}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setNoteDraft(day.reflectionNote || "");
+                          setShowNoteEditor(true);
+                        }}
+                        activeOpacity={0.75}
+                        hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+                      >
+                        <Text style={styles.adjustLink}>
+                          {day.reflectionNote ? "Edit note" : "Add a note"}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() =>
+                          day.reflectionNote ? setClearConfirm(true) : clearReflection()
+                        }
+                        activeOpacity={0.75}
+                        hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+                      >
+                        <Text style={styles.adjustLink}>Clear</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : null}
+
+                {reflectError ? <Text style={styles.reflectError}>{reflectError}</Text> : null}
+              </Card>
+            )}
           </>
         )}
       </ScrollView>
+
+      {/* ── Reflection note sheet ───────────────────────────────────────────── */}
+      <BottomSheet
+        visible={showNoteEditor}
+        onClose={() => setShowNoteEditor(false)}
+        scrollable={false}
+        cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}
+      >
+        <SheetHeader title="A note about this day" />
+        <ScrollView
+          style={{ flexShrink: 1 }}
+          contentContainerStyle={styles.reflectSheetBody}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={formStyles.label}>Note (optional)</Text>
+          <TextInput
+            style={styles.reflectNoteInput}
+            value={noteDraft}
+            onChangeText={setNoteDraft}
+            multiline
+            maxLength={REFLECTION_NOTE_MAX}
+            blurOnSubmit
+            returnKeyType="done"
+            placeholder="What made it lighter or heavier?"
+            placeholderTextColor="rgba(255,255,255,0.4)"
+            accessibilityLabel="Note (optional)"
+          />
+          {noteDraft.length >= REFLECTION_COUNTER_FROM ? (
+            <Text style={styles.reflectCounter} accessibilityLiveRegion="polite">
+              {noteDraft.length}/{REFLECTION_NOTE_MAX}
+            </Text>
+          ) : null}
+        </ScrollView>
+        <SheetFooter
+          onCancel={() => setShowNoteEditor(false)}
+          onSave={saveReflectionNote}
+          canSave={noteDraft.length <= REFLECTION_NOTE_MAX}
+        />
+      </BottomSheet>
+
+      <ConfirmDialog
+        visible={clearConfirm}
+        title="Clear this reflection?"
+        message="Your note for this day will be removed too."
+        confirmLabel="Clear"
+        cancelLabel="Keep"
+        onConfirm={clearReflection}
+        onCancel={() => setClearConfirm(false)}
+      />
 
       {/* ── Add Activity Sheet ──────────────────────────────────────────────── */}
       <BottomSheet visible={showAdd} onClose={() => setShowAdd(false)} scrollable={false} cardStyle={{ paddingHorizontal: 0, paddingTop: 0 }}>
@@ -999,7 +1515,7 @@ export default function SpoonCenterScreen() {
                     activeOpacity={0.8}
                   >
                     <Text style={styles.editCostsBtnText}>
-                      {editingCosts ? "Done" : "Edit costs"}
+                      {editingCosts ? "Done editing" : "Edit costs"}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -1153,7 +1669,7 @@ export default function SpoonCenterScreen() {
               autoFocus
             />
             <Text style={styles.hintText}>
-              Spoon Center will gently adjust your daily budget based on how you feel each day.
+              Spoon Center will gently adjust your daily budget up or down based on how you feel each day.
             </Text>
             <SheetFooter
               onCancel={() => setShowBaseline(false)}
@@ -1183,7 +1699,7 @@ export default function SpoonCenterScreen() {
               style={{ paddingHorizontal: 0, paddingTop: 0, paddingBottom: 0 }}
             />
             <Text style={styles.hintText}>
-              Overrides the auto-computed budget for this day only.
+              Overrides the auto-computed budget for this day only. Future check-ins won't update it.
             </Text>
             <TextInput
               style={formStyles.input}
@@ -1353,6 +1869,40 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    columnGap: 8,
+  },
+  calToggleLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    columnGap: 8,
+    minHeight: 44,
+  },
+  segTrack: {
+    flexDirection: "row",
+    borderRadius: 999,
+    padding: 2,
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+  segBtn: {
+    paddingHorizontal: 14,
+    minHeight: 40,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  segBtnOn: {
+    backgroundColor: "white",
+  },
+  segText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.75)",
+  },
+  segTextOn: {
+    fontFamily: "Lato_700Bold",
+    color: "#7C6BAE",
   },
   calToggleLabel: {
     fontFamily: "Lato_400Regular",
@@ -1481,6 +2031,131 @@ const styles = StyleSheet.create({
     width: 12,
     height: 3,
     borderRadius: 2,
+  },
+  legendDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+
+  // ── Week strip ────────────────────────────────────────────────────────────
+  // taller than a month cell because it carries the count and the dot too
+  weekCell: {
+    flexBasis: `${100 / 7}%`,
+    minHeight: 76,
+    paddingVertical: 6,
+    alignItems: "center",
+    justifyContent: "flex-start",
+    rowGap: 2,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: "transparent",
+  },
+  weekCellInitial: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 10,
+    color: "rgba(255,255,255,0.45)",
+  },
+  weekCellInitialSelected: {
+    color: "rgba(124,107,174,0.75)",
+  },
+  weekCellCount: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.85)",
+  },
+  weekCellDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#DEC8DA",
+    marginTop: 2,
+  },
+
+  // ── Reflection ────────────────────────────────────────────────────────────
+  reflectHeading: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 15,
+    color: "white",
+  },
+  reflectSub: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.6)",
+    marginTop: 2,
+  },
+  reflectPills: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: 8,
+    rowGap: 8,
+    marginTop: 12,
+  },
+  reflectPill: {
+    paddingHorizontal: 14,
+    minHeight: 44,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  reflectPillOn: {
+    backgroundColor: "white",
+  },
+  reflectPillText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "white",
+  },
+  reflectPillTextOn: {
+    fontFamily: "Lato_700Bold",
+    color: "#7C6BAE",
+  },
+  reflectNote: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.75)",
+    lineHeight: 19,
+    marginTop: 12,
+  },
+  reflectLinks: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 18,
+    marginTop: 10,
+  },
+  reflectError: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "#DEC8DA",
+    marginTop: 10,
+  },
+  reflectSheetBody: {
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  reflectNoteInput: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
+    minHeight: 72,
+    fontFamily: "Lato_400Regular",
+    fontSize: 15,
+    color: "white",
+    textAlignVertical: "top",
+  },
+  reflectCounter: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.6)",
+    textAlign: "right",
+    marginTop: 4,
   },
   legendLabel: {
     fontFamily: "Lato_400Regular",
