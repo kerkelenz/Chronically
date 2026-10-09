@@ -17,6 +17,9 @@ import { Ionicons } from "@expo/vector-icons";
 import BottomSheet from "../../components/BottomSheet";
 import { SheetHeader, SheetFooter, formStyles } from "../../components/FormSheet";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import DoctorPicker from "../../components/DoctorPicker";
+import DoctorsSheet from "../../components/DoctorsSheet";
+import { isAlreadySaved } from "../../theme/doctorHelpers";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import * as Print from "expo-print";
 import { Asset } from "expo-asset";
@@ -81,6 +84,14 @@ export default function AppointmentsScreen() {
   const isFirstLoadRef = useRef(true);
 
   // ── Modal / form state ────────────────────────────────────────────────────
+  // Saved doctors + the names found in past appointments, used to fill the form
+  // faster. Fetched the first time a sheet opens and cached for the screen's
+  // life; a failure leaves this empty and the sheet behaves exactly as before.
+  const [doctors, setDoctors] = useState([]);
+  const [doctorsLoaded, setDoctorsLoaded] = useState(false);
+  const [showDoctors, setShowDoctors] = useState(false);
+  const [saveDoctorChecked, setSaveDoctorChecked] = useState(true);
+
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -277,11 +288,32 @@ export default function AppointmentsScreen() {
 
   // ── Mutation handlers ─────────────────────────────────────────────────────
 
+  // Suggestions are a convenience, so this fails silently: no banner, no retry,
+  // no blocked sheet. The picker simply renders nothing.
+  const fetchDoctors = async () => {
+    try {
+      const res = await api.get("/api/doctors");
+      setDoctors(res.data.doctors || []);
+    } catch (err) {
+      console.error("Failed to fetch doctors:", err);
+    } finally {
+      setDoctorsLoaded(true);
+    }
+  };
+
+  const ensureDoctors = () => {
+    if (!doctorsLoaded) fetchDoctors();
+  };
+
   const openAdd = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
     setShowDateTimePicker(false);
     setShowFollowUpPicker(false);
+    // the unchecked state is deliberately not remembered between sheets — each
+    // appointment asks again, and the answer defaults to yes
+    setSaveDoctorChecked(true);
+    ensureDoctors();
     setShowModal(true);
   };
 
@@ -300,6 +332,7 @@ export default function AppointmentsScreen() {
     });
     setShowDateTimePicker(false);
     setShowFollowUpPicker(false);
+    ensureDoctors();
     setShowModal(true);
   };
 
@@ -322,8 +355,26 @@ export default function AppointmentsScreen() {
           ? new Date(form.followUpDate + "T12:00:00").toISOString()
           : null,
       };
-      if (editingId) await api.put(`/api/appointments/${editingId}`, payload);
-      else await api.post("/api/appointments", payload);
+      if (editingId) {
+        await api.put(`/api/appointments/${editingId}`, payload);
+      } else {
+        await api.post("/api/appointments", payload);
+        // Deliberately after the appointment and in its own try: the
+        // appointment is what the user asked for, and failing to remember the
+        // doctor must never lose it or show an error over it.
+        if (saveDoctorChecked && !isAlreadySaved(doctors, form.doctorName)) {
+          try {
+            await api.post("/api/doctors", {
+              name: form.doctorName,
+              specialty: form.specialty,
+              location: form.location,
+            });
+            await fetchDoctors();
+          } catch (err) {
+            console.error("Failed to save doctor:", err);
+          }
+        }
+      }
       await fetchAppointments();
       closeModal();
     } catch (err) {
@@ -543,10 +594,21 @@ export default function AppointmentsScreen() {
         {/* Header */}
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>Appointments</Text>
-          <TouchableOpacity style={styles.addBtn} onPress={openAdd} activeOpacity={0.8}>
-            <Ionicons name="add" size={15} color="white" />
-            <Text style={styles.addBtnText}>Add</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.myDoctorsBtn}
+              onPress={() => { ensureDoctors(); setShowDoctors(true); }}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="My doctors"
+            >
+              <Text style={styles.myDoctorsText}>My doctors</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addBtn} onPress={openAdd} activeOpacity={0.8}>
+              <Ionicons name="add" size={15} color="white" />
+              <Text style={styles.addBtnText}>Add</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Error */}
@@ -1091,6 +1153,19 @@ export default function AppointmentsScreen() {
                 autoCapitalize="words"
                 returnKeyType="next"
               />
+              <DoctorPicker
+                doctors={doctors}
+                name={form.doctorName}
+                onPick={(d) => setForm((f) => ({
+                  ...f,
+                  doctorName: d.name,
+                  specialty: d.specialty || "",
+                  location: d.location || "",
+                }))}
+                showSaveOption={!editingId}
+                saveChecked={saveDoctorChecked}
+                onSaveCheckedChange={setSaveDoctorChecked}
+              />
 
               {/* Specialty */}
               <Text style={formStyles.label}>Specialty</Text>
@@ -1353,6 +1428,14 @@ export default function AppointmentsScreen() {
         />
       </BottomSheet>
 
+      {/* ── My doctors ────────────────────────────────────────────────────────── */}
+      <DoctorsSheet
+        visible={showDoctors}
+        onClose={() => setShowDoctors(false)}
+        doctors={doctors}
+        onChanged={fetchDoctors}
+      />
+
       {/* ── Delete confirm modal ──────────────────────────────────────────────── */}
       <ConfirmDialog
         visible={!!deleteConfirmId}
@@ -1386,6 +1469,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  // a quiet text link, not a second button competing with Add
+  myDoctorsBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 11,
+    minHeight: 44,
+    justifyContent: "center",
+  },
+  myDoctorsText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.7)",
   },
   headerTitle: {
     fontFamily: "PlayfairDisplay_500Medium",

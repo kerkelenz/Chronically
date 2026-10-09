@@ -10,6 +10,9 @@ import { exportDoctorReport } from "../utils/exportReport";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import HomeLogo from "../components/HomeLogo";
 import FormModal, { ModalFooter, labelClass, ConfirmDialog } from "../components/FormModal";
+import DoctorPicker from "../components/DoctorPicker";
+import DoctorsModal from "../components/DoctorsModal";
+import { isAlreadySaved } from "../utils/doctorHelpers";
 
 const EMPTY_FORM = {
   doctorName:   "",
@@ -85,6 +88,14 @@ function AppointmentsPage() {
   const [outcomeDate, setOutcomeDate] = useState("");
   const [savingLifecycle, setSavingLifecycle] = useState(false);
 
+  // Saved doctors + the names found in past appointments, used to fill the form
+  // faster. Fetched the first time a form opens and cached for the page's life;
+  // a failure leaves this empty and the form behaves exactly as it always did.
+  const [doctors, setDoctors] = useState([]);
+  const [doctorsLoaded, setDoctorsLoaded] = useState(false);
+  const [showDoctors, setShowDoctors] = useState(false);
+  const [saveDoctorChecked, setSaveDoctorChecked] = useState(true);
+
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [popoverAppointment, setPopoverAppointment] = useState(null);
@@ -100,6 +111,23 @@ function AppointmentsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Suggestions are a convenience, so this fails silently: no banner, no retry,
+  // no blocked form. The picker simply renders nothing.
+  const fetchDoctors = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/doctors`, { headers: hdrs });
+      setDoctors(res.data.doctors || []);
+    } catch (err) {
+      console.error("Failed to fetch doctors:", err);
+    } finally {
+      setDoctorsLoaded(true);
+    }
+  };
+
+  const ensureDoctors = () => {
+    if (!doctorsLoaded) fetchDoctors();
   };
 
   useEffect(() => {
@@ -157,6 +185,10 @@ function AppointmentsPage() {
   const openAdd = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
+    // the unchecked state is deliberately not remembered between forms — each
+    // appointment asks again, and the answer defaults to yes
+    setSaveDoctorChecked(true);
+    ensureDoctors();
     setShowModal(true);
   };
 
@@ -173,6 +205,7 @@ function AppointmentsPage() {
       followUpDate: toDateOnly(appt.followUpDate),
       status:       appt.status       || "upcoming",
     });
+    ensureDoctors();
     setShowModal(true);
   };
 
@@ -195,6 +228,21 @@ function AppointmentsPage() {
         await axios.put(`${import.meta.env.VITE_API_URL}/api/appointments/${editingId}`, payload, { headers: hdrs });
       } else {
         await axios.post(`${import.meta.env.VITE_API_URL}/api/appointments`, payload, { headers: hdrs });
+        // Deliberately after the appointment and outside its try: the
+        // appointment is what the user asked for, and failing to remember the
+        // doctor must never lose it or show an error over it.
+        if (saveDoctorChecked && !isAlreadySaved(doctors, form.doctorName)) {
+          try {
+            await axios.post(
+              `${import.meta.env.VITE_API_URL}/api/doctors`,
+              { name: form.doctorName, specialty: form.specialty, location: form.location },
+              { headers: hdrs },
+            );
+            await fetchDoctors();
+          } catch (err) {
+            console.error("Failed to save doctor:", err);
+          }
+        }
       }
       await fetchAppointments();
       closeModal();
@@ -372,6 +420,12 @@ function AppointmentsPage() {
             </h1>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => { ensureDoctors(); setShowDoctors(true); }}
+              className="text-sm text-white/70 hover:text-white transition-colors"
+            >
+              My doctors
+            </button>
             <button
               onClick={openAdd}
               className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:opacity-90"
@@ -965,6 +1019,19 @@ function AppointmentsPage() {
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none placeholder-white/30"
                   style={inputStyle}
                 />
+                <DoctorPicker
+                  doctors={doctors}
+                  name={form.doctorName}
+                  onPick={(d) => setForm((f) => ({
+                    ...f,
+                    doctorName: d.name,
+                    specialty: d.specialty || "",
+                    location: d.location || "",
+                  }))}
+                  showSaveOption={!editingId}
+                  saveChecked={saveDoctorChecked}
+                  onSaveCheckedChange={setSaveDoctorChecked}
+                />
               </div>
               <div>
                 <p className={labelClass}>Specialty</p>
@@ -1135,6 +1202,14 @@ function AppointmentsPage() {
       )}
 
       {/* Delete confirmation */}
+      <DoctorsModal
+        open={showDoctors}
+        onClose={() => setShowDoctors(false)}
+        doctors={doctors}
+        token={token}
+        onChanged={fetchDoctors}
+      />
+
       <ConfirmDialog
         open={!!deleteConfirmId}
         title="Delete appointment?"
