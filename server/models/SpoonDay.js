@@ -26,6 +26,20 @@ const SpoonDay = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
+    // How the day actually went, in the user's own words rather than a score.
+    // Null means they did not say -- never "about right" by default, never
+    // counted, and never read by the insight engine (insightController.js
+    // selects an explicit column list, which is what keeps it out).
+    reflection: {
+      type: DataTypes.ENUM("lighter", "about_right", "heavier"),
+      allowNull: true,
+    },
+    // Optional free text, at most 280 characters, and only ever present when a
+    // reflection is: a note with nothing to attach itself to would be orphaned.
+    reflectionNote: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
   },
   {
     // a user can only have one SpoonDay row per date

@@ -97,6 +97,8 @@ describe("summarizeMonth", () => {
       spent: 11, // over its 10-spoon budget
       planned: 2,
       completed: 1,
+      reflection: null,
+      hasNote: false,
     });
     expect(result[1]).toMatchObject({ spent: 4, planned: 1, completed: 1 });
   });
@@ -110,6 +112,8 @@ describe("summarizeMonth", () => {
       spent: 0,
       planned: 0,
       completed: 0,
+      reflection: null,
+      hasNote: false,
     });
   });
 
@@ -124,5 +128,221 @@ describe("summarizeMonth", () => {
   test("empty input gives an empty month", () => {
     expect(summarizeMonth()).toEqual([]);
     expect(summarizeMonth({ days: [], entries: [] })).toEqual([]);
+  });
+});
+
+// ── isDateKey ────────────────────────────────────────────────────────────────
+describe("isDateKey", () => {
+  const { isDateKey } = require("./spoonCalendar");
+
+  test("accepts real dates", () => {
+    for (const d of ["2026-01-01", "2026-12-31", "2026-10-08", "2028-02-29"]) {
+      expect(isDateKey(d)).toBe(true);
+    }
+  });
+
+  test("rejects a February 29 that does not exist", () => {
+    expect(isDateKey("2027-02-29")).toBe(false);
+    expect(isDateKey("2026-02-29")).toBe(false);
+  });
+
+  test("rejects days that do not exist", () => {
+    for (const d of ["2026-02-30", "2026-04-31", "2026-13-01", "2026-00-10"]) {
+      expect(isDateKey(d)).toBe(false);
+    }
+  });
+
+  test("rejects junk", () => {
+    for (const d of ["2026-1-1", "26-01-01", "2026/01/01", "2026-01", "", null, undefined, 20261008, {}]) {
+      expect(isDateKey(d)).toBe(false);
+    }
+  });
+});
+
+// ── weekRange ────────────────────────────────────────────────────────────────
+describe("weekRange", () => {
+  const { weekRange } = require("./spoonCalendar");
+
+  const spanDays = (start, end) => {
+    const u = (d) => {
+      const [y, m, dd] = d.split("-").map(Number);
+      return Date.UTC(y, m - 1, dd);
+    };
+    return Math.round((u(end) - u(start)) / 86400000);
+  };
+
+  test("a Wednesday lands in its Sunday-to-Saturday week", () => {
+    expect(weekRange("2026-10-07")).toEqual({ start: "2026-10-04", end: "2026-10-10" });
+  });
+
+  test("a Sunday is its own week start", () => {
+    expect(weekRange("2026-10-04")).toEqual({ start: "2026-10-04", end: "2026-10-10" });
+  });
+
+  test("a Saturday looks back to the previous Sunday", () => {
+    expect(weekRange("2026-10-10")).toEqual({ start: "2026-10-04", end: "2026-10-10" });
+  });
+
+  test("a week spanning two months", () => {
+    expect(weekRange("2026-09-30")).toEqual({ start: "2026-09-27", end: "2026-10-03" });
+  });
+
+  test("a week spanning two years", () => {
+    expect(weekRange("2027-01-01")).toEqual({ start: "2026-12-27", end: "2027-01-02" });
+  });
+
+  test("a daylight-saving week is still seven days", () => {
+    // US spring forward 2026-03-08, fall back 2026-11-01
+    for (const d of ["2026-03-08", "2026-03-11", "2026-11-01", "2026-11-04"]) {
+      const { start, end } = weekRange(d);
+      expect(spanDays(start, end)).toBe(6);
+    }
+  });
+
+  test("every day of one week maps to the same range", () => {
+    const week = weekRange("2026-10-04");
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(Date.UTC(2026, 9, 4 + i)).toISOString().slice(0, 10);
+      expect(weekRange(d)).toEqual(week);
+    }
+  });
+
+  test("throws on an invalid date key", () => {
+    expect(() => weekRange("2026-02-30")).toThrow();
+    expect(() => weekRange("nope")).toThrow();
+  });
+});
+
+// ── summarizeDays: the reflection fields ─────────────────────────────────────
+describe("summarizeDays reflections", () => {
+  const { summarizeDays } = require("./spoonCalendar");
+
+  test("carries the reflection through", () => {
+    const out = summarizeDays({
+      days: [{ id: 1, date: "2026-10-05", budget: 10, reflection: "heavier", reflectionNote: "long day" }],
+      entries: [],
+    });
+    expect(out[0].reflection).toBe("heavier");
+    expect(out[0].hasNote).toBe(true);
+  });
+
+  test("a whitespace-only note does not count as a note", () => {
+    const out = summarizeDays({
+      days: [{ id: 1, date: "2026-10-05", budget: 10, reflection: "lighter", reflectionNote: "   " }],
+      entries: [],
+    });
+    expect(out[0].hasNote).toBe(false);
+  });
+
+  test("a day without the fields reports null and false", () => {
+    const out = summarizeDays({ days: [{ id: 1, date: "2026-10-05", budget: 10 }], entries: [] });
+    expect(out[0].reflection).toBeNull();
+    expect(out[0].hasNote).toBe(false);
+  });
+
+  test("the note text never appears in a summary", () => {
+    const out = summarizeDays({
+      days: [{ id: 1, date: "2026-10-05", budget: 10, reflection: "heavier", reflectionNote: "secret" }],
+      entries: [],
+    });
+    expect(JSON.stringify(out)).not.toContain("secret");
+  });
+
+  test("summarizeMonth is still exported, as the same function", () => {
+    const mod = require("./spoonCalendar");
+    expect(mod.summarizeMonth).toBe(mod.summarizeDays);
+  });
+});
+
+// ── localToday ───────────────────────────────────────────────────────────────
+describe("localToday", () => {
+  const { localToday } = require("./spoonCalendar");
+
+  test("uses the stored zone", () => {
+    expect(localToday(new Date("2026-10-09T03:00:00Z"), "America/Los_Angeles")).toBe("2026-10-08");
+    expect(localToday(new Date("2026-10-08T12:00:00Z"), "Pacific/Auckland")).toBe("2026-10-09");
+  });
+
+  test("with no zone it is generous by a day, so nobody is told their today is the future", () => {
+    expect(localToday(new Date("2026-10-09T03:00:00Z"), null)).toBe("2026-10-10");
+    expect(localToday(new Date("2026-10-09T03:00:00Z"), undefined)).toBe("2026-10-10");
+    expect(localToday(new Date("2026-10-09T03:00:00Z"), "Mars/Base")).toBe("2026-10-10");
+    expect(localToday(new Date("2026-10-09T03:00:00Z"), 42)).toBe("2026-10-10");
+  });
+
+  test("the fallback covers the furthest zone ahead of UTC", () => {
+    // Kiritimati is UTC+14, the most anyone is ever ahead
+    const now = new Date("2026-10-09T23:00:00Z");
+    expect(localToday(now, null) >= localToday(now, "Pacific/Kiritimati")).toBe(true);
+  });
+});
+
+// ── normalizeReflection ──────────────────────────────────────────────────────
+describe("normalizeReflection", () => {
+  const { normalizeReflection, REFLECTIONS } = require("./spoonCalendar");
+
+  test("each value is accepted", () => {
+    expect(REFLECTIONS).toEqual(["lighter", "about_right", "heavier"]);
+    for (const r of REFLECTIONS) {
+      expect(normalizeReflection({ reflection: r })).toEqual({ reflection: r, reflectionNote: null });
+    }
+  });
+
+  test("a bad or missing value is refused", () => {
+    for (const bad of [{}, { reflection: "nope" }, { reflection: 1 }, { reflection: undefined }]) {
+      expect(normalizeReflection(bad)).toEqual({ error: "Choose lighter, about right or heavier." });
+    }
+  });
+
+  test("clearing the reflection clears the note, whatever was sent", () => {
+    expect(normalizeReflection({ reflection: null, reflectionNote: "keep me" }, "old"))
+      .toEqual({ reflection: null, reflectionNote: null });
+    expect(normalizeReflection({ reflection: null }, "old"))
+      .toEqual({ reflection: null, reflectionNote: null });
+  });
+
+  test("an absent note key keeps whatever was written before", () => {
+    expect(normalizeReflection({ reflection: "heavier" }, "words from before"))
+      .toEqual({ reflection: "heavier", reflectionNote: "words from before" });
+    expect(normalizeReflection({ reflection: "heavier" }, null))
+      .toEqual({ reflection: "heavier", reflectionNote: null });
+  });
+
+  test("an explicit null or an empty note removes it", () => {
+    expect(normalizeReflection({ reflection: "heavier", reflectionNote: null }, "old").reflectionNote).toBeNull();
+    expect(normalizeReflection({ reflection: "heavier", reflectionNote: "" }, "old").reflectionNote).toBeNull();
+    expect(normalizeReflection({ reflection: "heavier", reflectionNote: "   " }, "old").reflectionNote).toBeNull();
+  });
+
+  test("a note is trimmed", () => {
+    expect(normalizeReflection({ reflection: "lighter", reflectionNote: "  rested  " }).reflectionNote)
+      .toBe("rested");
+  });
+
+  test("280 characters passes, 281 does not", () => {
+    const at = "a".repeat(280);
+    expect(normalizeReflection({ reflection: "lighter", reflectionNote: at }).reflectionNote).toBe(at);
+    expect(normalizeReflection({ reflection: "lighter", reflectionNote: `  ${at}  ` }).reflectionNote).toBe(at);
+    expect(normalizeReflection({ reflection: "lighter", reflectionNote: "a".repeat(281) }))
+      .toEqual({ error: "Notes can be up to 280 characters." });
+  });
+
+  test("a non-string note is refused rather than coerced", () => {
+    expect(normalizeReflection({ reflection: "lighter", reflectionNote: 42 }).error).toBeTruthy();
+    expect(normalizeReflection({ reflection: "lighter", reflectionNote: {} }).error).toBeTruthy();
+  });
+
+  test("a note always has a reflection to belong to", () => {
+    // the invariant: reflectionNote != null implies reflection != null
+    const cases = [
+      { reflection: null, reflectionNote: "x" },
+      { reflection: "heavier", reflectionNote: "x" },
+      { reflection: "heavier" },
+    ];
+    for (const body of cases) {
+      const out = normalizeReflection(body, "existing");
+      if (out.error) continue;
+      if (out.reflectionNote !== null) expect(out.reflection).not.toBeNull();
+    }
   });
 });

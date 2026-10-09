@@ -6,8 +6,12 @@ const SpoonDay = require("../models/SpoonDay");
 const SpoonEntry = require("../models/SpoonEntry");
 const {
   isMonthKey,
+  isDateKey,
   monthRange,
-  summarizeMonth,
+  weekRange,
+  localToday,
+  normalizeReflection,
+  summarizeDays,
 } = require("../lib/spoonCalendar");
 
 const DEFAULT_BASELINE = 12;
@@ -217,9 +221,74 @@ const getMonth = async (req, res) => {
         })
       : [];
 
-    res.json({ month, days: summarizeMonth({ days, entries }) });
+    res.json({ month, days: summarizeDays({ days, entries }) });
   } catch (error) {
     console.error("Error getting spoon month:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+
+/**
+ * The week view. Read-only, like /month: browsing weeks must never create
+ * SpoonDay rows, or paging back and forth would litter the table with empty
+ * days. Only tapping a day creates one, through getDay.
+ */
+const getWeek = async (req, res) => {
+  try {
+    let date = req.query.date;
+    if (date === undefined || date === "") {
+      // the user's own today, not the server's
+      const user = await User.findByPk(req.user.id, { attributes: ["timezone"] });
+      date = localToday(new Date(), user?.timezone);
+    }
+    if (!isDateKey(date)) {
+      return res.status(400).json({ error: "date must be in YYYY-MM-DD format" });
+    }
+    const { start, end } = weekRange(date);
+
+    const days = await SpoonDay.findAll({
+      where: { userId: req.user.id, date: { [Op.between]: [start, end] } },
+      order: [["date", "ASC"]],
+    });
+
+    const entries = days.length
+      ? await SpoonEntry.findAll({
+          where: { spoonDayId: { [Op.in]: days.map((d) => d.id) } },
+        })
+      : [];
+
+    res.json({ start, end, days: summarizeDays({ days, entries }) });
+  } catch (error) {
+    console.error("Error getting spoon week:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+/**
+ * How the day went, in the user's own words. Touches only the two reflection
+ * columns: a body carrying a budget, a userId or a date changes none of them.
+ */
+const updateDayReflection = async (req, res) => {
+  try {
+    const day = await SpoonDay.findOne({
+      where: { id: req.params.id, userId: req.user.id },
+    });
+    if (!day) return res.status(404).json({ error: "Day not found" });
+
+    const user = await User.findByPk(req.user.id, { attributes: ["timezone"] });
+    // a day that has not happened yet cannot be reflected on
+    if (String(day.date) > localToday(new Date(), user?.timezone)) {
+      return res.status(400).json({ error: "You can reflect on today or earlier days." });
+    }
+
+    const next = normalizeReflection(req.body, day.reflectionNote);
+    if (next.error) return res.status(400).json({ error: next.error });
+
+    await day.update({ reflection: next.reflection, reflectionNote: next.reflectionNote });
+    res.json({ day });
+  } catch (error) {
+    console.error("Error updating spoon reflection:", error);
     res.status(500).json({ error: "Server error" });
   }
 };
@@ -303,6 +372,8 @@ module.exports = {
   deleteActivity,
   getDay,
   getMonth,
+  getWeek,
+  updateDayReflection,
   updateDayBudget,
   addEntry,
   updateEntry,

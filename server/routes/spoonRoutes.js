@@ -10,6 +10,8 @@ const {
   deleteActivity,
   getDay,
   getMonth,
+  getWeek,
+  updateDayReflection,
   updateDayBudget,
   addEntry,
   updateEntry,
@@ -27,7 +29,9 @@ router.delete("/activities/:id", authenticateToken, deleteActivity);
 
 router.get("/day", authenticateToken, getDay);
 router.get("/month", authenticateToken, getMonth);
+router.get("/week", authenticateToken, getWeek);
 router.put("/day/:id", authenticateToken, updateDayBudget);
+router.put("/day/:id/reflection", authenticateToken, updateDayReflection);
 router.post("/day/:id/entries", authenticateToken, addEntry);
 
 router.put("/entries/:id", authenticateToken, updateEntry);
