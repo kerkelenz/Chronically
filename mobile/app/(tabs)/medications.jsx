@@ -1097,6 +1097,25 @@ export default function MedicationsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params?.helpedLogId, loading, weekLogs, medications]);
 
+  // A tap on the refill push lands here with ?medId=. The cabinet is where the
+  // supply line and Refilled button live, so opening it is the whole job — the
+  // card itself is a few rows down, not scrolled to.
+  const handledMedParam = useRef(null);
+
+  useEffect(() => {
+    const raw = params?.medId;
+    const id = Array.isArray(raw) ? raw[0] : raw;
+    if (!id || loading) return;
+    if (handledMedParam.current === id) return;
+    handledMedParam.current = id;
+
+    // only for a medication that is still there, so a deleted one does not
+    // leave the cabinet hanging open for no reason
+    if (medications.some((m) => String(m.id) === String(id))) setCabinetOpen(true);
+    router.setParams({ medId: undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params?.medId, loading, medications]);
+
   async function handleUndo(logId, doseKey) {
     setActionLoading(doseKey);
     setActionError(null);
