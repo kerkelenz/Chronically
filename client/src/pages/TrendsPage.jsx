@@ -332,7 +332,7 @@ function TrendsPage() {
                             <Tooltip
                               formatter={(value, _name, props) => {
                                 const { taken, scheduled } = props.payload;
-                                return [`${taken} of ${scheduled} doses taken (${value}%)`, "Adherence"];
+                                return [`${taken} of ${scheduled} ${scheduled === 1 ? "dose" : "doses"} taken (${value}%)`, "Adherence"];
                               }}
                             />
                             <Bar dataKey="adherence" fill="#7C6BAE" radius={[0, 4, 4, 0]} />
@@ -364,7 +364,7 @@ function TrendsPage() {
                               <Tooltip
                                 formatter={(value, _name, props) => {
                                   const { taken, scheduled } = props.payload;
-                                  return [`${value}% adherence (${taken} of ${scheduled} doses)`, ""];
+                                  return [`${value}% adherence (${taken} of ${scheduled} ${scheduled === 1 ? "dose" : "doses"})`, ""];
                                 }}
                               />
                               <ReferenceLine

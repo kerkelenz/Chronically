@@ -382,7 +382,7 @@ function computeInsights({ checkIns, medLogs = [], spoonDays = [], weatherDays =
 
   const meta = { days: dayCount };
   if (dayCount < 14) {
-    meta.message = `Insights unlock as patterns emerge — about ${14 - dayCount} more check-in days to go.`;
+    meta.message = `Insights unlock as patterns emerge — about ${14 - dayCount} more check-in ${14 - dayCount === 1 ? "day" : "days"} to go.`;
   } else if (cards.length === 0) {
     meta.message = "No strong patterns yet — that can be good news. Keep logging; subtler patterns need more days.";
   } else {

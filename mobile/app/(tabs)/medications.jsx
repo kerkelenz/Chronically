@@ -1141,7 +1141,7 @@ export default function MedicationsScreen() {
               {/* Today progress — states a fact, nothing more */}
               <View style={styles.progressWrap}>
                 <Text style={styles.progressText}>
-                  {todayLogged} of {todayExpected} doses logged
+                  {todayLogged} of {todayExpected} {todayExpected === 1 ? "dose" : "doses"} logged
                 </Text>
                 <View style={styles.progressTrack}>
                   <View

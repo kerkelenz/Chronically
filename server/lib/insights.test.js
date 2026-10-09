@@ -290,6 +290,23 @@ describe("meta", () => {
     expect(res.cards.length).toBe(0);
     expect(res.meta.message).toBe("Insights unlock as patterns emerge — about 11 more check-in days to go.");
   });
+
+  // the countdown reaches 1 on the thirteenth day, so the noun has to agree
+  test("the last day before unlock reads \"1 more check-in day\"", () => {
+    const checkIns = [];
+    for (let i = 0; i < 13; i++) checkIns.push(ci(dayStr(B, i), { pain: 3, mood: 3 }));
+    const res = computeInsights({ checkIns });
+    expect(res.meta.days).toBe(13);
+    expect(res.meta.message).toBe("Insights unlock as patterns emerge — about 1 more check-in day to go.");
+  });
+
+  test("two days out stays plural", () => {
+    const checkIns = [];
+    for (let i = 0; i < 12; i++) checkIns.push(ci(dayStr(B, i), { pain: 3, mood: 3 }));
+    const res = computeInsights({ checkIns });
+    expect(res.meta.days).toBe(12);
+    expect(res.meta.message).toBe("Insights unlock as patterns emerge — about 2 more check-in days to go.");
+  });
 });
 
 // ── F6: barometric pressure drop ↔ metrics ───────────────────────────────────

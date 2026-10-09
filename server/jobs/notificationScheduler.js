@@ -154,7 +154,7 @@ async function planRemovals(user, tz, now, messages) {
       messages.push({
         userId: user.id,
         title: `Time to remove your ${med.name}`,
-        body: med.notes ? med.notes : `It's been ${med.removalOffsetHours} hours.`,
+        body: med.notes ? med.notes : `It's been ${med.removalOffsetHours} ${med.removalOffsetHours === 1 ? "hour" : "hours"}.`,
         data: { kind: "removal", medicationId: med.id },
       });
     }

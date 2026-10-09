@@ -1007,7 +1007,7 @@ function MedicationsPage() {
                     {/* Today progress — states a fact, nothing more */}
                     <div className="flex flex-col gap-1.5 mb-1">
                       <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
-                        {todayLogged} of {todayExpected} doses logged
+                        {todayLogged} of {todayExpected} {todayExpected === 1 ? "dose" : "doses"} logged
                       </p>
                       <div
                         className="w-full rounded-full overflow-hidden"

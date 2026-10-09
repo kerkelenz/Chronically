@@ -130,7 +130,7 @@ function BudgetRing({ spent, budget }) {
           {Math.abs(remaining)}
         </Text>
         <Text style={[styles.ringSubLabel, over && { color: "rgba(222,200,218,0.75)" }]}>
-          {over ? "over" : "spoons left"}
+          {over ? "over" : Math.abs(remaining) === 1 ? "spoon left" : "spoons left"}
         </Text>
         <Text style={styles.ringTotal}>
           {spent} / {budget}
@@ -167,7 +167,7 @@ function CalendarDay({ date, summary, isSelected, isToday, isFuture, onSelect })
 
   const label = `${formatFullDate(date)}${
     planned
-      ? `: ${summary.spent} of ${summary.budget} spoons ${isFuture ? "planned" : "used"}`
+      ? `: ${summary.spent} of ${summary.budget} ${summary.budget === 1 ? "spoon" : "spoons"} ${isFuture ? "planned" : "used"}`
       : ": nothing planned"
   }`;
 
@@ -1028,7 +1028,7 @@ export default function SpoonCenterScreen() {
                     {!editingCosts ? (
                       <>
                         <Text style={styles.libraryName}>{act.name}</Text>
-                        <Text style={styles.libraryCost}>{act.cost} spoons</Text>
+                        <Text style={styles.libraryCost}>{act.cost} {act.cost === 1 ? "spoon" : "spoons"}</Text>
                         <TouchableOpacity
                           onPress={() => togglePin(act)}
                           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

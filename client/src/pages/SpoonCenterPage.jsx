@@ -125,7 +125,7 @@ function BudgetRing({ spent, budget }) {
           {Math.abs(remaining)}
         </span>
         <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 3 }}>
-          {over ? "over" : "spoons left"}
+          {over ? "over" : Math.abs(remaining) === 1 ? "spoon left" : "spoons left"}
         </span>
         <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 5 }}>
           {spent} / {budget}
@@ -162,7 +162,7 @@ function CalendarDay({ date, summary, isSelected, isToday, isFuture, onSelect })
 
   const label = `${formatFullDate(date)}${
     planned
-      ? `: ${summary.spent} of ${summary.budget} spoons ${isFuture ? "planned" : "used"}`
+      ? `: ${summary.spent} of ${summary.budget} ${summary.budget === 1 ? "spoon" : "spoons"} ${isFuture ? "planned" : "used"}`
       : ": nothing planned"
   }`;
 
@@ -1073,7 +1073,7 @@ export default function SpoonCenterPage() {
                         >
                           <span className="text-sm text-white">{act.name}</span>
                           <span className="text-xs flex-shrink-0" style={{ color: "rgba(255,255,255,0.55)" }}>
-                            {act.cost} spoons
+                            {act.cost} {act.cost === 1 ? "spoon" : "spoons"}
                           </span>
                         </button>
                         <button

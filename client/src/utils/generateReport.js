@@ -233,7 +233,7 @@ export function generateReport(checkIns, username, medications = [], medicationL
   const medStats = adherenceStats(medications, medicationLogs, thirtyDaysAgoStr, todayStr, todayStr);
 
   const glanceAdherenceText = medStats.totals.expected > 0
-    ? `${medStats.totals.pct}% (${medStats.totals.taken} of ${medStats.totals.expected} doses)`
+    ? `${medStats.totals.pct}% (${medStats.totals.taken} of ${medStats.totals.expected} ${medStats.totals.expected === 1 ? "dose" : "doses"})`
     : "No medications tracked";
 
   // Severe day computations (daily average ≤ 2, since 5=best)
@@ -253,8 +253,8 @@ export function generateReport(checkIns, username, medications = [], medicationL
   const topSevereKey   = METRIC_KEYS.reduce((a, b) => severeDaysByMetric[a].length >= severeDaysByMetric[b].length ? a : b);
   const topSevereCount = severeDaysByMetric[topSevereKey].length;
 
-  const glanceSevereText      = topSevereCount > 0 ? `${METRIC_NAMES[topSevereKey]} severe on ${topSevereCount} days` : "None";
-  const glanceMostFreqSymptom = symptomStats.length > 0 ? `${symptomStats[0].name} — ${symptomStats[0].days} days` : "None logged";
+  const glanceSevereText      = topSevereCount > 0 ? `${METRIC_NAMES[topSevereKey]} severe on ${topSevereCount} ${topSevereCount === 1 ? "day" : "days"}` : "None";
+  const glanceMostFreqSymptom = symptomStats.length > 0 ? `${symptomStats[0].name} — ${symptomStats[0].days} ${symptomStats[0].days === 1 ? "day" : "days"}` : "None logged";
 
   // Notable events lines
   const notableLines = [];
