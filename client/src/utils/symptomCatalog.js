@@ -20,8 +20,15 @@ export const COMMON_SYMPTOMS = [
 ];
 
 // The quick-pick grid for the mind side. COMMON_SYMPTOMS (above) is unchanged.
+// Deliberately without "Low mood": mood is already one of the six tracked
+// metrics, and METRIC_LABELS.mood[2] is the word "Low", so offering it as a tag
+// too asks for the same sentence twice. It stays in the catalog below — search
+// finds it, entries already logged keep their kind, and the insight engine's
+// tautology guard goes on recognising it — but it is not offered by default.
+// "Emotional numbness" takes the slot because it is the thing a 1-to-5 mood
+// scale genuinely cannot record: an absence of feeling, not a low score.
 export const COMMON_MENTAL_SYMPTOMS = [
-  "Low mood", "Anxiety spike", "Overwhelm", "Low motivation",
+  "Emotional numbness", "Anxiety spike", "Overwhelm", "Low motivation",
   "Racing thoughts", "Trouble concentrating", "Irritability", "Panic attack",
 ];
 
