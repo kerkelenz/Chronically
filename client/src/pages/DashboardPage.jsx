@@ -432,8 +432,9 @@ function DashboardPage() {
             {(() => {
               const fourteenDaysAgo = new Date();
               fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+              // Use noon to avoid timezone-edge-case shifts
               const recent = checkIns.filter(
-                (c) => new Date(c.date) >= fourteenDaysAgo,
+                (c) => new Date(c.date + "T12:00:00") >= fourteenDaysAgo,
               );
               // pain is optional now, so it filters like the others — an
                // unanswered day must not drag the average toward zero
