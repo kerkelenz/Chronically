@@ -16,8 +16,25 @@ import { useEffect, useState } from "react";
  */
 
 const PRIMARY = "#7C6BAE";
-// Deep plum destructive treatment — visibly not the #7C6BAE save pill, no red.
-const PLUM = "#5A3A60";
+
+/**
+ * Destructive treatment, exported so no screen invents its own. Red is never
+ * used anywhere in the app: it reads as alarm, and this is a product for people
+ * whose days already contain enough of that.
+ *
+ *  - PLUM on a white pill: the confirming action, the loudest thing on screen
+ *    at the moment it matters (ConfirmDialog's footer, an inline "Cancel it").
+ *  - PLUM_TINT behind a white glyph: a destructive icon button sitting beside a
+ *    neutral one. Distinct from the 25%-white edit button without outshouting
+ *    it. Measured against the lavender gradient, a white glyph on this clears
+ *    4.6:1 at the worst point; the reds it replaced bottomed out at 2.5:1,
+ *    which failed even the 3:1 minimum for a non-text element.
+ *  - SOFT_ERROR: the one quiet line a form shows when something failed. The
+ *    message carries the meaning; the colour does not need to shout it.
+ */
+export const PLUM = "#5A3A60";
+export const PLUM_TINT = "rgba(90,58,96,0.55)";
+export const SOFT_ERROR = "rgba(255,255,255,0.85)";
 const EXIT_MS = 260;
 
 // Uppercase micro-label above an input — matches mobile's field-label contract.

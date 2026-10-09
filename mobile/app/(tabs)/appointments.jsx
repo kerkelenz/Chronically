@@ -15,7 +15,7 @@ import {
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import BottomSheet from "../../components/BottomSheet";
-import { SheetHeader, SheetFooter, formStyles } from "../../components/FormSheet";
+import { SheetHeader, SheetFooter, formStyles, PLUM, PLUM_TINT } from "../../components/FormSheet";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import DoctorPicker from "../../components/DoctorPicker";
 import DoctorsSheet from "../../components/DoctorsSheet";
@@ -1795,7 +1795,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   iconBtnDanger: {
-    backgroundColor: "rgba(255,100,100,0.4)",
+    backgroundColor: PLUM_TINT,
   },
   apptRow: {
     flexDirection: "row",
@@ -2058,12 +2058,12 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 10,
     alignItems: "center",
-    backgroundColor: "rgba(255,100,100,0.5)",
+    backgroundColor: "white",
   },
   cancelItBtnText: {
     fontFamily: "Lato_700Bold",
     fontSize: 13,
-    color: "white",
+    color: PLUM,
   },
 
   // Add / Edit modal
@@ -2071,7 +2071,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(255,100,100,0.35)",
+    backgroundColor: PLUM_TINT,
     alignItems: "center",
     justifyContent: "center",
   },

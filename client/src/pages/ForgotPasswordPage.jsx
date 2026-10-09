@@ -76,7 +76,7 @@ function ForgotPasswordPage() {
                 className="w-full px-3 py-2 rounded-lg text-sm text-white placeholder-white/60 outline-none glass-input transition-all duration-300"
                 style={{ background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.32)" }}
               />
-              {error && <p className="text-red-200 text-xs">{error}</p>}
+              {error && <p className="text-white/85 text-xs">{error}</p>}
               <button
                 type="submit"
                 disabled={loading}

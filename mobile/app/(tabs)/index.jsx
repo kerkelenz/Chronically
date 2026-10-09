@@ -13,6 +13,7 @@ import {
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../../components/ScreenBackground";
+import { PLUM_TINT } from "../../components/FormSheet";
 import CircularDial from "../../components/CircularDial";
 import Avatar from "../../components/Avatar";
 import { useAuth } from "../../context/AuthContext";
@@ -953,7 +954,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  rowBtnDelete: { backgroundColor: "rgba(225,90,90,0.45)" },
+  rowBtnDelete: { backgroundColor: PLUM_TINT },
   metricList: {
     flexDirection: "row",
     flexWrap: "wrap",

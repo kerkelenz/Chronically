@@ -74,7 +74,7 @@ function VerifyEmailPage() {
           {(status === "error" || status === "invalid") && (
             <>
               <p className="text-white font-medium text-sm">Verification failed</p>
-              <p className="text-red-200 text-xs">{error || "This link is missing or invalid."}</p>
+              <p className="text-white/85 text-xs">{error || "This link is missing or invalid."}</p>
               <button
                 onClick={() => navigate("/login")}
                 className="w-full py-2 rounded-full bg-white font-medium text-sm mt-1 hover:scale-105 transition-all duration-200 shockwave-btn"

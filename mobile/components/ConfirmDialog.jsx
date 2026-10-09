@@ -1,8 +1,5 @@
 import { Modal, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from "react-native";
-
-// Deep plum destructive treatment — visibly not the #7C6BAE save pill, and no
-// red per the app's tone rules.
-const PLUM = "#5A3A60";
+import { PLUM } from "./FormSheet";
 
 /**
  * Centered, frosted confirmation for destructive actions. Interrupts (never

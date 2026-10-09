@@ -9,7 +9,7 @@ import { useAuth } from "../hooks/useAuth";
 import { exportDoctorReport } from "../utils/exportReport";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import HomeLogo from "../components/HomeLogo";
-import FormModal, { ModalFooter, labelClass, ConfirmDialog } from "../components/FormModal";
+import FormModal, { ModalFooter, labelClass, ConfirmDialog, PLUM, PLUM_TINT, SOFT_ERROR } from "../components/FormModal";
 import DoctorPicker from "../components/DoctorPicker";
 import DoctorsModal from "../components/DoctorsModal";
 import { isAlreadySaved } from "../utils/doctorHelpers";
@@ -555,7 +555,7 @@ function AppointmentsPage() {
                 {exporting ? "Preparing..." : <><FiDownload size={14} /> Export PDF Report</>}
               </button>
               {exportError && (
-                <p className="text-[11px]" style={{ color: "rgba(255,120,120,0.9)" }}>
+                <p className="text-[11px]" style={{ color: SOFT_ERROR }}>
                   Failed to prepare report. Please try again.
                 </p>
               )}
@@ -723,7 +723,7 @@ function AppointmentsPage() {
                             <button
                               onClick={() => setCancelConfirmId(appt.id)}
                               className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
-                              style={{ background: "rgba(255,100,100,0.4)" }}
+                              style={{ background: PLUM_TINT }}
                               aria-label={`Cancel appointment with ${appt.doctorName}`}
                             >
                               <FiX size={12} color="white" />
@@ -774,8 +774,8 @@ function AppointmentsPage() {
                               </button>
                               <button
                                 onClick={() => handleCancel(appt.id)}
-                                className="flex-1 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:opacity-80"
-                                style={{ background: "rgba(255,100,100,0.5)", color: "white" }}
+                                className="flex-1 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 hover:opacity-80"
+                                style={{ background: "white", color: PLUM }}
                               >
                                 Cancel it
                               </button>
@@ -928,8 +928,8 @@ function AppointmentsPage() {
                                 </button>
                                 <button
                                   onClick={() => handleCancel(appt.id)}
-                                  className="flex-1 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:opacity-80"
-                                  style={{ background: "rgba(255,100,100,0.5)", color: "white" }}
+                                  className="flex-1 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 hover:opacity-80"
+                                  style={{ background: "white", color: PLUM }}
                                 >
                                   Cancel it
                                 </button>
@@ -994,7 +994,7 @@ function AppointmentsPage() {
               onClick={() => setDeleteConfirmId(editingId)}
               aria-label="Delete appointment"
               className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-200 hover:opacity-80"
-              style={{ background: "rgba(255,100,100,0.4)" }}
+              style={{ background: PLUM_TINT }}
             >
               <FiTrash2 size={14} color="white" />
             </button>

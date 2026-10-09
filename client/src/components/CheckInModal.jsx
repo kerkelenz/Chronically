@@ -977,7 +977,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
             >
               Submit Check-in
             </button>
-            {error && <p className="text-red-200 text-xs text-center">{error}</p>}
+            {error && <p className="text-white/85 text-xs text-center">{error}</p>}
           </div>
         )}
 

@@ -198,7 +198,7 @@ function RegisterPage() {
                   border: "1px solid rgba(255,255,255,0.32)",
                 }}
               />
-              {error && <p className="text-red-200 text-xs">{error}</p>}
+              {error && <p className="text-white/85 text-xs">{error}</p>}
               <button
                 type="submit"
                 disabled={loading}

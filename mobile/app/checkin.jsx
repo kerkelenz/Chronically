@@ -12,6 +12,7 @@ import {
 import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../components/ScreenBackground";
+import { SOFT_ERROR } from "../components/FormSheet";
 import LavenderConfetti from "../components/LavenderConfetti";
 import LevelButtons from "../components/LevelButtons";
 import api from "../lib/api";
@@ -1102,7 +1103,7 @@ const styles = StyleSheet.create({
   errorText: {
     fontFamily: "Lato_400Regular",
     fontSize: 13,
-    color: "rgba(255,200,200,0.9)",
+    color: SOFT_ERROR,
     textAlign: "center",
     marginTop: 4,
   },

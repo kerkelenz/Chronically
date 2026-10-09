@@ -11,7 +11,7 @@ import { SymptomIcon } from "../components/SymptomIcon";
 import Avatar from "../components/Avatar";
 import MilestoneCelebration from "../components/MilestoneCelebration";
 import WelcomeModal from "../components/WelcomeModal";
-import { ConfirmDialog } from "../components/FormModal";
+import { ConfirmDialog, PLUM_TINT, SOFT_ERROR } from "../components/FormModal";
 import AnnouncementCard from "../components/AnnouncementCard";
 import { formatWeatherLine, deviceLocale } from "../utils/weatherFormat";
 import { MILESTONES, totalCheckInDays } from "../utils/milestones";
@@ -524,7 +524,7 @@ function DashboardPage() {
                     )}
                   </button>
                   {exportError && (
-                    <p className="text-[11px]" style={{ color: "rgba(255,120,120,0.9)" }}>
+                    <p className="text-[11px]" style={{ color: SOFT_ERROR }}>
                       Failed to prepare report. Please try again.
                     </p>
                   )}
@@ -628,7 +628,7 @@ function DashboardPage() {
                             <button
                               onClick={() => handleDelete(c.id)}
                               className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
-                              style={{ background: "rgba(255,100,100,0.4)" }}
+                              style={{ background: PLUM_TINT }}
                             >
                               <FiTrash2 size={12} color="white" />
                             </button>

@@ -75,7 +75,7 @@ export default function DeleteAccountPage() {
               placeholder="Reason (optional)"
               style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.15)", color: "white", fontSize: 15, resize: "none" }}
             />
-            {error && <p style={{ color: "#FFD6D6", fontSize: 14 }}>{error}</p>}
+            {error && <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 14 }}>{error}</p>}
             <button
               onClick={submit} disabled={sending}
               style={{ padding: "12px", borderRadius: 24, border: "none", background: "white", color: "#5A3A60", fontWeight: 700, fontSize: 15, cursor: "pointer", opacity: sending ? 0.7 : 1 }}

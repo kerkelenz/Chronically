@@ -8,7 +8,7 @@ import {
 } from "react-icons/fi";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import HomeLogo from "../components/HomeLogo";
-import FormModal, { ModalFooter, labelClass, ConfirmDialog } from "../components/FormModal";
+import FormModal, { ModalFooter, labelClass, ConfirmDialog, PLUM_TINT, SOFT_ERROR } from "../components/FormModal";
 import {
   formatTime,
   resolvePattern,
@@ -230,7 +230,7 @@ function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onD
             onClick={() => onDelete(med.id)}
             aria-label={`Remove ${med.name}`}
             className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
-            style={{ background: "rgba(255,100,100,0.4)" }}
+            style={{ background: PLUM_TINT }}
           >
             <FiTrash2 size={12} color="white" />
           </button>
@@ -818,7 +818,7 @@ function MedicationsPage() {
                 {statusLine}
               </p>
               {actionError === doseKey && (
-                <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,180,180,0.8)" }}>
+                <p className="text-[10px] mt-0.5" style={{ color: SOFT_ERROR }}>
                   Couldn't save, try again
                 </p>
               )}
@@ -1082,7 +1082,7 @@ function MedicationsPage() {
                                   </p>
                                 )}
                                 {actionError === prnKey && (
-                                  <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,180,180,0.8)" }}>
+                                  <p className="text-[10px] mt-0.5" style={{ color: SOFT_ERROR }}>
                                     Couldn't save, try again
                                   </p>
                                 )}

@@ -16,6 +16,7 @@ import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import ScreenBackground from "../../components/ScreenBackground";
+import { PLUM_TINT, SOFT_ERROR } from "../../components/FormSheet";
 import Avatar from "../../components/Avatar";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../lib/api";
@@ -692,18 +693,18 @@ const styles = StyleSheet.create({
     color: "white",
   },
   photoBtnRemove: {
-    backgroundColor: "rgba(220,50,80,0.18)",
-    borderColor: "rgba(220,50,80,0.35)",
+    backgroundColor: PLUM_TINT,
+    borderColor: "rgba(90,58,96,0.8)",
   },
   photoBtnRemoveText: {
     fontFamily: "Lato_700Bold",
     fontSize: 13,
-    color: "rgba(255,150,150,0.9)",
+    color: "white",
   },
   avatarError: {
     fontFamily: "Lato_400Regular",
     fontSize: 12,
-    color: "rgba(255,170,170,0.9)",
+    color: SOFT_ERROR,
     textAlign: "center",
     paddingHorizontal: 16,
   },
@@ -748,7 +749,7 @@ const styles = StyleSheet.create({
   errorText: {
     fontFamily: "Lato_400Regular",
     fontSize: 13,
-    color: "rgba(255,180,180,0.9)",
+    color: SOFT_ERROR,
     marginTop: 6,
   },
   successText: {
@@ -869,14 +870,14 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     borderRadius: 12,
     alignItems: "center",
-    backgroundColor: "rgba(220,50,80,0.18)",
+    backgroundColor: PLUM_TINT,
     borderWidth: 1,
-    borderColor: "rgba(220,50,80,0.35)",
+    borderColor: "rgba(90,58,96,0.8)",
   },
   deleteBtnText: {
     fontFamily: "Lato_700Bold",
     fontSize: 15,
-    color: "rgba(255,150,150,0.9)",
+    color: "white",
     letterSpacing: 0.3,
   },
 
@@ -896,7 +897,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", padding: 14,
     fontFamily: "Lato_400Regular", fontSize: 15, color: "white", marginTop: 4,
   },
-  reportErrorText: { fontFamily: "Lato_400Regular", fontSize: 13, color: "rgba(255,150,150,0.9)" },
+  reportErrorText: { fontFamily: "Lato_400Regular", fontSize: 13, color: SOFT_ERROR },
   reportBtnRow: { flexDirection: "row", gap: 12, marginTop: 4 },
   reportCancelBtn: {
     paddingVertical: 13, borderRadius: 24, alignItems: "center",

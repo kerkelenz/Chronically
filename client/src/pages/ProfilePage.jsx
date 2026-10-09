@@ -10,6 +10,7 @@ import HomeLogo from "../components/HomeLogo";
 import Avatar from "../components/Avatar";
 import MilestoneBadges from "../components/MilestoneBadges";
 import WeatherLocationModal from "../components/WeatherLocationModal";
+import { PLUM, PLUM_TINT, SOFT_ERROR } from "../components/FormModal";
 import { SUPPORT_ROW_LABEL } from "../utils/supportResources";
 import TrackingFocusModal, { trackingLabel } from "../components/TrackingFocusModal";
 
@@ -402,7 +403,7 @@ function ProfilePage() {
             <p className="text-xs text-center font-medium" style={{ color: "#D6F2DF" }}>{success}</p>
           )}
           {error && (
-            <p className="text-xs text-center" style={{ color: "#FF6B8A" }}>{error}</p>
+            <p className="text-xs text-center" style={{ color: SOFT_ERROR }}>{error}</p>
           )}
 
           {hasChanges && (
@@ -564,10 +565,10 @@ function ProfilePage() {
           <button
             onClick={() => { setShowDeleteModal(true); setDeleteError(""); }}
             className="w-full px-4 py-3 text-left text-sm font-medium flex justify-between items-center transition-colors"
-            style={{ color: "white", background: "rgba(220,50,80,0.25)" }}
+            style={{ color: "white", background: PLUM_TINT }}
           >
             Delete account
-            <span style={{ color: "rgba(255,160,170,0.8)" }}>›</span>
+            <span style={{ color: "rgba(255,255,255,0.55)" }}>›</span>
           </button>
         </div>
       </div>
@@ -763,7 +764,7 @@ function ProfilePage() {
                 onClick={handleDeleteAccount}
                 disabled={deleteLoading}
                 className="flex-1 py-2 rounded-full text-sm text-white transition-all duration-200"
-                style={{ background: "#B07088", opacity: deleteLoading ? 0.7 : 1 }}
+                style={{ background: PLUM, opacity: deleteLoading ? 0.7 : 1 }}
               >
                 {deleteLoading ? "Deleting…" : "Delete account"}
               </button>

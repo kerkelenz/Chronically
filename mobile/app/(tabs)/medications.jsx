@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import BottomSheet from "../../components/BottomSheet";
-import { SheetHeader, SheetFooter, formStyles } from "../../components/FormSheet";
+import { SheetHeader, SheetFooter, formStyles, PLUM_TINT, SOFT_ERROR } from "../../components/FormSheet";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -377,13 +377,13 @@ function CabinetCard({ med, weekDates, weekLogs, today, onEdit, onSetActive, onD
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => onDeleteRequest(med.id)}
-            style={styles.medCardActionBtn}
+            style={[styles.medCardActionBtn, styles.medCardActionBtnDanger]}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
             accessibilityRole="button"
             accessibilityLabel={`Remove ${med.name}`}
           >
-            <Ionicons name="trash-outline" size={15} color="rgba(255,120,120,0.65)" />
+            <Ionicons name="trash-outline" size={15} color="white" />
           </TouchableOpacity>
         </View>
       </View>
@@ -1516,7 +1516,7 @@ const styles = StyleSheet.create({
   doseError: {
     fontFamily: "Lato_400Regular",
     fontSize: 11,
-    color: "rgba(255,180,180,0.8)",
+    color: SOFT_ERROR,
     marginTop: 3,
   },
   doseActions: { alignItems: "flex-end" },
@@ -1691,6 +1691,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "rgba(255,255,255,0.1)",
   },
+  // destructive sibling of the neutral action buttons, matching the tinted
+  // circle its web twin uses rather than tinting the glyph alone
+  medCardActionBtnDanger: { backgroundColor: PLUM_TINT },
   dotsRow: {
     flexDirection: "row",
     gap: 8,
