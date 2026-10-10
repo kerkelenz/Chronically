@@ -29,7 +29,7 @@ const BASELINE = resolve(REPO, ".github", "lint-baseline.json");
 // the same targets each package's own `npm run lint` uses
 const PACKAGES = {
   client: { dir: "client", targets: ["src"] },
-  mobile: { dir: "mobile", targets: ["app", "components", "lib", "theme", "context"] },
+  mobile: { dir: "mobile", targets: ["app", "components", "lib", "theme", "context", "__tests__"] },
 };
 
 const args = process.argv.slice(2);

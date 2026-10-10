@@ -58,6 +58,11 @@ jobs:
         env:
           # the build only inlines this; it is a public URL, not a secret
           VITE_API_URL: https://example.invalid
+      # Renders real pages and drives them as a user would, by role and name —
+      # so a control losing its accessible name fails here too.
+      - name: Tests
+        run: npm test
+        working-directory: client
       # The shared accessibility rule, tested on this job's ESLint (10). The
       # mobile job tests it again on 9; both load the same file.
       - name: Test the shared lint rule
@@ -79,6 +84,9 @@ jobs:
           cache-dependency-path: mobile/package-lock.json
       # installing is itself a gate: it catches a lockfile that no longer resolves
       - run: npm ci
+        working-directory: mobile
+      - name: Tests
+        run: npm test -- --ci
         working-directory: mobile
       - name: Test the shared lint rule
         run: node eslint-rules/accessible-names.test.cjs

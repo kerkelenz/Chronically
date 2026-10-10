@@ -31,6 +31,17 @@ module.exports = defineConfig([
     },
   },
   {
+    // tests run under Jest, which provides these as globals
+    files: ["__tests__/**"],
+    languageOptions: {
+      globals: {
+        describe: "readonly", it: "readonly", test: "readonly", expect: "readonly",
+        jest: "readonly", beforeEach: "readonly", afterEach: "readonly",
+        beforeAll: "readonly", afterAll: "readonly",
+      },
+    },
+  },
+  {
     ignores: [
       "dist/*",
       ".expo/*",
