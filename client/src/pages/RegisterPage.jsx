@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 function RegisterPage() {
@@ -226,12 +226,9 @@ function RegisterPage() {
 
         <p className="text-white/70 text-xs">
           Already have an account?{" "}
-          <span
-            className="text-white cursor-pointer underline"
-            onClick={() => navigate("/login")}
-          >
+          <Link to="/login" className="text-white underline">
             Log in
-          </span>
+          </Link>
         </p>
         <p className="text-white/70 text-xs mt-4">
           <a href="/privacy" className="hover:underline">Privacy Policy</a>

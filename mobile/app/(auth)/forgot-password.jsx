@@ -130,7 +130,11 @@ export default function ForgotPasswordScreen() {
           </View>
 
           <View style={styles.footer}>
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              accessibilityRole="link"
+              hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+            >
               <Text style={styles.link}>Back to Sign In</Text>
             </TouchableOpacity>
           </View>

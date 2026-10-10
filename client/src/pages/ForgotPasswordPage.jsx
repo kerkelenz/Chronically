@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 function ForgotPasswordPage() {
@@ -98,9 +98,9 @@ function ForgotPasswordPage() {
 
         <p className="text-white/70 text-xs">
           Remember your password?{" "}
-          <span className="text-white cursor-pointer underline" onClick={() => navigate("/login")}>
+          <Link to="/login" className="text-white underline">
             Log in
-          </span>
+          </Link>
         </p>
       </div>
     </div>

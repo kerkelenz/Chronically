@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import BrandWordmark from "../components/BrandWordmark";
@@ -198,20 +198,14 @@ function LoginPage() {
         </form>
         <p className="text-white/70 text-xs">
           Don't have an account?{" "}
-          <span
-            className="text-white cursor-pointer underline"
-            onClick={() => navigate("/register")}
-          >
+          <Link to="/register" className="text-white underline">
             Sign up
-          </span>
+          </Link>
         </p>
         <p className="text-white/70 text-xs">
-          <span
-            className="text-white cursor-pointer underline"
-            onClick={() => navigate("/forgot-password")}
-          >
+          <Link to="/forgot-password" className="text-white underline">
             Forgot your password?
-          </span>
+          </Link>
         </p>
         <p className="text-white/70 text-xs mt-4">
           <a href="/privacy" className="hover:underline">Privacy Policy</a>
