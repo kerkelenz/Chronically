@@ -1,0 +1,96 @@
+name: CI
+
+# The checks that already existed and were only ever run by hand. Nothing here
+# is new work — it is `npm test`, `npm run build` and `npm run lint`, plus the
+# paired-file invariant from CLAUDE.md, run on every push instead of whenever
+# somebody remembers.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# a second push to the same branch supersedes the first
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Expo SDK 54 supports Node 20 and 22; 22 is the current LTS.
+  NODE_VERSION: "22"
+
+jobs:
+  server:
+    name: server tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+        working-directory: server
+      # the suite is pure unit tests over server/lib — no database, no network,
+      # so it needs none of the real secrets
+      - run: npm test
+        working-directory: server
+
+  client:
+    name: web build and lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+        working-directory: client
+      - name: Build
+        run: npm run build
+        working-directory: client
+        env:
+          # the build only inlines this; it is a public URL, not a secret
+          VITE_API_URL: https://example.invalid
+      # A ratchet, not a cliff: fails when the error count grows, not because a
+      # backlog exists. See .github/scripts/lint-ratchet.mjs.
+      - name: Lint (no new errors)
+        run: node .github/scripts/lint-ratchet.mjs
+
+  mobile:
+    name: mobile install and doctor
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      # installing is itself a gate: it catches a lockfile that no longer resolves
+      - run: npm ci
+        working-directory: mobile
+      # Advisory for now. expo-doctor currently reports three packages a patch
+      # version behind, which is not worth failing a build over, and mobile has
+      # no lint config yet to replace it with something sharper.
+      - name: expo-doctor (advisory)
+        run: npx expo-doctor
+        working-directory: mobile
+        continue-on-error: true
+
+  invariants:
+    name: paired files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      # no install needed: this reads files and compares bytes
+      - run: node .github/scripts/check-paired-files.mjs
