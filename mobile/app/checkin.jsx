@@ -11,7 +11,7 @@ import {
   Animated,
   ActivityIndicator,
 } from "react-native";
-import { Stack, useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ScreenBackground from "../components/ScreenBackground";
 import { SOFT_ERROR } from "../components/FormSheet";

@@ -248,6 +248,7 @@ export default function ProfileScreen() {
       setReportSent(true);
       setReportMessage("");
     } catch (e) {
+      console.error("Feedback send failed:", e);
       setReportError("Couldn't send just now — please try again.");
     } finally {
       setReportSending(false);

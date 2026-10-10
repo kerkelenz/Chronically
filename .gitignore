@@ -20,5 +20,7 @@ Thumbs.db
 npm-debug.log*
 server/.env 1
 
-# Scripts
-scripts/
+# Local-only server scripts: seedDemo.js holds the demo account's credentials.
+# Anchored to server/ — a bare "scripts/" also hid .github/scripts/, so CI's own
+# scripts were never committed.
+server/scripts/

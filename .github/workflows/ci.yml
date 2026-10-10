@@ -58,13 +58,17 @@ jobs:
         env:
           # the build only inlines this; it is a public URL, not a secret
           VITE_API_URL: https://example.invalid
+      # The shared accessibility rule, tested on this job's ESLint (10). The
+      # mobile job tests it again on 9; both load the same file.
+      - name: Test the shared lint rule
+        run: node eslint-rules/accessible-names.test.cjs
       # A ratchet, not a cliff: fails when the error count grows, not because a
       # backlog exists. See .github/scripts/lint-ratchet.mjs.
       - name: Lint (no new errors)
-        run: node .github/scripts/lint-ratchet.mjs
+        run: node .github/scripts/lint-ratchet.mjs client
 
   mobile:
-    name: mobile install and doctor
+    name: mobile install and lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -76,9 +80,14 @@ jobs:
       # installing is itself a gate: it catches a lockfile that no longer resolves
       - run: npm ci
         working-directory: mobile
-      # Advisory for now. expo-doctor currently reports three packages a patch
-      # version behind, which is not worth failing a build over, and mobile has
-      # no lint config yet to replace it with something sharper.
+      - name: Test the shared lint rule
+        run: node eslint-rules/accessible-names.test.cjs
+      # Same ratchet as the web client: unused variables and unnamed fields
+      # can only go down from here.
+      - name: Lint (no new errors)
+        run: node .github/scripts/lint-ratchet.mjs mobile
+      # Advisory: expo-doctor currently reports three packages a patch version
+      # behind, which is not worth failing a build over.
       - name: expo-doctor (advisory)
         run: npx expo-doctor
         working-directory: mobile

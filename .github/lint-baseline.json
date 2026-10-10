@@ -1,18 +1,62 @@
 {
-  "errors": 15,
-  "warnings": 5,
-  "byRule": {
-    "react-hooks/exhaustive-deps": {
-      "error": 0,
-      "warning": 5
-    },
-    "react-hooks/purity": {
-      "error": 4,
-      "warning": 0
-    },
-    "react-hooks/set-state-in-effect": {
-      "error": 11,
-      "warning": 0
+  "client": {
+    "errors": 82,
+    "warnings": 5,
+    "byRule": {
+      "chronically/control-has-name": {
+        "error": 46,
+        "warning": 0
+      },
+      "jsx-a11y/click-events-have-key-events": {
+        "error": 8,
+        "warning": 0
+      },
+      "jsx-a11y/no-autofocus": {
+        "error": 5,
+        "warning": 0
+      },
+      "jsx-a11y/no-static-element-interactions": {
+        "error": 8,
+        "warning": 0
+      },
+      "react-hooks/exhaustive-deps": {
+        "error": 0,
+        "warning": 5
+      },
+      "react-hooks/purity": {
+        "error": 4,
+        "warning": 0
+      },
+      "react-hooks/set-state-in-effect": {
+        "error": 11,
+        "warning": 0
+      }
+    }
+  },
+  "mobile": {
+    "errors": 32,
+    "warnings": 38,
+    "byRule": {
+      "chronically/control-has-name": {
+        "error": 32,
+        "warning": 0
+      },
+      "import/first": {
+        "error": 0,
+        "warning": 28
+      },
+      "import/no-duplicates": {
+        "error": 0,
+        "warning": 2
+      },
+      "import/no-named-as-default-member": {
+        "error": 0,
+        "warning": 1
+      },
+      "react-hooks/exhaustive-deps": {
+        "error": 0,
+        "warning": 7
+      }
     }
   }
 }

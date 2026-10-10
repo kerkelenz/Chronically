@@ -658,7 +658,7 @@ export default function SpoonCenterScreen() {
       return () => {
         active = false;
       };
-    }, [selectedDate]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [selectedDate])
   );
 
   // one request per month for the calendar. the endpoint is read-only, so
