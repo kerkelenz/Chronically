@@ -296,4 +296,40 @@ describe("flareHelpers parity with the client", () => {
       expect(web.flareDay(start, today)).toBe(durationDays({ startDate: start, endDate: null }, today));
     }
   });
+
+  // formatFlareRange decides whether to print the year by comparing the flare
+  // against "this year". It must take that from the `today` it is handed, not
+  // from the clock: callers compute the device-local date, and a helper that
+  // reads Date() instead disagrees with them across midnight and cannot be
+  // tested without faking time. It silently ignored the argument until now.
+  test("formatFlareRange takes the year from `today`, not the clock", () => {
+    const web = load(WEB);
+    const range = (s, e, today) => web.formatFlareRange({ startDate: s, endDate: e }, today);
+
+    // same year as `today` → no year printed
+    expect(range("2026-10-02", "2026-10-06", "2026-10-09")).toBe("Oct 2 – Oct 6 · 5 days");
+    // a different year from `today` → the year earns its space
+    expect(range("2025-10-02", "2025-10-06", "2026-10-09")).toBe(
+      "Oct 2, 2025 – Oct 6, 2025 · 5 days",
+    );
+    // the decisive case: the SAME flare, viewed from a later year, gains the
+    // year. If the clock were being read, both of these would agree.
+    const asThisYear = range("2026-10-02", "2026-10-06", "2026-12-31");
+    const asNextYear = range("2026-10-02", "2026-10-06", "2027-01-01");
+    expect(asThisYear).toBe("Oct 2 – Oct 6 · 5 days");
+    expect(asNextYear).toBe("Oct 2, 2026 – Oct 6, 2026 · 5 days");
+    expect(asThisYear).not.toBe(asNextYear);
+  });
+
+  test("formatFlareRange still reads sensibly with no `today` given", () => {
+    const web = load(WEB);
+    const year = new Date().getFullYear();
+    // falls back to the clock rather than printing NaN or throwing
+    expect(web.formatFlareRange({ startDate: `${year}-10-02`, endDate: `${year}-10-02` }))
+      .toBe("Oct 2 · 1 day");
+    expect(web.formatFlareRange({ startDate: `${year}-10-02`, endDate: null }))
+      .toBe("Since Oct 2 · ongoing");
+    expect(web.formatFlareRange(null, "2026-10-09")).toBe("");
+    expect(web.formatFlareRange({}, "2026-10-09")).toBe("");
+  });
 });

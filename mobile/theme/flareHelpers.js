@@ -56,7 +56,13 @@ export function flareSinceLabel(startDate, today) {
 
 /** "Oct 2 – Oct 6 · 5 days", "Oct 2 · 1 day", "Since Oct 2 · ongoing". */
 export function formatFlareRange(flare, today) {
-  const thisYear = new Date().getFullYear();
+  // The year comes from the caller's `today`, not from the clock. Every caller
+  // already computes the device-local date and passes it in; reading the clock
+  // here instead would disagree with it either side of midnight, and would make
+  // this function untestable without faking time.
+  const thisYear = /^\d{4}-/.test(String(today))
+    ? Number(String(today).slice(0, 4))
+    : new Date().getFullYear();
   const fmt = (ymd) => {
     const d = atLocalNoon(ymd);
     const opts = { month: "short", day: "numeric" };
