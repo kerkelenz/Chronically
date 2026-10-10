@@ -6,7 +6,6 @@ import Cropper from "react-easy-crop";
 import { useAuth } from "../hooks/useAuth";
 import { track } from "../lib/analytics";
 import Navigation, { NavHamburger } from "../components/Navigation";
-import HomeLogo from "../components/HomeLogo";
 import Avatar from "../components/Avatar";
 import MilestoneBadges from "../components/MilestoneBadges";
 import WeatherLocationModal from "../components/WeatherLocationModal";
@@ -301,8 +300,7 @@ function ProfilePage() {
 
       {/* Header */}
       <div className="relative z-20">
-        <div className="px-6 pt-3 flex justify-between items-center" style={{ maxWidth: "1024px", margin: "0 auto" }}>
-          <HomeLogo />
+        <div className="px-6 pt-3 flex justify-end items-center" style={{ maxWidth: "1024px", margin: "0 auto" }}>
           <NavHamburger />
         </div>
         <div className="px-6 pb-6 flex flex-col items-center gap-2" style={{ maxWidth: "480px", margin: "0 auto" }}>
