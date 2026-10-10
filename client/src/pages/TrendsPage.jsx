@@ -14,7 +14,7 @@ import { METRIC_LABELS } from "../utils/metricLabels";
 import ChronicleMark from "../components/ChronicleMark";
 
 function TrendsPage() {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   // Flares live here because wave 2 draws them as bands on these charts; the
   // list sits beside the thing it will annotate.
   const [flares, setFlares] = useState([]);

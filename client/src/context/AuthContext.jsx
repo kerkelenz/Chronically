@@ -1,10 +1,9 @@
-import { createContext, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import * as Sentry from "@sentry/react";
 import { setAnalyticsToken, trackSession } from "../lib/analytics";
+import { AuthContext } from "../hooks/useAuth";
 
 const INACTIVITY_MS = 14 * 24 * 60 * 60 * 1000;
-
-export const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);

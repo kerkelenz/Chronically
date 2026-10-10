@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import CheckInModal from "../components/CheckInModal";
-import { FiEdit2, FiTrash2, FiRotateCcw, FiCalendar, FiFileText } from "react-icons/fi";
+import { FiEdit2, FiTrash2, FiCalendar, FiFileText } from "react-icons/fi";
 import { exportDoctorReport } from "../utils/exportReport";
 import Navigation, { NavHamburger } from "../components/Navigation";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
@@ -1012,7 +1012,10 @@ function DashboardPage() {
                 );
                 updateUser({ ...user, celebratedMilestones: updated });
                 setCelebrationMilestone(Math.max(...newlyCrossed));
-              } catch {}
+              } catch {
+                // the celebration is a nicety: if saving it fails, the next
+                // dashboard load will try again rather than block the check-in
+              }
             }
           }}
         />

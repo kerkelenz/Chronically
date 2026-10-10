@@ -17,7 +17,10 @@ class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     try {
-      Sentry.captureException(error);
+      // the component stack is what makes the report actionable
+      Sentry.captureException(error, {
+        contexts: { react: { componentStack: info?.componentStack } },
+      });
     } catch {
       // Sentry unavailable — never let reporting break the fallback
     }

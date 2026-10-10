@@ -33,6 +33,10 @@ const AFFIRMATIONS = [
 ];
 
 
+// Only ever called from a handler, never during render. It closes over nothing,
+// so module scope is where it belongs — and where the purity rule can see that.
+const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
 const getTier = (level) => {
   if (level === 5) return "best";
   if (level === 4) return "highMid";
@@ -563,8 +567,6 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
       active = false;
     };
   }, [token]);
-
-  const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
   const showToast = (message, withSupport = false) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);

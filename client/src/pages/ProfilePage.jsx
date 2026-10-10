@@ -11,7 +11,8 @@ import MilestoneBadges from "../components/MilestoneBadges";
 import WeatherLocationModal from "../components/WeatherLocationModal";
 import { PLUM, PLUM_TINT, SOFT_ERROR } from "../components/FormModal";
 import { SUPPORT_ROW_LABEL } from "../utils/supportResources";
-import TrackingFocusModal, { trackingLabel } from "../components/TrackingFocusModal";
+import TrackingFocusModal from "../components/TrackingFocusModal";
+import { trackingLabel } from "../utils/trackingFocus";
 
 function getCroppedImg(imageSrc, croppedAreaPixels) {
   return new Promise((resolve, reject) => {
@@ -254,6 +255,7 @@ function ProfilePage() {
       );
       updateUser({ ...user, avatar: null });
     } catch (err) {
+      console.error("Remove photo failed:", err);
       setError("Failed to remove photo. Please try again.");
     }
   };
@@ -272,6 +274,7 @@ function ProfilePage() {
       setReportSent(true);
       setReportMessage("");
     } catch (err) {
+      console.error("Feedback send failed:", err);
       setReportError("Couldn't send just now — please try again.");
     } finally {
       setReportSending(false);

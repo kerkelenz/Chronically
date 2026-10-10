@@ -36,7 +36,9 @@ export function track(name, metadata) {
   try {
     queue.push({ name, metadata, occurredAt: new Date().toISOString() });
     if (!flushTimer) flushTimer = setTimeout(flush, 3000); // batch within 3s
-  } catch {}
+  } catch {
+    // analytics must never break the app: a failed enqueue is dropped
+  }
 }
 
 /** session_start at most once per 30 minutes. */
@@ -46,5 +48,7 @@ export function trackSession() {
     if (Date.now() - last < 30 * 60 * 1000) return;
     sessionStorage.setItem("chron_last_session", String(Date.now()));
     track("session_start");
-  } catch {}
+  } catch {
+    // sessionStorage can throw in private mode; a missed session_start is fine
+  }
 }

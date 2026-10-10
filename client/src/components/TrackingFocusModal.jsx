@@ -1,16 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import FormModal from "./FormModal";
-
-// Kept identical to the mobile TrackingFocusSheet and the welcome step.
-export const TRACKING_OPTIONS = [
-  { value: "physical", label: "My body", hint: "Physical symptoms lead." },
-  { value: "mental", label: "My mind", hint: "Mood and mind symptoms lead, and the pain question is skipped." },
-  { value: "both", label: "Both", hint: "Everything, physical first." },
-];
-
-export const trackingLabel = (mode) =>
-  (TRACKING_OPTIONS.find((o) => o.value === mode) || TRACKING_OPTIONS[2]).label;
+import { TRACKING_OPTIONS } from "../utils/trackingFocus";
 
 /**
  * Chooses what the app puts front and centre. It only changes what's offered

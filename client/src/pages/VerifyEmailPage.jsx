@@ -9,14 +9,13 @@ function VerifyEmailPage() {
   const token = searchParams.get("token");
   const { login } = useAuth();
 
-  const [status, setStatus] = useState("verifying");
+  // A missing token is knowable before the first paint, so it is the initial
+  // state rather than something an effect corrects afterwards.
+  const [status, setStatus] = useState(token ? "verifying" : "invalid");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!token) {
-      setStatus("invalid");
-      return;
-    }
+    if (!token) return;
 
     axios
       .post(`${import.meta.env.VITE_API_URL}/api/auth/verify-email`, { token })

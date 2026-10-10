@@ -5,7 +5,7 @@ import { track } from "../lib/analytics";
 import { FiCheckCircle, FiTrendingUp, FiPackage, FiCalendar } from "react-icons/fi";
 import { GiSpoon } from "react-icons/gi";
 import ChronicleMark from "./ChronicleMark";
-import { TRACKING_OPTIONS } from "./TrackingFocusModal";
+import { TRACKING_OPTIONS } from "../utils/trackingFocus";
 
 const FEATURES = [
   [FiCheckCircle, "Daily check-ins", "Note how you're feeling in seconds."],
