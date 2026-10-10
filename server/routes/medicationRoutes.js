@@ -3,7 +3,7 @@ const router = express.Router();
 const authenticateToken = require("../middleware/auth");
 const {
   getMedications, createMedication, updateMedication, deleteMedication, refillMedication,
-  getMedicationHistory,
+  getMedicationHistory, getMedicationChanges,
   getLogs, createLog, updateLog, deleteMedicationLog,
 } = require("../controllers/medicationController");
 
@@ -12,6 +12,9 @@ router.get("/logs", authenticateToken, getLogs);
 router.post("/logs", authenticateToken, createLog);
 router.put("/logs/:id", authenticateToken, updateLog);
 router.delete("/logs/:id", authenticateToken, deleteMedicationLog);
+
+// every medication's history in a range (Trends markers) — before /:id too
+router.get("/changes", authenticateToken, getMedicationChanges);
 
 // after /logs, before /:id — a refill is a write on one medication
 router.post("/:id/refill", authenticateToken, refillMedication);

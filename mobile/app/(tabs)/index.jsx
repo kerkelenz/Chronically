@@ -453,6 +453,14 @@ export default function DashboardScreen() {
 
   // ── Main screen ───────────────────────────────────────────────────────────
 
+  // "Having a flare?" sits beside "Same as last time" while the check-in prompt
+  // is up, and on its own line once it is not. An ongoing flare is a card, not
+  // a link, and stays where it is. flares === null means the fetch failed: no
+  // control at all beats offering to start a second flare blind.
+  const showCheckInPrompt = !error && (checkIns.length === 0 || !todaysDone);
+  const offerFlare =
+    !error && !loading && flares !== null && !flares.some((f) => !f.endDate);
+
   return (
     <ScreenBackground edges={["top", "left", "right"]}>
       <ScrollView
@@ -495,7 +503,7 @@ export default function DashboardScreen() {
         <AnnouncementCard announcement={announcement} onDismiss={dismissAnnouncement} />
 
         {/* Check-in prompt */}
-        {!error && (checkIns.length === 0 || !todaysDone) && (
+        {showCheckInPrompt && (
           <View style={styles.checkInPrompt}>
             <Text style={styles.checkInPromptTitle}>
               How are you feeling right now?
@@ -508,14 +516,42 @@ export default function DashboardScreen() {
             >
               <Text style={styles.checkInPromptBtnText}>Start Check-in</Text>
             </TouchableOpacity>
-            {repeatPrefill && (
-              <TouchableOpacity
-                onPress={() => openCheckIn(askSleep, repeatPrefill)}
-                activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Text style={styles.sameAsLastText}>Same as last time</Text>
-              </TouchableOpacity>
+            {(repeatPrefill || offerFlare) && (
+              // two quiet ways to tell the app how today is going, on one line;
+              // each keeps a full 44pt touch target
+              <View style={styles.promptLinkRow}>
+                {repeatPrefill && (
+                  <TouchableOpacity
+                    onPress={() => openCheckIn(askSleep, repeatPrefill)}
+                    style={styles.promptLinkBtn}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Same as last time"
+                  >
+                    <Text style={styles.promptLinkText}>Same as last time</Text>
+                  </TouchableOpacity>
+                )}
+                {repeatPrefill && offerFlare && (
+                  <Text
+                    style={styles.promptLinkDot}
+                    accessibilityElementsHidden
+                    importantForAccessibility="no-hide-descendants"
+                  >
+                    ·
+                  </Text>
+                )}
+                {offerFlare && (
+                  <TouchableOpacity
+                    onPress={() => setFlareView("start")}
+                    style={styles.promptLinkBtn}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Having a flare?"
+                  >
+                    <Text style={styles.promptLinkText}>Having a flare?</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
           </View>
         )}
@@ -542,6 +578,8 @@ export default function DashboardScreen() {
             const ongoing = flares.find((f) => !f.endDate);
             const today = localToday();
             if (!ongoing) {
+              // while the check-in prompt is up, the link lives inside it
+              if (showCheckInPrompt) return null;
               return (
                 <View style={styles.flareLinkWrap}>
                   <TouchableOpacity
@@ -948,7 +986,7 @@ const styles = StyleSheet.create({
   },
   checkInPrompt: {
     alignItems: "center",
-    paddingVertical: 40,
+    paddingVertical: 16,
     gap: 12,
   },
   checkInPromptTitle: {
@@ -976,12 +1014,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "white",
   },
-  // quieter secondary action — never competes with the primary button
-  sameAsLastText: {
+  // quieter secondary actions — never compete with the primary button
+  promptLinkRow: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  promptLinkBtn: { minHeight: 44, justifyContent: "center", paddingHorizontal: 12 },
+  promptLinkText: {
     fontFamily: "Lato_400Regular",
     fontSize: 14,
     color: "rgba(255,255,255,0.7)",
-    marginTop: 2,
+  },
+  promptLinkDot: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.4)",
   },
   cardTitle: {
     fontFamily: "Lato_700Bold",

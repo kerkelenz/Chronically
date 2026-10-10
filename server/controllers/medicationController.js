@@ -4,8 +4,9 @@ const MedicationLog = require("../models/MedicationLog");
 const { sequelize } = require("../config/db");
 const MedicationChange = require("../models/MedicationChange");
 const { resolvePattern } = require("../lib/medSchedule");
-const { projectMedication, diffMedication, snapshotChanges } = require("../lib/medHistory");
+const { projectMedication, diffMedication, snapshotChanges, derivedCreatedEntry } = require("../lib/medHistory");
 const { supplyStatus, summarizeHelped, HELPED_WINDOW_DAYS } = require("../lib/medStats");
+const { isYmd } = require("../lib/trends");
 
 // Supply fields are optional and independently validated, so an older app build
 // that sends none of them can never clear what a newer one set.
@@ -341,19 +342,68 @@ const getMedicationHistory = async (req, res) => {
       changes: Array.isArray(r.changes) ? r.changes : [],
     }));
 
-    if (!rows.some((r) => r.kind === "created")) {
-      entries.push({
-        id: null,
-        kind: "created",
-        changedAt: medication.createdAt,
-        changes: [],
-        derived: true,
-      });
-    }
+    if (!rows.some((r) => r.kind === "created")) entries.push(derivedCreatedEntry(medication));
 
     res.json({ entries });
   } catch (error) {
     console.error("Get medication history error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+
+/**
+ * GET /api/medications/changes?startDate&endDate — every medication's history
+ * entries in a range, for the Trends chart's markers. The client buckets by its
+ * own local date, so the timestamp filter is padded by a day each side and the
+ * client drops what falls outside. Includes the same derived "Added" entry as
+ * the per-medication history.
+ */
+const getMedicationChanges = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    if (!isYmd(startDate) || !isYmd(endDate) || startDate > endDate) {
+      return res.status(400).json({ error: "Choose a valid date range." });
+    }
+    const from = new Date(Date.parse(`${startDate}T00:00:00Z`) - 86400000);
+    const to = new Date(Date.parse(`${endDate}T00:00:00Z`) + 2 * 86400000);
+    const uid = req.user.id;
+
+    const [meds, rows, createdRows] = await Promise.all([
+      Medication.findAll({ where: { userId: uid }, attributes: ["id", "name", "createdAt"], raw: true }),
+      MedicationChange.findAll({
+        where: { userId: uid, changedAt: { [Op.gte]: from, [Op.lt]: to } },
+        order: [["changedAt", "ASC"], ["id", "ASC"]],
+        raw: true,
+      }),
+      // which medications have a stored "created" row at all, whenever it was
+      MedicationChange.findAll({ where: { userId: uid, kind: "created" }, attributes: ["medicationId"], raw: true }),
+    ]);
+
+    const byId = new Map(meds.map((m) => [m.id, m]));
+    const hasCreated = new Set(createdRows.map((r) => r.medicationId));
+    const changes = rows
+      .filter((r) => byId.has(r.medicationId))
+      .map((r) => ({
+        id: r.id,
+        medicationId: r.medicationId,
+        medicationName: byId.get(r.medicationId).name,
+        kind: r.kind,
+        changedAt: r.changedAt,
+        changes: Array.isArray(r.changes) ? r.changes : [],
+      }));
+    for (const m of meds) {
+      if (hasCreated.has(m.id)) continue;
+      const at = new Date(m.createdAt);
+      if (at >= from && at < to) {
+        changes.push({ ...derivedCreatedEntry(m), medicationId: m.id, medicationName: m.name });
+      }
+    }
+    changes.sort((a, b) => new Date(a.changedAt) - new Date(b.changedAt));
+
+    res.json({ changes });
+  } catch (error) {
+    console.error("Get medication changes error:", error);
     res.status(500).json({ error: "Server error" });
   }
 };
@@ -457,4 +507,5 @@ const deleteMedicationLog = async (req, res) => {
   }
 };
 
-module.exports = { getMedications, createMedication, updateMedication, deleteMedication, refillMedication, getMedicationHistory, getLogs, createLog, updateLog, deleteMedicationLog };
+module.exports = { getMedications, createMedication, updateMedication, deleteMedication, refillMedication, getMedicationHistory,
+  getMedicationChanges, getLogs, createLog, updateLog, deleteMedicationLog };

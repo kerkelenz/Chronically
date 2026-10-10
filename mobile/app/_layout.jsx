@@ -77,6 +77,10 @@ function NotificationRouter() {
       router.push({ pathname: "/(tabs)/medications", params: { helpedLogId: String(data.logId) } });
     } else if (data.kind === "refill" && data.medicationId != null) {
       router.push({ pathname: "/(tabs)/medications", params: { medId: String(data.medicationId) } });
+    } else if (data.kind === "appt_reminder" && data.appointmentId != null) {
+      router.push({ pathname: "/(tabs)/appointments", params: { prepApptId: String(data.appointmentId) } });
+    } else if (data.kind === "appt_followup" && data.appointmentId != null) {
+      router.push({ pathname: "/(tabs)/appointments", params: { outcomeApptId: String(data.appointmentId) } });
     }
     // every other kind keeps today's behaviour: the app simply opens
   };

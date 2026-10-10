@@ -4,6 +4,9 @@ import { useAuth } from "../hooks/useAuth";
 import CheckInModal from "../components/CheckInModal";
 import { FiEdit2, FiTrash2, FiCalendar, FiFileText } from "react-icons/fi";
 import { exportDoctorReport } from "../utils/exportReport";
+import { loadReportPrefs, prefsToOptions } from "../utils/reportPrefs";
+import { prefsSummary } from "../utils/reportOptions";
+import ReportOptionsModal from "../components/ReportOptionsModal";
 import Navigation from "../components/Navigation";
 import PageHeader from "../components/PageHeader";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
@@ -74,6 +77,10 @@ function DashboardPage() {
   const [weather, setWeather] = useState([]);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState(false);
+  // the remembered report choice, and the Customize dialog (remounted per open)
+  const [reportPrefs, setReportPrefs] = useState(loadReportPrefs);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [customizeKey, setCustomizeKey] = useState(0);
 
   const [celebrationMilestone, setCelebrationMilestone] = useState(null);
   const seededRef = useRef(false);
@@ -230,11 +237,12 @@ function DashboardPage() {
       .catch(() => {});
   }, [user, token, loading]);
 
-  const handleExport = async () => {
+  // No options means the remembered choice: one tap exports what the card says
+  const handleExport = async (options = prefsToOptions(loadReportPrefs(), localToday())) => {
     setExporting(true);
     setExportError(false);
     try {
-      await exportDoctorReport({ token, username: user?.username });
+      await exportDoctorReport({ token, username: user?.username, options });
     } catch (err) {
       console.error("Export failed:", err);
       setExportError(true);
@@ -264,6 +272,13 @@ function DashboardPage() {
   const overAnHourSinceCheckIn =
     checkIns[0] &&
     Date.now() - new Date(checkIns[0].createdAt).getTime() >= 60 * 60 * 1000;
+
+  // "Having a flare?" sits beside "Same as last time" while the check-in prompt
+  // is up, and on its own line once it is not. An ongoing flare is a card, not
+  // a link, and stays where it is. flares === null means the fetch failed: no
+  // control at all beats offering to start a second flare blind.
+  const showCheckInPrompt = checkIns.length === 0 || !todaysDone;
+  const offerFlare = flares !== null && !flares.some((f) => !f.endDate);
 
   return (
     <div
@@ -323,8 +338,8 @@ function DashboardPage() {
           <>
         <AnnouncementCard announcement={announcement} onDismiss={dismissAnnouncement} />
 
-        {(checkIns.length === 0 || !todaysDone) && (
-          <div className="flex flex-col items-center justify-center py-10 gap-3">
+        {showCheckInPrompt && (
+          <div className="flex flex-col items-center justify-center py-4 gap-3">
             <p
               className="text-2xl font-medium"
               style={{ color: "white", fontFamily: "Playfair Display, Georgia, serif" }}
@@ -341,13 +356,30 @@ function DashboardPage() {
             >
               Start Check-in
             </button>
-            {repeatPrefill && (
-              <button
-                onClick={() => { setCheckInPrefill(repeatPrefill); setShowCheckIn(true); }}
-                className="text-sm text-white/70 hover:text-white transition-colors"
-              >
-                Same as last time
-              </button>
+            {(repeatPrefill || offerFlare) && (
+              // two quiet ways to tell the app how today is going, on one line;
+              // each keeps a full 44px touch target
+              <div className="flex items-center justify-center">
+                {repeatPrefill && (
+                  <button
+                    onClick={() => { setCheckInPrefill(repeatPrefill); setShowCheckIn(true); }}
+                    className="text-sm text-white/70 hover:text-white transition-colors min-h-[44px] px-3"
+                  >
+                    Same as last time
+                  </button>
+                )}
+                {repeatPrefill && offerFlare && (
+                  <span aria-hidden="true" className="text-sm text-white/40">·</span>
+                )}
+                {offerFlare && (
+                  <button
+                    onClick={() => setFlareView("start")}
+                    className="text-sm text-white/70 hover:text-white transition-colors min-h-[44px] px-3"
+                  >
+                    Having a flare?
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -373,6 +405,8 @@ function DashboardPage() {
           const ongoing = flares.find((f) => !f.endDate);
           const today = localToday();
           if (!ongoing) {
+            // while the check-in prompt is up, the link lives inside it
+            if (showCheckInPrompt) return null;
             return (
               <div className="flex justify-center">
                 <button
@@ -585,10 +619,11 @@ function DashboardPage() {
                       </div>
                     </a>
                   ))}
+                  <div className="mt-2 flex items-center gap-1 flex-wrap">
                   <button
-                    onClick={handleExport}
+                    onClick={() => handleExport()}
                     disabled={exporting}
-                    className="mt-2 px-4 py-2 rounded-full text-xs font-medium flex items-center gap-2 transition-all duration-200 hover:opacity-90"
+                    className="px-4 py-2 rounded-full text-xs font-medium flex items-center gap-2 transition-all duration-200 hover:opacity-90"
                     style={{ background: "rgba(255,255,255,0.25)", border: "1px solid rgba(255,255,255,0.4)", color: "white" }}
                   >
                     {exporting ? (
@@ -604,6 +639,20 @@ function DashboardPage() {
                       </>
                     )}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => { setCustomizeKey((k) => k + 1); setCustomizeOpen(true); }}
+                    disabled={exporting}
+                    aria-label="Customize doctor report"
+                    className="px-3 text-xs text-white/70 hover:text-white hover:underline transition-colors"
+                    style={{ minHeight: 44 }}
+                  >
+                    Customize
+                  </button>
+                  </div>
+                  {prefsSummary(reportPrefs) && (
+                    <p className="text-[11px] text-white/60">{prefsSummary(reportPrefs)}</p>
+                  )}
                   {exportError && (
                     <p className="text-[11px]" style={{ color: SOFT_ERROR }}>
                       Failed to prepare report. Please try again.
@@ -958,6 +1007,17 @@ function DashboardPage() {
           </div>
         </div>
       )}
+
+      <ReportOptionsModal
+        key={customizeKey}
+        open={customizeOpen}
+        onClose={() => setCustomizeOpen(false)}
+        onExport={(options) => {
+          setCustomizeOpen(false);
+          setReportPrefs(loadReportPrefs());
+          handleExport(options);
+        }}
+      />
 
       {flareView && (
         <FlaresModal

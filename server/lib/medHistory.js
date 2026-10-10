@@ -91,4 +91,15 @@ function snapshotChanges(med) {
   return out;
 }
 
-module.exports = { TRACKED_FIELDS, projectMedication, diffMedication, snapshotChanges };
+/**
+ * The "Added" entry for a medication with no stored `created` row — every one
+ * that predates history. Taken from its own createdAt and carrying no field
+ * values, because we genuinely don't know what they were. Never written to the
+ * database: reading a history must not create one. Shared by the per-medication
+ * history and the all-medications changes endpoint so the two can't disagree.
+ */
+function derivedCreatedEntry(medication) {
+  return { id: null, kind: "created", changedAt: medication.createdAt, changes: [], derived: true };
+}
+
+module.exports = { TRACKED_FIELDS, projectMedication, diffMedication, snapshotChanges, derivedCreatedEntry };

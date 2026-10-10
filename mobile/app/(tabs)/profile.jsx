@@ -58,7 +58,10 @@ export default function ProfileScreen() {
   const [success, setSuccess] = useState("");
 
   // ── Notifications ─────────────────────────────────────────────────────────
-  const DEFAULT_PREFS = { enabled: true, medReminders: true, checkinNudge: true, refillReminders: true, prnFollowups: true };
+  const DEFAULT_PREFS = {
+    enabled: true, medReminders: true, checkinNudge: true, refillReminders: true, prnFollowups: true,
+    appointmentReminders: true, appointmentFollowups: true,
+  };
   const [prefs, setPrefs] = useState({ ...DEFAULT_PREFS, ...(user?.notificationPrefs || {}) });
   const [permission, setPermission] = useState("undetermined");
   const [prefsBusy, setPrefsBusy] = useState(false);
@@ -481,7 +484,7 @@ export default function ProfileScreen() {
                   />
                 </View>
 
-                <View style={[styles.toggleRow, styles.toggleRowNested, styles.toggleRowLast]}>
+                <View style={[styles.toggleRow, styles.toggleRowNested]}>
                   <View style={{ flex: 1, paddingRight: 12 }}>
                     <Text style={styles.toggleLabel}>As-needed follow-up</Text>
                     <Text style={styles.toggleHint}>
@@ -495,6 +498,42 @@ export default function ProfileScreen() {
                     disabled={prefsBusy}
                     trackColor={{ false: "rgba(255,255,255,0.25)", true: "#B9A9E0" }}
                     thumbColor={prefs.prnFollowups !== false ? "#FFFFFF" : "#EFEAF7"}
+                    ios_backgroundColor="rgba(255,255,255,0.25)"
+                  />
+                </View>
+
+                <View style={[styles.toggleRow, styles.toggleRowNested]}>
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={styles.toggleLabel}>Appointment reminders</Text>
+                    <Text style={styles.toggleHint}>
+                      The evening before a visit, with anything you noted to ask.
+                    </Text>
+                  </View>
+                  <Switch
+                    accessibilityLabel="Appointment reminders"
+                    value={prefs.appointmentReminders !== false}
+                    onValueChange={(v) => savePrefs({ appointmentReminders: v })}
+                    disabled={prefsBusy}
+                    trackColor={{ false: "rgba(255,255,255,0.25)", true: "#B9A9E0" }}
+                    thumbColor={prefs.appointmentReminders !== false ? "#FFFFFF" : "#EFEAF7"}
+                    ios_backgroundColor="rgba(255,255,255,0.25)"
+                  />
+                </View>
+
+                <View style={[styles.toggleRow, styles.toggleRowNested, styles.toggleRowLast]}>
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={styles.toggleLabel}>After-visit check-in</Text>
+                    <Text style={styles.toggleHint}>
+                      A couple of hours after a visit, a quick “how did it go?”
+                    </Text>
+                  </View>
+                  <Switch
+                    accessibilityLabel="After-visit check-in"
+                    value={prefs.appointmentFollowups !== false}
+                    onValueChange={(v) => savePrefs({ appointmentFollowups: v })}
+                    disabled={prefsBusy}
+                    trackColor={{ false: "rgba(255,255,255,0.25)", true: "#B9A9E0" }}
+                    thumbColor={prefs.appointmentFollowups !== false ? "#FFFFFF" : "#EFEAF7"}
                     ios_backgroundColor="rgba(255,255,255,0.25)"
                   />
                 </View>

@@ -8,6 +8,7 @@ const MedicationLog = require("../models/MedicationLog");
 const CheckIn = require("../models/CheckIn");
 const PushToken = require("../models/PushToken");
 const NotificationLog = require("../models/NotificationLog");
+const Appointment = require("../models/Appointment");
 const {
   DEFAULT_TIMEZONE,
   isValidTimezone,
@@ -19,6 +20,7 @@ const {
   prnFollowupsInWindow,
 } = require("../lib/medSchedule");
 const { supplyStatus } = require("../lib/medStats");
+const { apptNotificationsInWindow, reminderCopy, followupCopy } = require("../lib/apptSchedule");
 
 const expo = new Expo();
 
@@ -70,6 +72,8 @@ function prefsOf(user) {
     // of something the Profile screen shows as on.
     refillReminders: p.refillReminders !== false,
     prnFollowups: p.prnFollowups !== false,
+    appointmentReminders: p.appointmentReminders !== false,
+    appointmentFollowups: p.appointmentFollowups !== false,
   };
 }
 
@@ -283,6 +287,62 @@ async function planRemovals(user, tz, now, messages) {
   }
 }
 
+/**
+ * The evening-before reminder and the after-visit "how did it go?". When each
+ * is due is decided in lib/apptSchedule.js; this only reads and claims.
+ */
+async function planAppointments(user, tz, now, prefs, messages) {
+  // Bounds wide enough for every instant this tick could be responsible for:
+  // −18h reaches a visit at 21:xx whose follow-up was deferred to 09:00 the
+  // next morning (about 12h later, plus the 2h delay, plus slack); +32h reaches
+  // a 23:59 visit tomorrow whose reminder is 18:00 today (~30h ahead), plus a
+  // daylight-saving hour.
+  const appts = await Appointment.findAll({
+    where: {
+      userId: user.id,
+      status: "upcoming",
+      date: { [Op.between]: [new Date(now.getTime() - 18 * 3600000), new Date(now.getTime() + 32 * 3600000)] },
+    },
+    raw: true,
+  });
+  if (appts.length === 0) return;
+
+  const windowStart = new Date(now.getTime() - LOOKBACK_MINUTES * 60000);
+  for (const item of apptNotificationsInWindow(appts, tz, windowStart, now)) {
+    const { appt } = item;
+    if (item.kind === "appt_reminder") {
+      if (!prefs.appointmentReminders) continue;
+      // the morning one exists only for visits booked after the evening had
+      // passed; if the evening one went out, this visit is already covered
+      if (item.variant === "morning") {
+        const evening = await NotificationLog.findOne({
+          where: { userId: user.id, kind: "appt_reminder", refId: appt.id, scheduledFor: item.eveningInstant },
+        });
+        if (evening) continue;
+      }
+      if (!(await claim(user.id, "appt_reminder", appt.id, item.scheduledFor))) continue;
+      messages.push({
+        userId: user.id,
+        ...reminderCopy(appt, tz, item.variant),
+        data: { kind: "appt_reminder", appointmentId: appt.id },
+      });
+    } else {
+      if (!prefs.appointmentFollowups) continue;
+      // once per appointment ever, even if its date was edited afterwards
+      const asked = await NotificationLog.findOne({
+        where: { userId: user.id, kind: "appt_followup", refId: appt.id },
+      });
+      if (asked) continue;
+      if (!(await claim(user.id, "appt_followup", appt.id, item.scheduledFor))) continue;
+      messages.push({
+        userId: user.id,
+        ...followupCopy(appt),
+        data: { kind: "appt_followup", appointmentId: appt.id },
+      });
+    }
+  }
+}
+
 async function planNudge(user, tz, now, messages) {
   const local = localPartsIn(now, tz);
   const [nh, nm] = NUDGE_AT.split(":").map(Number);
@@ -396,6 +456,11 @@ async function runTick(now = new Date(), send = deliver) {
       // same timezone rule: the question is time-of-day sensitive
       if (prefs.prnFollowups && isValidTimezone(user.timezone)) {
         await planPrnFollowups(user, tz, now, messages);
+      }
+      // Same timezone rule: "the evening before" and "the next morning" mean
+      // nothing at a guessed hour, so no zone means no appointment pushes.
+      if ((prefs.appointmentReminders || prefs.appointmentFollowups) && isValidTimezone(user.timezone)) {
+        await planAppointments(user, tz, now, prefs, messages);
       }
       if (prefs.checkinNudge) await planNudge(user, tz, now, messages);
     } catch (err) {

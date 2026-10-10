@@ -91,7 +91,10 @@ function ProfilePage() {
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   // ── Notification preferences ────────────────────────────────────────────
-  const DEFAULT_PREFS = { enabled: true, medReminders: true, checkinNudge: true, refillReminders: true, prnFollowups: true };
+  const DEFAULT_PREFS = {
+    enabled: true, medReminders: true, checkinNudge: true, refillReminders: true, prnFollowups: true,
+    appointmentReminders: true, appointmentFollowups: true,
+  };
   const [prefs, setPrefs] = useState({ ...DEFAULT_PREFS, ...(user?.notificationPrefs || {}) });
   const [prefsBusy, setPrefsBusy] = useState(false);
 
@@ -489,12 +492,28 @@ function ProfilePage() {
               />
               <ToggleRow
                 nested
-                last
                 label="As-needed follow-up"
                 hint={"About an hour after an as-needed dose, a quick “did it help?”"}
                 checked={prefs.prnFollowups !== false}
                 disabled={prefsBusy}
                 onChange={(v) => savePrefs({ prnFollowups: v })}
+              />
+              <ToggleRow
+                nested
+                label="Appointment reminders"
+                hint="The evening before a visit, with anything you noted to ask."
+                checked={prefs.appointmentReminders !== false}
+                disabled={prefsBusy}
+                onChange={(v) => savePrefs({ appointmentReminders: v })}
+              />
+              <ToggleRow
+                nested
+                last
+                label="After-visit check-in"
+                hint={"A couple of hours after a visit, a quick “how did it go?”"}
+                checked={prefs.appointmentFollowups !== false}
+                disabled={prefsBusy}
+                onChange={(v) => savePrefs({ appointmentFollowups: v })}
               />
             </>
           )}

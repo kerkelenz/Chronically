@@ -1,4 +1,5 @@
 import { buildTrendChartSvg, formatApptDatePdf, DOW_LABELS } from "./reportData";
+import { resolveReportOptions } from "../theme/reportOptions";
 
 const FOOTER = `<div class="footer">Self-reported data recorded by the patient via Chronically (mychronically.app)</div>`;
 
@@ -35,6 +36,7 @@ const css = `
     margin-bottom: 5px;
   }
   .report-meta { font-size: 8pt; color: #6B5F7A; margin-bottom: 2px; }
+  .report-subtitle { font-size: 8.5pt; font-style: italic; color: #6B5F7A; margin-bottom: 3px; }
 
   /* Brand lockup: the C-and-sprig mark on a purple tile, as the app's own
      header shows it. The artwork is white, so on paper it needs the tile —
@@ -120,6 +122,8 @@ const css = `
   /* a day row and its note stay together, like the medication groups */
   tbody.day-group { page-break-inside: avoid; }
 
+  .flare-summary { font-size: 9pt; color: #2D2540; margin-bottom: 4px; }
+
   /* Observed Patterns — borderless cards, one per row so none is torn */
   .framing { font-size: 7.5pt; font-style: italic; color: #6B5F7A; margin-bottom: 6px; }
   .patterns-table { border: none; }
@@ -160,7 +164,16 @@ const css = `
 // Returns a complete HTML string for the doctor report — one continuous
 // document (summary → medications & appointments → daily logs) that the print
 // engine paginates naturally, rather than fixed chapters on hard page breaks.
-export function buildReportHtml(data, username, insights = null, logoUri = null) {
+//
+// The range and the sections were fixed when computeReportData ran; `options`
+// here is read only for `heading`, so a caller can title the same data
+// differently. Without one, the heading computeReportData resolved is used.
+export function buildReportHtml(data, username, insights = null, logoUri = null, options = {}) {
+  const { range, titles, truncation, flareSummary, flareRows, medChangeRows, helpedTableRows } = data;
+  const has = (key) => range.sections.has(key);
+  const heading = options && options.heading !== undefined
+    ? resolveReportOptions({ heading: options.heading }, data.todayStr).heading
+    : range.heading;
   const {
     periodCheckIns, totalDaysTracked, dailyData,
     avgPain, avgMood, avgEnergy, avgAnxiety, avgAppetite, avgSleep,
@@ -277,7 +290,7 @@ export function buildReportHtml(data, username, insights = null, logoUri = null)
 
   // Observed Patterns is a bonus section: no insights (API down, or too few
   // days for a pattern to clear the thresholds) simply means no section.
-  const patternCards = insights?.cards || [];
+  const patternCards = has("patterns") ? insights?.cards || [] : [];
   const patternsHtml = patternCards.length === 0 ? "" : `
   <div class="section-title">Observed Patterns</div>
   <p class="framing">Associations in this patient's self-reported data over the last 90 days. Correlational only — not causal, and not clinically validated.</p>
@@ -291,6 +304,62 @@ export function buildReportHtml(data, username, insights = null, logoUri = null)
     </tbody>
   </table>
 `;
+
+  // ── The three optional sections — absent when there's nothing to show ──────
+
+  const flaresHtml = !has("flares") || flareRows.length === 0 ? "" : `
+  <div class="section-title">Flares</div>
+  <p class="flare-summary">${esc(flareSummary)}</p>
+  <table class="notable-table">
+    ${flareRows.map((f) => `<tbody class="day-group"><tr><td class="notable-cell">${esc(f.line)}</td></tr>${
+      f.note ? `<tr class="note-row"><td>${esc(f.note)}</td></tr>` : ""
+    }</tbody>`).join("\n    ")}
+  </table>
+`;
+
+  const medChangesHtml = !has("medChanges") || medChangeRows.length === 0 ? "" : `
+  <div class="section-title">Medication Changes</div>
+  <p class="framing">Changes the patient recorded in Chronically. "Added" is when a medication was added to the app.</p>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:16%">Date</th>
+        <th style="width:28%">Medication</th>
+        <th>Change</th>
+      </tr>
+    </thead>
+    <tbody>
+    ${medChangeRows.map((r) => `<tr><td>${esc(r.date)}</td><td>${esc(r.medName)}</td><td>${
+      r.lines.map((line) => esc(line)).join("<br/>")
+    }</td></tr>`).join("\n    ")}
+    </tbody>
+  </table>
+`;
+
+  const helpedHtml = !has("helped") || helpedTableRows.length === 0 ? "" : `
+  <div class="section-title">As-needed Ratings</div>
+  <p class="framing">The patient's own note, after taking an as-needed dose, of whether it helped.</p>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:29%">Medication</th>
+        <th style="width:13%">Taken</th>
+        <th>Ratings</th>
+      </tr>
+    </thead>
+    <tbody>
+    ${helpedTableRows.map((r) => `<tr><td>${esc(r.name)}</td><td class="center">${r.taken}</td><td>${esc(r.ratings)}</td></tr>`).join("\n    ")}
+    </tbody>
+  </table>
+`;
+
+  const medsChapter = has("medications") || has("adherence") || has("skipReasons") ||
+    has("appointments") || medChangesHtml !== "" || helpedHtml !== "";
+  const logsChapter = has("dailyLog") || has("medLog");
+
+  // Each block is kept exactly as it printed before sections existed, so the
+  // default report is unchanged; `on` simply drops what wasn't chosen.
+  const on = (key, html) => (has(key) ? html : "");
 
   return `<!DOCTYPE html>
 <html>
@@ -307,16 +376,18 @@ export function buildReportHtml(data, username, insights = null, logoUri = null)
     ${logoUri ? `<div class="brand-mark"><img src="${logoUri}" alt=""/></div>` : ""}
     <div>
       <div class="report-title">Chronically Health Report</div>
-      <p class="report-meta">Patient: ${esc(username)}&nbsp;&nbsp;&nbsp;Generated: ${generatedDate}</p>
+      ${heading ? `<p class="report-subtitle">${esc(heading)}</p>
+      ` : ""}<p class="report-meta">Patient: ${esc(username)}&nbsp;&nbsp;&nbsp;Generated: ${generatedDate}</p>
       <p class="report-meta">Period: ${periodStart} – ${periodEnd}</p>
-    </div>
+    ${truncation ? `<p class="report-meta">${esc(truncation)}</p>
+    ` : ""}</div>
   </div>
-
+${on("glance", `
   <div class="section-title">At a Glance</div>
   <div class="glance">
     <div class="glance-cell">
       <div class="glance-label">Check-ins</div>
-      <div class="glance-value">${periodCheckIns.length} over ${totalDaysTracked} of 30 days</div>
+      <div class="glance-value">${periodCheckIns.length} over ${totalDaysTracked} of ${titles.glanceDays} days</div>
     </div>
     <div class="glance-cell">
       <div class="glance-label">Medication adherence</div>
@@ -335,13 +406,13 @@ export function buildReportHtml(data, username, insights = null, logoUri = null)
       <div class="glance-value">${avgSleep} / 5</div>
     </div>` : ""}
   </div>
-
-  <div class="section-title">30-Day Trend</div>
+`)}${on("trend", `
+  <div class="section-title">${titles.trend}</div>
   <div class="chart-wrap">
     ${chartHtml}
   </div>
-
-  <div class="section-title">30-Day Averages</div>
+`)}${on("averages", `
+  <div class="section-title">${titles.averages}</div>
   <table class="averages-table">
     <thead>
       <tr>${hasPain ? "<th>Pain</th>" : ""}<th>Mood</th><th>Energy</th><th>Anxiety</th><th>Appetite</th>${hasSleep ? "<th>Sleep</th>" : ""}</tr>
@@ -351,14 +422,14 @@ export function buildReportHtml(data, username, insights = null, logoUri = null)
     </tbody>
   </table>
   ${untrackedNote ? `<p class="no-data">${untrackedNote}</p>` : ""}
-
+`)}${on("notable", `
   <div class="section-title">Notable Events</div>
   <table class="notable-table">
     <tbody>
     ${notableRowsHtml}
     </tbody>
   </table>
-
+`)}${flaresHtml}${on("symptoms", `
   <div class="section-title">Symptom Frequency</div>
   <table>
     <thead>
@@ -372,17 +443,17 @@ export function buildReportHtml(data, username, insights = null, logoUri = null)
     ${symptomRowsHtml}
     </tbody>
   </table>
-${patternsHtml}
+`)}${patternsHtml}${medsChapter ? `
   <!-- ═══ MEDICATIONS & APPOINTMENTS ═══ -->
   <div class="section-title">Medications &amp; Appointments</div>
-
+` : ""}${on("medications", `
   <div class="section-title">Current Medications</div>
   <table>
     <thead><tr>${medListHeadHtml}</tr></thead>
     ${medListBodyHtml}
   </table>
-
-  <div class="section-title">Medication Adherence (30 Days)</div>
+`)}${medChangesHtml}${on("adherence", `
+  <div class="section-title">${titles.adherence}</div>
   <table>
     <thead>
       <tr>
@@ -409,7 +480,7 @@ ${patternsHtml}
     ${dowBodyHtml}
     </tbody>
   </table>
-
+`)}${helpedHtml}${on("skipReasons", `
   <div class="section-title">Most Common Skip Reasons</div>
   <table>
     <thead>
@@ -422,8 +493,8 @@ ${patternsHtml}
     ${skipBodyHtml}
     </tbody>
   </table>
-
-  <div class="section-title">Recent Appointments (Last 30 Days)</div>
+`)}${on("appointments", `
+  <div class="section-title">${titles.recentAppts}</div>
   <table>
     <thead>
       <tr>
@@ -454,10 +525,10 @@ ${patternsHtml}
     ${upcomingApptBodyHtml}
     </tbody>
   </table>
-
+`)}${logsChapter ? `
   <!-- ═══ DAILY LOGS ═══ -->
   <div class="section-title">Daily Logs</div>
-
+` : ""}${on("dailyLog", `
   <div class="section-title">Daily Health Log</div>
   <table>
     <thead>
@@ -467,7 +538,7 @@ ${patternsHtml}
     </thead>
     ${dailyBodyHtml}
   </table>
-
+`)}${on("medLog", `
   <div class="section-title">Daily Medication Log</div>
   <table>
     <thead>
@@ -485,7 +556,7 @@ ${patternsHtml}
     ${medLogBodyHtml}
     </tbody>
   </table>
-
+`)}
   ${FOOTER}
 </div>
 

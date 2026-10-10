@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -12,24 +12,24 @@ import {
   Platform,
   Alert,
 } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import BottomSheet from "../../components/BottomSheet";
 import { SheetHeader, SheetFooter, formStyles, PLUM, PLUM_TINT } from "../../components/FormSheet";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import DoctorPicker from "../../components/DoctorPicker";
 import DoctorsSheet from "../../components/DoctorsSheet";
-import { isAlreadySaved } from "../../theme/doctorHelpers";
+import { isAlreadySaved, visitSummaryRange } from "../../theme/doctorHelpers";
 import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
-import * as Print from "expo-print";
-import { Asset } from "expo-asset";
-import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import ScreenBackground from "../../components/ScreenBackground";
 import api from "../../lib/api";
 import { track } from "../../lib/analytics";
-import { computeReportData } from "../../lib/reportData";
-import { buildReportHtml } from "../../lib/reportHtml";
+import { prepareDoctorReport } from "../../lib/exportReport";
+import { loadReportPrefs, prefsToOptions } from "../../lib/reportPrefs";
+import { prefsSummary } from "../../theme/reportOptions";
+import { localToday } from "../../theme/flareHelpers";
+import ReportOptionsSheet from "../../components/ReportOptionsSheet";
 import { useAuth } from "../../context/AuthContext";
 import {
   DAY_HEADERS,
@@ -43,25 +43,6 @@ import {
 const EMPTY_FORM = {
   doctorName: "", specialty: "", date: "", location: "",
   reason: "", notesBefore: "", notesAfter: "", followUpDate: "", status: "upcoming",
-};
-
-// The report is printed from a standalone HTML string with no base URL, so the
-// brand mark has to travel inside it as a data URI. Read once, then reuse.
-let brandMarkUri = null;
-const loadBrandMark = async () => {
-  if (brandMarkUri) return brandMarkUri;
-  try {
-    const asset = Asset.fromModule(require("../../assets/logo-mark.png"));
-    await asset.downloadAsync();
-    const base64 = await FileSystem.readAsStringAsync(asset.localUri || asset.uri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    brandMarkUri = `data:image/png;base64,${base64}`;
-    return brandMarkUri;
-  } catch {
-    // the report reads fine without the mark — never fail an export over it
-    return null;
-  }
 };
 
 const STATUS_OPTIONS = [
@@ -98,6 +79,12 @@ export default function AppointmentsScreen() {
   const [saving, setSaving] = useState(false);
   const [cancelConfirmId, setCancelConfirmId] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  // the remembered report choice, and the Customize sheet (remounted per open)
+  const [reportPrefs, setReportPrefs] = useState(null);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [customizeKey, setCustomizeKey] = useState(0);
+  // which card's "Summary for this visit" is being prepared, so only it says so
+  const [summaryApptId, setSummaryApptId] = useState(null);
 
   // ── Visit lifecycle sheets (prep / outcome) ───────────────────────────────
   const [prepFor, setPrepFor] = useState(null);
@@ -126,6 +113,8 @@ export default function AppointmentsScreen() {
     useCallback(() => {
       let active = true;
       if (isFirstLoadRef.current) setLoading(true);
+
+      loadReportPrefs().then((p) => { if (active) setReportPrefs(p); });
 
       (async () => {
         try {
@@ -160,50 +149,14 @@ export default function AppointmentsScreen() {
 
   // ── Export report ─────────────────────────────────────────────────────────
 
-  const handleExport = async () => {
+  // No options means the remembered choice: one tap exports what the card says
+  const handleExport = async (options, fileName) => {
     setExporting(true);
     setExportError(null);
     try {
-      const today = new Date().toLocaleDateString("en-CA");
-      const start = new Date();
-      start.setDate(start.getDate() - 30);
-      const startDate = start.toLocaleDateString("en-CA");
-
-      const [checkInsRes, medsRes, logsRes, apptsRes, insights, logoUri] = await Promise.all([
-        api.get("/api/checkins"),
-        api.get("/api/medications"),
-        api.get(`/api/medications/logs?startDate=${startDate}&endDate=${today}`),
-        api.get("/api/appointments"),
-        // Observed Patterns is a bonus section — an export must never fail
-        // because insights didn't load
-        api.get("/api/insights").then((r) => r.data).catch(() => null),
-        loadBrandMark(),
-      ]);
-
-      const data = computeReportData(
-        checkInsRes.data.checkIns,
-        medsRes.data.medications,
-        logsRes.data.logs,
-        apptsRes.data.appointments,
-        // weather rides along with the check-ins request
-        checkInsRes.data.weather || [],
-      );
-      const html = buildReportHtml(data, user?.username || "Patient", insights, logoUri);
-      const { uri } = await Print.printToFileAsync({ html });
-      const stamp = new Date().toLocaleDateString("en-CA");
-      const fileName = `Chronically-Doctor-Report-${stamp}`;
-
-      // Hand the PDF to the system share sheet — the user can save it to Files,
-      // email it, print it, or send it anywhere. No folder picker (Android blocks
-      // Download and other protected folders), works the same on iOS and Android.
-      const dest = `${FileSystem.cacheDirectory}${fileName}.pdf`;
-      let shareUri = uri;
-      try {
-        await FileSystem.copyAsync({ from: uri, to: dest }); // friendly filename
-        shareUri = dest;
-      } catch {
-        // fall back to the original temp uri if the rename copy fails
-      }
+      const opts = options ?? prefsToOptions(await loadReportPrefs(), localToday());
+      // fetch → compute → build → print, in lib/exportReport.js
+      const { shareUri } = await prepareDoctorReport({ username: user?.username, options: opts, fileName });
 
       // The PDF now exists — generation is done. Stop the spinner and count the
       // export here, BEFORE presenting the sheet: on iOS `shareAsync` never
@@ -234,8 +187,32 @@ export default function AppointmentsScreen() {
     } finally {
       // harmless backstop — already cleared after generation on the happy path
       setExporting(false);
+      setSummaryApptId(null);
     }
   };
+
+  // A report covering exactly the stretch since this doctor last saw them
+  const exportVisitSummary = (appt) => {
+    const { from, to, heading } = visitSummaryRange(appt, appointments, localToday());
+    setSummaryApptId(appt.id);
+    handleExport({ from, to, heading }, `Chronically-Visit-Summary-${to}`);
+  };
+
+  const summaryButton = (appt) => (
+    <TouchableOpacity
+      style={styles.summaryLink}
+      onPress={() => exportVisitSummary(appt)}
+      disabled={exporting}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`Summary for your visit with ${appt.doctorName}`}
+    >
+      <Ionicons name="document-text-outline" size={13} color="rgba(255,255,255,0.7)" />
+      <Text style={styles.reportShortcutText}>
+        {exporting && summaryApptId === appt.id ? "Preparing…" : "Summary for this visit"}
+      </Text>
+    </TouchableOpacity>
+  );
 
   // ── Calendar helpers ──────────────────────────────────────────────────────
 
@@ -439,6 +416,34 @@ export default function AppointmentsScreen() {
     setShowOutcomePicker(false);
   };
 
+  // A tap on an appointment push lands here with ?prepApptId= (the evening
+  // reminder) or ?outcomeApptId= (the after-visit check-in). Wait until the
+  // list is loaded, then open that sheet only if the appointment is still there
+  // and not cancelled. Opening never changes anything — only saving does. The
+  // param is cleared either way, so coming back to the tab does not reopen it.
+  const params = useLocalSearchParams();
+  const router = useRouter();
+  const handledApptParam = useRef(null);
+
+  useEffect(() => {
+    const pick = (raw) => (Array.isArray(raw) ? raw[0] : raw);
+    const prepId = pick(params?.prepApptId);
+    const outcomeId = pick(params?.outcomeApptId);
+    const id = prepId || outcomeId;
+    if (!id || loading) return;
+    const key = `${prepId ? "prep" : "outcome"}:${id}`;
+    if (handledApptParam.current === key) return;
+    handledApptParam.current = key;
+
+    const appt = appointments.find((a) => String(a.id) === String(id));
+    if (appt && appt.status !== "cancelled") {
+      if (prepId) openPrep(appt);
+      else openOutcome(appt);
+    }
+    router.setParams({ prepApptId: undefined, outcomeApptId: undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params?.prepApptId, params?.outcomeApptId, loading, appointments]);
+
   const markCompleted = async (appt) => {
     try {
       await api.put(`/api/appointments/${appt.id}`, { ...appt, status: "completed" });
@@ -455,6 +460,9 @@ export default function AppointmentsScreen() {
     try {
       await api.put(`/api/appointments/${outcomeFor.id}`, {
         ...outcomeFor,
+        // saving how a visit went is what marks it done; a completed or
+        // cancelled one keeps its status
+        status: outcomeFor.status === "upcoming" ? "completed" : outcomeFor.status,
         notesAfter: outcomeText,
         followUpDate: outcomeDate
           ? new Date(outcomeDate + "T12:00:00").toISOString()
@@ -694,12 +702,13 @@ export default function AppointmentsScreen() {
         <View style={styles.reportCard}>
           <Text style={styles.reportCardTitle}>Doctor Report</Text>
           <Text style={styles.reportCardDesc}>
-            Export a 30-day PDF summary of health metrics, medications, adherence, and
-            appointments — designed to bring to your next visit.
+            Export a PDF summary of health metrics, medications, adherence and
+            appointments, designed to bring to your next visit.
           </Text>
+          <View style={styles.reportActions}>
           <TouchableOpacity
             style={[styles.reportBtn, exporting && styles.reportBtnDisabled]}
-            onPress={handleExport}
+            onPress={() => handleExport()}
             disabled={exporting}
             activeOpacity={0.8}
             accessibilityRole="button"
@@ -717,6 +726,20 @@ export default function AppointmentsScreen() {
               </>
             )}
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.customizeBtn}
+            onPress={() => { setCustomizeKey((k) => k + 1); setCustomizeOpen(true); }}
+            disabled={exporting}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Customize doctor report"
+          >
+            <Text style={styles.customizeText}>Customize</Text>
+          </TouchableOpacity>
+          </View>
+          {reportPrefs && prefsSummary(reportPrefs) ? (
+            <Text style={styles.reportBtnCaption}>{prefsSummary(reportPrefs)}</Text>
+          ) : null}
           <Text style={styles.reportBtnCaption}>
             Opens your device's share options — save to Files or send it anywhere.
           </Text>
@@ -886,7 +909,7 @@ export default function AppointmentsScreen() {
                       {appt.id === soonestUpcomingId && (
                         <TouchableOpacity
                           style={styles.reportShortcut}
-                          onPress={handleExport}
+                          onPress={() => handleExport()}
                           disabled={exporting}
                           activeOpacity={0.8}
                           accessibilityRole="button"
@@ -902,6 +925,7 @@ export default function AppointmentsScreen() {
                           </Text>
                         </TouchableOpacity>
                       )}
+                      {summaryButton(appt)}
                     </View>
 
                     {/* Inline cancel confirm */}
@@ -1074,18 +1098,23 @@ export default function AppointmentsScreen() {
                         </View>
                       )}
 
-                      {/* Completed: add visit notes link when empty */}
-                      {isCompleted && !appt.notesAfter && (
-                        <TouchableOpacity
-                          style={styles.addNotesLink}
-                          onPress={() => openOutcome(appt)}
-                          activeOpacity={0.7}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Add visit notes for ${appt.doctorName}`}
-                        >
-                          <Ionicons name="add" size={13} color="rgba(255,255,255,0.7)" />
-                          <Text style={styles.addNotesLinkText}>Add visit notes</Text>
-                        </TouchableOpacity>
+                      {/* Completed: add visit notes link when empty, and the summary */}
+                      {isCompleted && (
+                        <View style={styles.completedActions}>
+                          {!appt.notesAfter && (
+                            <TouchableOpacity
+                              style={styles.addNotesLink}
+                              onPress={() => openOutcome(appt)}
+                              activeOpacity={0.7}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Add visit notes for ${appt.doctorName}`}
+                            >
+                              <Ionicons name="add" size={13} color="rgba(255,255,255,0.7)" />
+                              <Text style={styles.addNotesLinkText}>Add visit notes</Text>
+                            </TouchableOpacity>
+                          )}
+                          {summaryButton(appt)}
+                        </View>
                       )}
 
                       {/* Completed: follow-up chained */}
@@ -1375,6 +1404,9 @@ export default function AppointmentsScreen() {
           subtitle={outcomeFor ? `${outcomeFor.doctorName}${outcomeFor.specialty ? ` — ${outcomeFor.specialty}` : ""}` : undefined}
           style={{ paddingHorizontal: 0, paddingTop: 0 }}
         />
+        {outcomeFor?.status === "upcoming" ? (
+          <Text style={styles.outcomeMarksDone}>Saving marks this visit as done.</Text>
+        ) : null}
         <Text style={formStyles.label}>Visit notes</Text>
         <TextInput
           style={[formStyles.input, formStyles.inputMultiline]}
@@ -1429,6 +1461,18 @@ export default function AppointmentsScreen() {
       </BottomSheet>
 
       {/* ── My doctors ────────────────────────────────────────────────────────── */}
+      <ReportOptionsSheet
+        key={customizeKey}
+        visible={customizeOpen}
+        prefs={reportPrefs}
+        onClose={() => setCustomizeOpen(false)}
+        onExport={(options) => {
+          setCustomizeOpen(false);
+          loadReportPrefs().then(setReportPrefs);
+          handleExport(options);
+        }}
+      />
+
       <DoctorsSheet
         visible={showDoctors}
         onClose={() => setShowDoctors(false)}
@@ -1914,6 +1958,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "rgba(255,255,255,0.9)",
   },
+  // a quiet text action with a full 44pt target
+  summaryLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    minHeight: 44,
+    paddingHorizontal: 12,
+  },
+  completedActions: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
   reportShortcut: {
     flexDirection: "row",
     alignItems: "center",
@@ -2175,6 +2228,19 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   reportBtnDisabled: { opacity: 0.6 },
+  outcomeMarksDone: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.65)",
+    marginTop: -8,
+  },
+  reportActions: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 4 },
+  customizeBtn: { minHeight: 44, justifyContent: "center", paddingHorizontal: 12 },
+  customizeText: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.7)",
+  },
   reportBtnText: {
     fontFamily: "Lato_700Bold",
     fontSize: 13,

@@ -148,15 +148,24 @@ const updateMilestones = async (req, res) => {
   }
 };
 
-const DEFAULT_NOTIFICATION_PREFS = { enabled: true, medReminders: true, checkinNudge: true, refillReminders: true, prnFollowups: true };
+const DEFAULT_NOTIFICATION_PREFS = {
+  enabled: true, medReminders: true, checkinNudge: true, refillReminders: true, prnFollowups: true,
+  appointmentReminders: true, appointmentFollowups: true,
+};
 
 // updateNotificationPrefs handles PUT /api/users/notification-prefs
 // Accepts a partial patch and merges, so a single toggle doesn't have to send
 // the whole object back.
 const updateNotificationPrefs = async (req, res) => {
   try {
-    const { enabled, medReminders, checkinNudge, refillReminders, prnFollowups } = req.body;
-    const incoming = { enabled, medReminders, checkinNudge, refillReminders, prnFollowups };
+    const {
+      enabled, medReminders, checkinNudge, refillReminders, prnFollowups,
+      appointmentReminders, appointmentFollowups,
+    } = req.body;
+    const incoming = {
+      enabled, medReminders, checkinNudge, refillReminders, prnFollowups,
+      appointmentReminders, appointmentFollowups,
+    };
 
     for (const [key, value] of Object.entries(incoming)) {
       if (value !== undefined && typeof value !== "boolean") {

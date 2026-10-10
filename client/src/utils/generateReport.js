@@ -1,9 +1,16 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { formatTime, describeSchedule, adherenceStats } from "./medicationHelpers";
+import {
+  formatTime, describeSchedule, adherenceStats, resolvePattern, describeChange, describeChangeDate,
+} from "./medicationHelpers";
 // ?inline gives a data URI, so the PDF stays synchronous — no image to await
 import logoMark from "../assets/logo-mark.png?inline";
 import { formatWeatherLine } from "./weatherFormat";
+import { localToday } from "./flareHelpers";
+import {
+  resolveReportOptions, rangeTitles, eachDay, chartLabelStep, flaresInRange, flareSummaryLine,
+  flareReportLine, medChangesInRange, helpedRows, helpedReportLine, truncationNote,
+} from "./reportOptions";
 
 const PURPLE        = [124, 107, 174];
 const DARK          = [45,  37,  64];
@@ -27,15 +34,18 @@ const sectionTitle = (doc, text, y, margin) => {
   doc.text(text, margin, y);
 };
 
-// Returns 31 entries (30 days ago → today), oldest first.
+// A calendar date at local noon, the safe hour to format one from
+const atLocalNoon = (ymd) => {
+  const [yr, mo, dy] = ymd.split("-").map(Number);
+  return new Date(yr, mo - 1, dy, 12, 0, 0, 0);
+};
+
+// One entry per day of the range, oldest first.
 // Each entry: { date, label, pain, mood, energy, anxiety, appetite } — null when no data that day.
-const buildDailyAverages = (periodCheckIns, thirtyDaysAgo) => {
+const buildDailyAverages = (periodCheckIns, range) => {
   const result = [];
-  for (let i = 0; i <= 30; i++) {
-    const d = new Date(thirtyDaysAgo);
-    d.setDate(d.getDate() + i);
-    const dateStr     = d.toLocaleDateString("en-CA");
-    const label       = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  for (const dateStr of eachDay(range.from, range.to)) {
+    const label       = atLocalNoon(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
     const dayCheckins = periodCheckIns.filter((c) => c.date === dateStr);
     const metricAvg   = (key) => {
       const vals = dayCheckins.filter((c) => c[key] != null && c[key] !== 0);
@@ -81,7 +91,8 @@ const drawTrendChart = (dailyData) => {
   ctx.fillStyle = "#FFFFFF";
   ctx.fillRect(0, 0, 1200, 360);
 
-  const toX = (i) => plotLeft + (i / 30) * plotW;
+  const n   = dailyData.length;
+  const toX = (i) => plotLeft + (i / Math.max(1, n - 1)) * plotW;
   const toY = (v) => plotBottom - ((v - 1) / 4) * plotH;
 
   // A metric nobody answered in this period gets no line and no legend entry.
@@ -111,11 +122,11 @@ const drawTrendChart = (dailyData) => {
   ctx.fillText("Mid",  plotLeft - 8, toY(3));
   ctx.fillText("Good", plotLeft - 8, toY(5));
 
-  // X axis labels every 5 days
+  // X axis labels: about seven of them, whatever the range (every 5th of 31 days)
   ctx.font = "14px sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  for (let i = 0; i <= 30; i += 5) {
+  for (let i = 0; i < n; i += chartLabelStep(n)) {
     if (dailyData[i]) ctx.fillText(dailyData[i].label, toX(i), plotBottom + 8);
   }
 
@@ -128,7 +139,7 @@ const drawTrendChart = (dailyData) => {
 
     let prevHadValue = false;
     ctx.beginPath();
-    for (let i = 0; i <= 30; i++) {
+    for (let i = 0; i < n; i++) {
       const val = dailyData[i]?.[key];
       if (val == null) { prevHadValue = false; continue; }
       if (!prevHadValue) ctx.moveTo(toX(i), toY(val));
@@ -138,7 +149,7 @@ const drawTrendChart = (dailyData) => {
     ctx.stroke();
 
     ctx.fillStyle = color;
-    for (let i = 0; i <= 30; i++) {
+    for (let i = 0; i < n; i++) {
       const val = dailyData[i]?.[key];
       if (val == null) continue;
       ctx.beginPath();
@@ -169,20 +180,44 @@ const drawTrendChart = (dailyData) => {
   return canvas.toDataURL("image/png");
 };
 
-export function generateReport(checkIns, username, medications = [], medicationLogs = [], appointments = [], insights = null, weatherDays = []) {
-  const today         = new Date();
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+/**
+ * Builds and downloads the doctor report PDF.
+ *
+ * `options = { from, to, sections, heading }`:
+ *   - `from` / `to`: "YYYY-MM-DD", inclusive, the patient's local dates. Missing
+ *     means the default range (today − 30 … today); see resolveReportOptions
+ *     for the clamps. Never throws over a bad range.
+ *   - `sections`: keys from REPORT_SECTIONS; undefined means all of them.
+ *   - `heading`: an optional subtitle printed under the title.
+ *
+ * Two more fields belong to the exporter (exportReport.js), because the
+ * positional arguments have no slot for them:
+ *   - `flares`: the array GET /api/flares returned for the range.
+ *   - `medHistory`: `{ [medicationId]: entries[] }` from GET /api/medications/:id/history.
+ * `undefined` means "not fetched", and that section is left out. It never means
+ * "none" — a report must not tell a doctor there were no flares or no changes
+ * when nobody looked.
+ *
+ * `options = {}` prints the same report as before options existed.
+ */
+export function generateReport(checkIns, username, medications = [], medicationLogs = [], appointments = [], insights = null, weatherDays = [], options = {}) {
+  const today    = new Date();
+  const todayStr = localToday();
+  const range    = resolveReportOptions(options, todayStr);
+  const has      = (key) => range.sections.has(key);
+  const titles   = rangeTitles(range);
+  const fromDate = atLocalNoon(range.from);
+  const toDate   = atLocalNoon(range.to);
 
-  const todayStr         = today.toLocaleDateString("en-CA");
-  const thirtyDaysAgoStr = thirtyDaysAgo.toLocaleDateString("en-CA");
-
-  const periodCheckIns   = checkIns.filter((c) => c.date >= thirtyDaysAgoStr && c.date <= todayStr);
+  const periodCheckIns   = checkIns.filter((c) => c.date >= range.from && c.date <= range.to);
   const daysWithCheckIns = [...new Set(periodCheckIns.map((c) => c.date))];
   const totalDaysTracked = daysWithCheckIns.length;
 
+  // Callers may pass logs from a wider window; everything below counts only the range
+  const periodLogs = medicationLogs.filter((l) => l.date >= range.from && l.date <= range.to);
+
   // Daily averages — shared source of truth for chart and daily log table
-  const dailyData = buildDailyAverages(periodCheckIns, thirtyDaysAgo);
+  const dailyData = buildDailyAverages(periodCheckIns, range);
 
   // Metric averages
   const avg = (arr, key) => {
@@ -230,7 +265,7 @@ export function generateReport(checkIns, username, medications = [], medicationL
 
   // Adherence: expected-vs-logged (computed-missed) — the shared engine math.
   // missed = expected past dose with no log; today's unlogged doses are neutral
-  const medStats = adherenceStats(medications, medicationLogs, thirtyDaysAgoStr, todayStr, todayStr);
+  const medStats = adherenceStats(medications, periodLogs, range.from, range.to, todayStr);
 
   const glanceAdherenceText = medStats.totals.expected > 0
     ? `${medStats.totals.pct}% (${medStats.totals.taken} of ${medStats.totals.expected} ${medStats.totals.expected === 1 ? "dose" : "doses"})`
@@ -266,13 +301,16 @@ export function generateReport(checkIns, username, medications = [], medicationL
     );
     const extra  = days.length > 8 ? ` +${days.length - 8} more` : "";
     const suffix = days.length === 1 ? "day" : "days";
-    notableLines.push(`${METRIC_NAMES[k]} was severe (avg ≤ 2) on ${days.length} ${suffix}: ${dateLabels.join(", ")}${extra}`);
+    // "≤" is not in jsPDF's WinAnsi font and printed as `"d`; the phone's HTML
+    // report keeps the symbol
+    notableLines.push(`${METRIC_NAMES[k]} was severe (avg <= 2) on ${days.length} ${suffix}: ${dateLabels.join(", ")}${extra}`);
   });
 
   // Weather joins the daily table only when the period actually has some —
-  // an all-"—" column is noise on a page a doctor has to scan.
+  // an all-"—" column is noise on a page a doctor has to scan. The patient can
+  // also leave it out.
   const weatherByDate = Object.fromEntries((weatherDays || []).map((w) => [w.date, w]));
-  const hasWeather = dailyData.some((d) => formatWeatherLine(weatherByDate[d.date]));
+  const hasWeather = has("weather") && dailyData.some((d) => formatWeatherLine(weatherByDate[d.date]));
 
   // Daily rows for page 3 (derived from dailyData so chart and table always agree)
   const dailyRows = dailyData.map((d) => {
@@ -311,8 +349,23 @@ export function generateReport(checkIns, username, medications = [], medicationL
       })
       .join("\n");
   };
-  // aligned to dailyData/dailyRows; "" means the day has no note and gets no row
-  const dailyNotes = dailyData.map((d) => dayNoteText(periodCheckIns.filter((c) => c.date === d.date)));
+  // aligned to dailyData/dailyRows; "" means the day has no note and gets no row.
+  // "Your notes" off drops them all.
+  const dailyNotes = dailyData.map((d) =>
+    has("notes") ? dayNoteText(periodCheckIns.filter((c) => c.date === d.date)) : "");
+
+  // The three optional datasets. Each is left out when there is nothing to
+  // show — "no flares" would read to a doctor as a clinical fact we don't have.
+  const flareList = options.flares === undefined ? [] : flaresInRange(options.flares, range.from, range.to);
+  const medChangeRows = medChangesInRange(options.medHistory, medications, range.from, range.to);
+  const helpedList = helpedRows(medications, periodLogs, range.from, range.to,
+    (m) => resolvePattern(m).kind === "as_needed");
+  const showFlares     = has("flares") && flareList.length > 0;
+  const showMedChanges = has("medChanges") && medChangeRows.length > 0;
+  const showHelped     = has("helped") && helpedList.length > 0;
+
+  const fmtLong  = (d) => d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const fmtShort = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   // ─── BUILD PDF ──────────────────────────────────────────────────────────────
   const doc        = new jsPDF({ orientation: "portrait" });
@@ -321,6 +374,11 @@ export function generateReport(checkIns, username, medications = [], medicationL
   const margin     = 10;
   const gap        = 4;
   const colW       = (pageWidth - 2 * margin) / 2;
+
+  // Has anything been drawn below the header on the current page? A chapter
+  // only starts a new page when it has, so a report of daily logs alone opens
+  // on page 1 rather than after a blank one.
+  let pageUsed = false;
 
   // ─── PAGE 1: SUMMARY ────────────────────────────────────────────────────────
   let y = 15;
@@ -340,6 +398,14 @@ export function generateReport(checkIns, username, medications = [], medicationL
   doc.text("Chronically Health Report", headX, y);
   y += 6;
 
+  if (range.heading) {
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY);
+    doc.setFont(undefined, "italic");
+    doc.text(range.heading, headX, y);
+    y += 4.5;
+  }
+
   doc.setFontSize(9);
   doc.setTextColor(...GRAY);
   doc.setFont(undefined, "normal");
@@ -348,141 +414,189 @@ export function generateReport(checkIns, username, medications = [], medicationL
     headX, y,
   );
   y += 4;
-  doc.text(
-    `Period: ${thirtyDaysAgo.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} – ${today.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
-    headX, y,
-  );
+  doc.text(`Period: ${fmtLong(fromDate)} – ${fmtLong(toDate)}`, headX, y);
+
+  const fetchNote = truncationNote(checkIns, range.from, todayStr);
+  if (fetchNote) {
+    y += 4;
+    doc.setFontSize(8);
+    doc.text(fetchNote, headX, y, { maxWidth: pageWidth - headX - margin });
+  }
   y += gap + 2;
 
   // ── At a Glance box ── (sleep takes a full-width third row when tracked)
-  const boxH  = hasSleep ? 42 : 30;
-  const lPad  = 5;
-  const row1Y = y + 5;
-  const row2Y = y + 17;
-  const row3Y = y + 29;
-  const div1Y = y + 15;
-  const div2Y = y + 27;
+  if (has("glance")) {
+    const boxH  = hasSleep ? 42 : 30;
+    const lPad  = 5;
+    const row1Y = y + 5;
+    const row2Y = y + 17;
+    const row3Y = y + 29;
+    const div1Y = y + 15;
+    const div2Y = y + 27;
 
-  doc.setFillColor(...LAVENDER_FILL);
-  doc.roundedRect(margin, y, pageWidth - 2 * margin, boxH, 3, 3, "F");
+    doc.setFillColor(...LAVENDER_FILL);
+    doc.roundedRect(margin, y, pageWidth - 2 * margin, boxH, 3, 3, "F");
 
-  // Subtle dividers — the column rule stops where the full-width row starts
-  doc.setDrawColor(...GRAY);
-  doc.setLineWidth(0.2);
-  doc.line(margin + 4,    div1Y, margin + pageWidth - 2 * margin - 4, div1Y);
-  if (hasSleep) doc.line(margin + 4, div2Y, margin + pageWidth - 2 * margin - 4, div2Y);
-  doc.line(margin + colW, y + 4,  margin + colW, hasSleep ? div2Y : y + boxH - 4);
+    // Subtle dividers — the column rule stops where the full-width row starts
+    doc.setDrawColor(...GRAY);
+    doc.setLineWidth(0.2);
+    doc.line(margin + 4,    div1Y, margin + pageWidth - 2 * margin - 4, div1Y);
+    if (hasSleep) doc.line(margin + 4, div2Y, margin + pageWidth - 2 * margin - 4, div2Y);
+    doc.line(margin + colW, y + 4,  margin + colW, hasSleep ? div2Y : y + boxH - 4);
 
-  // Labels (7pt gray)
-  doc.setFontSize(7);
-  doc.setTextColor(...GRAY);
-  doc.setFont(undefined, "normal");
-  doc.text("Check-ins",             margin + lPad,        row1Y);
-  doc.text("Medication adherence",  margin + colW + lPad, row1Y);
-  doc.text("Most frequent symptom", margin + lPad,        row2Y);
-  doc.text("Severe days",           margin + colW + lPad, row2Y);
-  if (hasSleep) doc.text("Average sleep quality", margin + lPad, row3Y);
-
-  // Values (10pt dark bold)
-  doc.setFontSize(10);
-  doc.setTextColor(...DARK);
-  doc.setFont(undefined, "bold");
-  const maxValW = colW - lPad - 4;
-  doc.text(doc.splitTextToSize(`${periodCheckIns.length} over ${totalDaysTracked} of 30 days`, maxValW), margin + lPad,        row1Y + 5);
-  doc.text(doc.splitTextToSize(glanceAdherenceText,   maxValW), margin + colW + lPad, row1Y + 5);
-  doc.text(doc.splitTextToSize(glanceMostFreqSymptom, maxValW), margin + lPad,        row2Y + 5);
-  doc.text(doc.splitTextToSize(glanceSevereText,      maxValW), margin + colW + lPad, row2Y + 5);
-  if (hasSleep) doc.text(`${avgSleep} / 5`, margin + lPad, row3Y + 5);
-
-  y += boxH + gap;
-
-  // ── 30-Day Trend chart ──
-  sectionTitle(doc, "30-Day Trend", y, margin);
-  y += 4;
-
-  const daysWithAnyData = dailyData.filter(
-    (d) => d.pain !== null || d.mood !== null || d.energy !== null || d.anxiety !== null || d.appetite !== null,
-  );
-  if (daysWithAnyData.length < 2) {
-    doc.setFontSize(9);
+    // Labels (7pt gray)
+    doc.setFontSize(7);
     doc.setTextColor(...GRAY);
     doc.setFont(undefined, "normal");
-    doc.text("Not enough data to display a trend chart.", margin, y + 4);
-    y += 12;
-  } else {
-    const dataUrl      = drawTrendChart(dailyData);
-    const contentWidth = pageWidth - 2 * margin;
-    const chartH       = contentWidth * (330 / 1200);
-    doc.addImage(dataUrl, "PNG", margin, y, contentWidth, chartH);
-    y += chartH + gap;
+    doc.text("Check-ins",             margin + lPad,        row1Y);
+    doc.text("Medication adherence",  margin + colW + lPad, row1Y);
+    doc.text("Most frequent symptom", margin + lPad,        row2Y);
+    doc.text("Severe days",           margin + colW + lPad, row2Y);
+    if (hasSleep) doc.text("Average sleep quality", margin + lPad, row3Y);
+
+    // Values (10pt dark bold)
+    doc.setFontSize(10);
+    doc.setTextColor(...DARK);
+    doc.setFont(undefined, "bold");
+    const maxValW = colW - lPad - 4;
+    doc.text(doc.splitTextToSize(`${periodCheckIns.length} over ${totalDaysTracked} of ${titles.glanceDays} days`, maxValW), margin + lPad,        row1Y + 5);
+    doc.text(doc.splitTextToSize(glanceAdherenceText,   maxValW), margin + colW + lPad, row1Y + 5);
+    doc.text(doc.splitTextToSize(glanceMostFreqSymptom, maxValW), margin + lPad,        row2Y + 5);
+    doc.text(doc.splitTextToSize(glanceSevereText,      maxValW), margin + colW + lPad, row2Y + 5);
+    if (hasSleep) doc.text(`${avgSleep} / 5`, margin + lPad, row3Y + 5);
+
+    y += boxH + gap;
+    pageUsed = true;
   }
 
-  // ── 30-Day Averages ── (Sleep column only when the period has sleep data)
-  sectionTitle(doc, "30-Day Averages", y, margin);
-  y += 3;
-  const avgHead = [...(hasPain ? ["Pain"] : []), "Mood", "Energy", "Anxiety", "Appetite"];
-  const avgBody = [...(hasPain ? [avgPain] : []), avgMood, avgEnergy, avgAnxiety, avgAppetite];
-  if (hasSleep) { avgHead.push("Sleep"); avgBody.push(avgSleep); }
-  const avgColW = avgHead.length > 5 ? 31 : avgHead.length === 5 ? 38 : 46;
-  const avgColStyles = {};
-  avgHead.forEach((_, i) => { avgColStyles[i] = { cellWidth: avgColW }; });
-  autoTable(doc, {
-    startY: y,
-    head: [avgHead],
-    body: [avgBody],
-    headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, halign: "center", cellPadding: 2 },
-    bodyStyles: { textColor: DARK, fontSize: 13, fontStyle: "bold", halign: "center", cellPadding: 2 },
-    columnStyles: avgColStyles,
-    margin: { left: margin, right: margin },
-    theme: "grid",
-  });
-  y = doc.lastAutoTable.finalY + gap;
+  // ── Trend chart ──
+  if (has("trend")) {
+    sectionTitle(doc, titles.trend, y, margin);
+    y += 4;
 
-  if (untrackedNote) {
-    doc.setFontSize(8);
-    doc.setTextColor(...GRAY);
-    doc.setFont(undefined, "normal");
-    const noteLines = doc.splitTextToSize(untrackedNote, pageWidth - 2 * margin);
-    doc.text(noteLines, margin, y);
-    y += noteLines.length * 3.5 + gap - 1;
+    const daysWithAnyData = dailyData.filter(
+      (d) => d.pain !== null || d.mood !== null || d.energy !== null || d.anxiety !== null || d.appetite !== null,
+    );
+    if (daysWithAnyData.length < 2) {
+      doc.setFontSize(9);
+      doc.setTextColor(...GRAY);
+      doc.setFont(undefined, "normal");
+      doc.text("Not enough data to display a trend chart.", margin, y + 4);
+      y += 12;
+    } else {
+      const dataUrl      = drawTrendChart(dailyData);
+      const contentWidth = pageWidth - 2 * margin;
+      const chartH       = contentWidth * (330 / 1200);
+      doc.addImage(dataUrl, "PNG", margin, y, contentWidth, chartH);
+      y += chartH + gap;
+    }
+    pageUsed = true;
+  }
+
+  // ── Averages ── (Sleep column only when the period has sleep data)
+  if (has("averages")) {
+    sectionTitle(doc, titles.averages, y, margin);
+    y += 3;
+    const avgHead = [...(hasPain ? ["Pain"] : []), "Mood", "Energy", "Anxiety", "Appetite"];
+    const avgBody = [...(hasPain ? [avgPain] : []), avgMood, avgEnergy, avgAnxiety, avgAppetite];
+    if (hasSleep) { avgHead.push("Sleep"); avgBody.push(avgSleep); }
+    const avgColW = avgHead.length > 5 ? 31 : avgHead.length === 5 ? 38 : 46;
+    const avgColStyles = {};
+    avgHead.forEach((_, i) => { avgColStyles[i] = { cellWidth: avgColW }; });
+    autoTable(doc, {
+      startY: y,
+      head: [avgHead],
+      body: [avgBody],
+      headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, halign: "center", cellPadding: 2 },
+      bodyStyles: { textColor: DARK, fontSize: 13, fontStyle: "bold", halign: "center", cellPadding: 2 },
+      columnStyles: avgColStyles,
+      margin: { left: margin, right: margin },
+      theme: "grid",
+    });
+    y = doc.lastAutoTable.finalY + gap;
+
+    if (untrackedNote) {
+      doc.setFontSize(8);
+      doc.setTextColor(...GRAY);
+      doc.setFont(undefined, "normal");
+      const noteLines = doc.splitTextToSize(untrackedNote, pageWidth - 2 * margin);
+      doc.text(noteLines, margin, y);
+      y += noteLines.length * 3.5 + gap - 1;
+    }
+    pageUsed = true;
   }
 
   // ── Notable Events ──
-  sectionTitle(doc, "Notable Events", y, margin);
-  y += 3;
-  autoTable(doc, {
-    startY: y,
-    body: notableLines.length > 0
-      ? notableLines.map((line) => [line])
-      : [["No severe days recorded in this period."]],
-    bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: { top: 1.5, bottom: 1.5, left: 2, right: 2 } },
-    columnStyles: { 0: { cellWidth: pageWidth - 2 * margin } },
-    styles: { overflow: "linebreak" },
-    margin: { left: margin, right: margin },
-    theme: "plain",
-  });
-  y = doc.lastAutoTable.finalY + gap;
+  if (has("notable")) {
+    sectionTitle(doc, "Notable Events", y, margin);
+    y += 3;
+    autoTable(doc, {
+      startY: y,
+      body: notableLines.length > 0
+        ? notableLines.map((line) => [line])
+        : [["No severe days recorded in this period."]],
+      bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: { top: 1.5, bottom: 1.5, left: 2, right: 2 } },
+      columnStyles: { 0: { cellWidth: pageWidth - 2 * margin } },
+      styles: { overflow: "linebreak" },
+      margin: { left: margin, right: margin },
+      theme: "plain",
+    });
+    y = doc.lastAutoTable.finalY + gap;
+    pageUsed = true;
+  }
+
+  // ── Flares ── (only when the patient logged any that touch the range)
+  if (showFlares) {
+    if (y > pageHeight - 45) { doc.addPage(); y = 15; }
+    sectionTitle(doc, "Flares", y, margin);
+    y += 5;
+    doc.setFontSize(9);
+    doc.setTextColor(...DARK);
+    doc.setFont(undefined, "normal");
+    doc.text(flareSummaryLine(flareList), margin, y);
+    y += 2;
+    const noteStyles = { fontSize: 7.5, fontStyle: "italic", textColor: GRAY, cellPadding: { top: 0, bottom: 1.5, left: 5, right: 2 } };
+    autoTable(doc, {
+      startY: y,
+      // each flare, with its note on the row beneath it when "Your notes" is on
+      body: flareList.flatMap((f) => {
+        const note = has("notes") && typeof f.note === "string" ? f.note.trim() : "";
+        const row = [flareReportLine(f, todayStr)];
+        return note ? [row, [{ content: note, styles: noteStyles }]] : [row];
+      }),
+      bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: { top: 1.5, bottom: 1.5, left: 2, right: 2 } },
+      columnStyles: { 0: { cellWidth: pageWidth - 2 * margin } },
+      styles: { overflow: "linebreak" },
+      margin: { left: margin, right: margin, top: 14 },
+      theme: "plain",
+    });
+    y = doc.lastAutoTable.finalY + gap;
+    pageUsed = true;
+  }
 
   // ── Symptom Frequency ──
-  sectionTitle(doc, "Symptom Frequency", y, margin);
-  y += 3;
-  autoTable(doc, {
-    startY: y,
-    head: [["Symptom", "Days", "% of days tracked"]],
-    body: symptomStats.length > 0
-      ? symptomStats.map((s) => [s.name, s.days, `${s.percentage}%`])
-      : [["No symptoms logged in this period", "", ""]],
-    headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
-    bodyStyles: { textColor: DARK, fontSize: 9, cellPadding: 2 },
-    columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 25 }, 2: { cellWidth: 75 } },
-    margin: { left: margin, right: margin },
-    theme: "grid",
-  });
-  y = doc.lastAutoTable.finalY + gap;
+  if (has("symptoms")) {
+    sectionTitle(doc, "Symptom Frequency", y, margin);
+    y += 3;
+    autoTable(doc, {
+      startY: y,
+      head: [["Symptom", "Days", "% of days tracked"]],
+      body: symptomStats.length > 0
+        ? symptomStats.map((s) => [s.name, s.days, `${s.percentage}%`])
+        : [["No symptoms logged in this period", "", ""]],
+      headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
+      bodyStyles: { textColor: DARK, fontSize: 9, cellPadding: 2 },
+      columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 25 }, 2: { cellWidth: 75 } },
+      margin: { left: margin, right: margin },
+      theme: "grid",
+    });
+    y = doc.lastAutoTable.finalY + gap;
+    pageUsed = true;
+  }
 
   // ── Observed Patterns ── (bonus section: absent insights simply mean no
   // section — an export must never depend on it)
-  const patternCards = insights?.cards || [];
+  const patternCards = has("patterns") ? insights?.cards || [] : [];
   if (patternCards.length > 0) {
     // don't strand the heading at the foot of the page
     if (y > pageHeight - 45) { doc.addPage(); y = 15; }
@@ -508,6 +622,7 @@ export function generateReport(checkIns, username, medications = [], medicationL
       didDrawCell: (d) => {
         if (d.section !== "body") return;
         const card     = patternCards[d.row.index];
+        if (!card) return;
         const x        = d.cell.x + 2;
         const bodyWrap = doc.splitTextToSize(card.body, d.cell.width - 4);
         let   ty       = d.cell.y + 4.5;
@@ -525,298 +640,385 @@ export function generateReport(checkIns, username, medications = [], medicationL
         doc.text(card.evidence, x, ty);
       },
       columnStyles: { 0: { cellWidth: pageWidth - 2 * margin, minCellHeight: 15 } },
+      // a card is never split across pages: the redraw above draws a whole card
+      // per row, and a split row has no card behind it
+      rowPageBreak: "avoid",
       styles: { overflow: "linebreak" },
       margin: { left: margin, right: margin, top: 14 },
       theme: "plain",
     });
+    y = doc.lastAutoTable.finalY + gap;
+    pageUsed = true;
   }
+
+  // A chapter: a new page with its title and the patient/period line, unless
+  // nothing has been drawn yet — then it continues under the page-1 header,
+  // which already carries that line. Returns where its first section goes.
+  const startChapter = (title) => {
+    let cy = y;
+    if (pageUsed) {
+      doc.addPage();
+      cy = 15;
+    }
+    doc.setFontSize(12);
+    doc.setTextColor(...PURPLE);
+    doc.setFont(undefined, "bold");
+    doc.text(title, margin, cy);
+    if (pageUsed) {
+      cy += 5;
+      doc.setFontSize(9);
+      doc.setTextColor(...GRAY);
+      doc.setFont(undefined, "normal");
+      doc.text(`Patient: ${username}     Period: ${fmtShort(fromDate)} – ${fmtShort(toDate)}`, margin, cy);
+    }
+    pageUsed = true;
+    return cy + gap + 2;
+  };
 
   // ─── MEDICATIONS + APPOINTMENTS ────────────────────────────────────────────
   // chapters track their real page numbers, since the summary can now run long
-  doc.addPage();
-  const medsPage = doc.internal.getNumberOfPages();
-  let y2 = 15;
+  const medsChapter = has("medications") || has("adherence") || has("skipReasons") ||
+    has("appointments") || showMedChanges || showHelped;
+  let medsPage = null;
+  if (medsChapter) {
+    const startPage = doc.internal.getNumberOfPages();
+    let y2 = startChapter("Medications & Appointments");
+    medsPage = doc.internal.getNumberOfPages();
+    if (medsPage === startPage && medsPage === 1) medsPage = null; // stayed on page 1
 
-  doc.setFontSize(12);
-  doc.setTextColor(...PURPLE);
-  doc.setFont(undefined, "bold");
-  doc.text("Medications & Appointments", margin, y2);
-  y2 += 5;
-  doc.setFontSize(9);
-  doc.setTextColor(...GRAY);
-  doc.setFont(undefined, "normal");
-  doc.text(
-    `Patient: ${username}     Period: ${thirtyDaysAgo.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} – ${today.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
-    margin, y2,
-  );
-  y2 += gap + 2;
+    // Current Medications
+    if (has("medications")) {
+      sectionTitle(doc, "Current Medications", y2, margin);
+      y2 += 3;
 
-  // Current Medications
-  sectionTitle(doc, "Current Medications", y2, margin);
-  y2 += 3;
-
-  if (medications.length === 0) {
-    autoTable(doc, {
-      startY: y2,
-      body: [["No medications tracked"]],
-      bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2, halign: "center" },
-      margin: { left: margin, right: margin, top: 14 },
-      theme: "grid",
-    });
-  } else {
-    const medListHead = ["Name", "Type", "Dosage", "Schedule", "Status"];
-    const medListColStyles = { 0: { cellWidth: 45 }, 1: { cellWidth: 20 }, 2: { cellWidth: 25 }, 3: { cellWidth: 70 }, 4: { cellWidth: 20 } };
-    // the schedule column speaks the app's human sentences via describeSchedule.
-    // Notes follow on their own full-width row rather than being truncated into
-    // a cramped sixth column — dosing instructions are what a prescriber reads.
-    const medListBody = [];
-    medications.forEach((med) => {
-      medListBody.push([med.name, med.type || "—", med.dosage || "—", describeSchedule(med) || "—", med.active ? "Active" : "Inactive"]);
-      const note = (med.notes || "").trim();
-      if (note) {
-        medListBody.push([{
-          content: note,
-          colSpan: 5,
-          styles: { fontSize: 7.5, fontStyle: "italic", textColor: GRAY, cellPadding: { top: 1, bottom: 1.5, left: 5, right: 2 } },
-        }]);
+      if (medications.length === 0) {
+        autoTable(doc, {
+          startY: y2,
+          body: [["No medications tracked"]],
+          bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2, halign: "center" },
+          margin: { left: margin, right: margin, top: 14 },
+          theme: "grid",
+        });
+      } else {
+        const medListHead = ["Name", "Type", "Dosage", "Schedule", "Status"];
+        const medListColStyles = { 0: { cellWidth: 45 }, 1: { cellWidth: 20 }, 2: { cellWidth: 25 }, 3: { cellWidth: 70 }, 4: { cellWidth: 20 } };
+        // the schedule column speaks the app's human sentences via describeSchedule.
+        // Notes follow on their own full-width row rather than being truncated into
+        // a cramped sixth column — dosing instructions are what a prescriber reads.
+        const medListBody = [];
+        medications.forEach((med) => {
+          medListBody.push([med.name, med.type || "—", med.dosage || "—", describeSchedule(med) || "—", med.active ? "Active" : "Inactive"]);
+          const note = (med.notes || "").trim();
+          if (note) {
+            medListBody.push([{
+              content: note,
+              colSpan: 5,
+              styles: { fontSize: 7.5, fontStyle: "italic", textColor: GRAY, cellPadding: { top: 1, bottom: 1.5, left: 5, right: 2 } },
+            }]);
+          }
+        });
+        autoTable(doc, {
+          startY: y2, head: [medListHead], body: medListBody,
+          headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
+          bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
+          columnStyles: medListColStyles, styles: { overflow: "linebreak" },
+          margin: { left: margin, right: margin, top: 14 }, theme: "grid",
+        });
       }
-    });
-    autoTable(doc, {
-      startY: y2, head: [medListHead], body: medListBody,
-      headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
-      bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
-      columnStyles: medListColStyles, styles: { overflow: "linebreak" },
-      margin: { left: margin, right: margin, top: 14 }, theme: "grid",
-    });
+      y2 = doc.lastAutoTable.finalY + gap;
+    }
+
+    // Medication Changes — what the patient recorded changing, in the range
+    if (showMedChanges) {
+      if (y2 > pageHeight - 45) { doc.addPage(); y2 = 15; }
+      sectionTitle(doc, "Medication Changes", y2, margin);
+      y2 += 4;
+      doc.setFontSize(7.5);
+      doc.setTextColor(...GRAY);
+      doc.setFont(undefined, "italic");
+      doc.text(
+        "Changes the patient recorded in Chronically. \"Added\" is when a medication was added to the app.",
+        margin, y2, { maxWidth: pageWidth - 2 * margin },
+      );
+      doc.setFont(undefined, "normal");
+      y2 += 3;
+      autoTable(doc, {
+        startY: y2,
+        head: [["Date", "Medication", "Change"]],
+        // describeChange's "→" is not in jsPDF's WinAnsi font and would print as
+        // "!'", so the PDF spells it "->"; the wording is otherwise the app's own
+        body: medChangeRows.map((r) => [
+          describeChangeDate(r.changedAt), r.medName, describeChange(r.entry).join("\n").replace(/→/g, "->"),
+        ]),
+        headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
+        bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
+        columnStyles: { 0: { cellWidth: 28 }, 1: { cellWidth: 50 }, 2: { cellWidth: "auto" } },
+        styles: { overflow: "linebreak" },
+        margin: { left: margin, right: margin, top: 14 }, theme: "grid",
+      });
+      y2 = doc.lastAutoTable.finalY + gap;
+    }
+
+    if (has("adherence")) {
+      // Medication Adherence
+      sectionTitle(doc, titles.adherence, y2, margin);
+      y2 += 3;
+      // From the shared computed-missed math. PRN meds are excluded (no
+      // denominator); their doses show on the as-needed line instead
+      const adherencePerMed = medStats.perMed.filter((r) => r.expected > 0);
+      const adherenceBody = adherencePerMed.length === 0
+        ? [["No scheduled medications in this period", "", "", "", "", ""]]
+        : adherencePerMed.map((r) => [r.name, r.expected, r.taken, r.skipped, r.missed, `${r.pct}%`]);
+      autoTable(doc, {
+        startY: y2,
+        head: [["Name", "Scheduled", "Taken", "Skipped", "Missed", "Adherence %"]],
+        body: adherenceBody,
+        headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
+        bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
+        columnStyles: {
+          0: { cellWidth: 55 }, 1: { cellWidth: 25, halign: "center" }, 2: { cellWidth: 25, halign: "center" },
+          3: { cellWidth: 25, halign: "center" }, 4: { cellWidth: 25, halign: "center" }, 5: { cellWidth: 35, halign: "center" },
+        },
+        margin: { left: margin, right: margin, top: 14 }, theme: "grid",
+      });
+      y2 = doc.lastAutoTable.finalY + gap;
+
+      // As-needed doses — reported separately, never in the percentage
+      if (medStats.prnTaken > 0) {
+        doc.setFontSize(8);
+        doc.setTextColor(...GRAY);
+        doc.setFont(undefined, "normal");
+        doc.text(`As-needed doses taken: ${medStats.prnTaken}`, margin, y2);
+        y2 += gap + 1;
+      }
+
+      // Adherence by Day of Week — same computed-missed math
+      const DOW_LABELS    = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const adherenceByDay = medStats.perWeekday.map((w) => (w.pct != null ? `${w.pct}%` : null));
+      sectionTitle(doc, "Adherence by Day of Week", y2, margin);
+      y2 += 3;
+      autoTable(doc, {
+        startY: y2, head: [DOW_LABELS], body: [adherenceByDay.map((p) => p ?? "—")],
+        headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2, halign: "center" },
+        bodyStyles: { textColor: DARK, fontSize: 11, fontStyle: "bold", halign: "center", cellPadding: 3 },
+        columnStyles: { 0: { cellWidth: 27 }, 1: { cellWidth: 27 }, 2: { cellWidth: 27 }, 3: { cellWidth: 27 }, 4: { cellWidth: 27 }, 5: { cellWidth: 28 }, 6: { cellWidth: 27 } },
+        margin: { left: margin, right: margin, top: 14 }, theme: "grid",
+      });
+      y2 = doc.lastAutoTable.finalY + gap;
+    }
+
+    // As-needed Ratings — the patient's own "did it help?", as counts
+    if (showHelped) {
+      if (y2 > pageHeight - 45) { doc.addPage(); y2 = 15; }
+      sectionTitle(doc, "As-needed Ratings", y2, margin);
+      y2 += 4;
+      doc.setFontSize(7.5);
+      doc.setTextColor(...GRAY);
+      doc.setFont(undefined, "italic");
+      doc.text(
+        "The patient's own note, after taking an as-needed dose, of whether it helped.",
+        margin, y2, { maxWidth: pageWidth - 2 * margin },
+      );
+      doc.setFont(undefined, "normal");
+      y2 += 3;
+      autoTable(doc, {
+        startY: y2,
+        head: [["Medication", "Taken", "Ratings"]],
+        body: helpedList.map((r) => [r.name, r.taken, helpedReportLine(r.counts)]),
+        headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
+        bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
+        columnStyles: { 0: { cellWidth: 55 }, 1: { cellWidth: 25, halign: "center" }, 2: { cellWidth: "auto" } },
+        styles: { overflow: "linebreak" },
+        margin: { left: margin, right: margin, top: 14 }, theme: "grid",
+      });
+      y2 = doc.lastAutoTable.finalY + gap;
+    }
+
+    // Skip Reasons
+    if (has("skipReasons")) {
+      const skipReasonCounts = {};
+      periodLogs.forEach((log) => {
+        if (log.skipReason) skipReasonCounts[log.skipReason] = (skipReasonCounts[log.skipReason] || 0) + 1;
+      });
+      const skipReasonRows = Object.entries(skipReasonCounts).sort((a, b) => b[1] - a[1]).map(([r, c]) => [r, c]);
+      sectionTitle(doc, "Most Common Skip Reasons", y2, margin);
+      y2 += 3;
+      autoTable(doc, {
+        startY: y2,
+        head: [["Reason", "Times"]],
+        body: skipReasonRows.length > 0 ? skipReasonRows : [["No doses were skipped in this period", ""]],
+        headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
+        bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
+        columnStyles: { 0: { cellWidth: 155 }, 1: { cellWidth: 35, halign: "center" } },
+        margin: { left: margin, right: margin, top: 14 }, theme: "grid",
+      });
+      y2 = doc.lastAutoTable.finalY + gap;
+    }
+
+    if (has("appointments")) {
+      // Recent Appointments — by the local date they fell on, and already past
+      const recentAppts = appointments
+        .filter((a) => {
+          const d = new Date(a.date);
+          const day = d.toLocaleDateString("en-CA");
+          return day >= range.from && day <= range.to && d <= today;
+        })
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      sectionTitle(doc, titles.recentAppts, y2, margin);
+      y2 += 3;
+      autoTable(doc, {
+        startY: y2,
+        head: [["Date", "Doctor", "Specialty", "Reason", "Notes After"]],
+        body: recentAppts.length > 0
+          ? recentAppts.map((a) => [formatApptDatePdf(a.date), a.doctorName || "—", a.specialty || "—", a.reason || "—", a.notesAfter || "—"])
+          : [["No appointments in this period", "", "", "", ""]],
+        headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
+        bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
+        columnStyles: { 0: { cellWidth: 36 }, 1: { cellWidth: 35 }, 2: { cellWidth: 28 }, 3: { cellWidth: 30 }, 4: { cellWidth: "auto" } },
+        styles: { overflow: "linebreak" }, margin: { left: margin, right: margin, top: 14 }, theme: "grid",
+      });
+      y2 = doc.lastAutoTable.finalY + gap;
+
+      // Upcoming Appointments
+      const upcomingAppts = appointments
+        .filter((a) => a.status === "upcoming" && new Date(a.date) >= today)
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+      sectionTitle(doc, "Upcoming Appointments", y2, margin);
+      y2 += 3;
+      autoTable(doc, {
+        startY: y2,
+        head: [["Date", "Doctor", "Specialty", "Reason", "Notes Before"]],
+        body: upcomingAppts.length > 0
+          ? upcomingAppts.map((a) => [formatApptDatePdf(a.date), a.doctorName || "—", a.specialty || "—", a.reason || "—", a.notesBefore || "—"])
+          : [["No upcoming appointments", "", "", "", ""]],
+        headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
+        bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
+        columnStyles: { 0: { cellWidth: 36 }, 1: { cellWidth: 35 }, 2: { cellWidth: 28 }, 3: { cellWidth: 30 }, 4: { cellWidth: "auto" } },
+        styles: { overflow: "linebreak" }, margin: { left: margin, right: margin, top: 14 }, theme: "grid",
+      });
+      y2 = doc.lastAutoTable.finalY + gap;
+    }
+    y = y2;
   }
-  y2 = doc.lastAutoTable.finalY + gap;
-
-  // Medication Adherence
-  sectionTitle(doc, "Medication Adherence (30 Days)", y2, margin);
-  y2 += 3;
-  // From the shared computed-missed math. PRN meds are excluded (no
-  // denominator); their doses show on the as-needed line instead
-  const adherencePerMed = medStats.perMed.filter((r) => r.expected > 0);
-  const adherenceBody = adherencePerMed.length === 0
-    ? [["No scheduled medications in this period", "", "", "", "", ""]]
-    : adherencePerMed.map((r) => [r.name, r.expected, r.taken, r.skipped, r.missed, `${r.pct}%`]);
-  autoTable(doc, {
-    startY: y2,
-    head: [["Name", "Scheduled", "Taken", "Skipped", "Missed", "Adherence %"]],
-    body: adherenceBody,
-    headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
-    bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
-    columnStyles: {
-      0: { cellWidth: 55 }, 1: { cellWidth: 25, halign: "center" }, 2: { cellWidth: 25, halign: "center" },
-      3: { cellWidth: 25, halign: "center" }, 4: { cellWidth: 25, halign: "center" }, 5: { cellWidth: 35, halign: "center" },
-    },
-    margin: { left: margin, right: margin, top: 14 }, theme: "grid",
-  });
-  y2 = doc.lastAutoTable.finalY + gap;
-
-  // As-needed doses — reported separately, never in the percentage
-  if (medStats.prnTaken > 0) {
-    doc.setFontSize(8);
-    doc.setTextColor(...GRAY);
-    doc.setFont(undefined, "normal");
-    doc.text(`As-needed doses taken: ${medStats.prnTaken}`, margin, y2);
-    y2 += gap + 1;
-  }
-
-  // Adherence by Day of Week — same computed-missed math
-  const DOW_LABELS    = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const adherenceByDay = medStats.perWeekday.map((w) => (w.pct != null ? `${w.pct}%` : null));
-  sectionTitle(doc, "Adherence by Day of Week", y2, margin);
-  y2 += 3;
-  autoTable(doc, {
-    startY: y2, head: [DOW_LABELS], body: [adherenceByDay.map((p) => p ?? "—")],
-    headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2, halign: "center" },
-    bodyStyles: { textColor: DARK, fontSize: 11, fontStyle: "bold", halign: "center", cellPadding: 3 },
-    columnStyles: { 0: { cellWidth: 27 }, 1: { cellWidth: 27 }, 2: { cellWidth: 27 }, 3: { cellWidth: 27 }, 4: { cellWidth: 27 }, 5: { cellWidth: 28 }, 6: { cellWidth: 27 } },
-    margin: { left: margin, right: margin, top: 14 }, theme: "grid",
-  });
-  y2 = doc.lastAutoTable.finalY + gap;
-
-  // Skip Reasons
-  const skipReasonCounts = {};
-  medicationLogs.forEach((log) => {
-    if (log.skipReason) skipReasonCounts[log.skipReason] = (skipReasonCounts[log.skipReason] || 0) + 1;
-  });
-  const skipReasonRows = Object.entries(skipReasonCounts).sort((a, b) => b[1] - a[1]).map(([r, c]) => [r, c]);
-  sectionTitle(doc, "Most Common Skip Reasons", y2, margin);
-  y2 += 3;
-  autoTable(doc, {
-    startY: y2,
-    head: [["Reason", "Times"]],
-    body: skipReasonRows.length > 0 ? skipReasonRows : [["No doses were skipped in this period", ""]],
-    headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
-    bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
-    columnStyles: { 0: { cellWidth: 155 }, 1: { cellWidth: 35, halign: "center" } },
-    margin: { left: margin, right: margin, top: 14 }, theme: "grid",
-  });
-  y2 = doc.lastAutoTable.finalY + gap;
-
-  // Recent Appointments
-  const recentAppts = appointments
-    .filter((a) => { const d = new Date(a.date); return d >= thirtyDaysAgo && d <= today; })
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
-  sectionTitle(doc, "Recent Appointments (Last 30 Days)", y2, margin);
-  y2 += 3;
-  autoTable(doc, {
-    startY: y2,
-    head: [["Date", "Doctor", "Specialty", "Reason", "Notes After"]],
-    body: recentAppts.length > 0
-      ? recentAppts.map((a) => [formatApptDatePdf(a.date), a.doctorName || "—", a.specialty || "—", a.reason || "—", a.notesAfter || "—"])
-      : [["No appointments in this period", "", "", "", ""]],
-    headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
-    bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
-    columnStyles: { 0: { cellWidth: 36 }, 1: { cellWidth: 35 }, 2: { cellWidth: 28 }, 3: { cellWidth: 30 }, 4: { cellWidth: "auto" } },
-    styles: { overflow: "linebreak" }, margin: { left: margin, right: margin, top: 14 }, theme: "grid",
-  });
-  y2 = doc.lastAutoTable.finalY + gap;
-
-  // Upcoming Appointments
-  const upcomingAppts = appointments
-    .filter((a) => a.status === "upcoming" && new Date(a.date) >= today)
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
-  sectionTitle(doc, "Upcoming Appointments", y2, margin);
-  y2 += 3;
-  autoTable(doc, {
-    startY: y2,
-    head: [["Date", "Doctor", "Specialty", "Reason", "Notes Before"]],
-    body: upcomingAppts.length > 0
-      ? upcomingAppts.map((a) => [formatApptDatePdf(a.date), a.doctorName || "—", a.specialty || "—", a.reason || "—", a.notesBefore || "—"])
-      : [["No upcoming appointments", "", "", "", ""]],
-    headStyles: { fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9, cellPadding: 2 },
-    bodyStyles: { textColor: DARK, fontSize: 8, cellPadding: 2 },
-    columnStyles: { 0: { cellWidth: 36 }, 1: { cellWidth: 35 }, 2: { cellWidth: 28 }, 3: { cellWidth: 30 }, 4: { cellWidth: "auto" } },
-    styles: { overflow: "linebreak" }, margin: { left: margin, right: margin, top: 14 }, theme: "grid",
-  });
 
   // ─── DAILY LOGS ────────────────────────────────────────────────────────────
-  doc.addPage();
-  const logsPage = doc.internal.getNumberOfPages();
-  let y3 = 15;
+  let logsPage = null;
+  if (has("dailyLog") || has("medLog")) {
+    const startPage = doc.internal.getNumberOfPages();
+    let y3 = startChapter("Daily Logs");
+    logsPage = doc.internal.getNumberOfPages();
+    if (logsPage === startPage && logsPage === 1) logsPage = null; // stayed on page 1
 
-  doc.setFontSize(12);
-  doc.setTextColor(...PURPLE);
-  doc.setFont(undefined, "bold");
-  doc.text("Daily Logs", margin, y3);
-  y3 += 5;
-  doc.setFontSize(9);
-  doc.setTextColor(...GRAY);
-  doc.setFont(undefined, "normal");
-  doc.text(
-    `Patient: ${username}     Period: ${thirtyDaysAgo.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} – ${today.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
-    margin, y3,
-  );
-  y3 += gap + 2;
-
-  // Daily Health Log
-  sectionTitle(doc, "Daily Health Log", y3, margin);
-  y3 += 3;
-  // Columns are assembled rather than written out: pain drops when nobody
-  // answered it, weather appears only when the period has some. autoTable keys
-  // columnStyles by index, so the widths have to be derived from the same list
-  // — a hardcoded index map would misalign the moment a column disappears.
-  const dailyHead = ["Date", ...(hasPain ? ["Pain"] : []),
-    "Mood", "Enrg", "Anx", "App", "Symptoms", ...(hasWeather ? ["Weather"] : [])];
-  const metricW = hasWeather ? 12 : 14;
-  const dailyColStyles = {};
-  dailyHead.forEach((h, i) => {
-    if (i === 0)               dailyColStyles[i] = { cellWidth: 14 };
-    // only one column may be "auto", so Symptoms keeps it and takes up whatever
-    // the other columns leave — including the width a dropped Pain frees
-    else if (h === "Symptoms") dailyColStyles[i] = { cellWidth: "auto" };
-    else if (h === "Weather")  dailyColStyles[i] = { cellWidth: 34 };
-    else                       dailyColStyles[i] = { cellWidth: metricW, halign: "center" };
-  });
-
-  autoTable(doc, {
-    startY: y3,
-    head: [dailyHead],
-    // each day row, with its note on a full-width row beneath it. colSpan uses
-    // dailyHead.length so the span stays right when Pain or Weather drop out.
-    body: dailyRows.flatMap((row, i) => {
-      const note = dailyNotes[i];
-      if (!note) return [row];
-      return [row, [{
-        content: note,
-        colSpan: dailyHead.length,
-        styles: { fontSize: 7.5, fontStyle: "italic", textColor: GRAY, cellPadding: { top: 1, bottom: 1.5, left: 5, right: 2 } },
-      }]];
-    }),
-    headStyles: {
-      fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9,
-      cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
-    },
-    bodyStyles: {
-      textColor: DARK, fontSize: 8,
-      cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 },
-      minCellHeight: 5,
-      valign: "middle",
-    },
-    columnStyles: dailyColStyles,
-    styles: { overflow: "linebreak" },
-    margin: { left: margin, right: margin, top: 14 },
-    theme: "grid",
-  });
-  y3 = doc.lastAutoTable.finalY + gap;
-
-  // Daily Medication Log
-  sectionTitle(doc, "Daily Medication Log", y3, margin);
-  y3 += 3;
-
-  let medLogBody;
-  if (medicationLogs.length === 0) {
-    medLogBody = [["No medication logs in this period", "", "", "", "", "", ""]];
-  } else {
-    const medMap = {};
-    medications.forEach((m) => { medMap[m.id] = m; });
-    medLogBody = [...medicationLogs]
-      .sort((a, b) => a.date.localeCompare(b.date) || (a.scheduledTime || "99:99").localeCompare(b.scheduledTime || "99:99"))
-      .map((log) => {
-        const med       = medMap[log.medicationId];
-        const d         = new Date(log.date + "T12:00:00");
-        const dateLabel = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-        const timeTaken = log.takenAt ? new Date(log.takenAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
-        return [
-          dateLabel, med?.name ?? "Unknown", med?.type ?? "—",
-          log.scheduledTime ? formatTime(log.scheduledTime) : "As needed",
-          log.status.charAt(0).toUpperCase() + log.status.slice(1),
-          timeTaken, log.skipReason || "—",
-        ];
+    // Daily Health Log
+    if (has("dailyLog")) {
+      sectionTitle(doc, "Daily Health Log", y3, margin);
+      y3 += 3;
+      // Columns are assembled rather than written out: pain drops when nobody
+      // answered it, weather appears only when the period has some. autoTable keys
+      // columnStyles by index, so the widths have to be derived from the same list
+      // — a hardcoded index map would misalign the moment a column disappears.
+      const dailyHead = ["Date", ...(hasPain ? ["Pain"] : []),
+        "Mood", "Enrg", "Anx", "App", "Symptoms", ...(hasWeather ? ["Weather"] : [])];
+      const metricW = hasWeather ? 12 : 14;
+      const dailyColStyles = {};
+      dailyHead.forEach((h, i) => {
+        if (i === 0)               dailyColStyles[i] = { cellWidth: 14 };
+        // only one column may be "auto", so Symptoms keeps it and takes up whatever
+        // the other columns leave — including the width a dropped Pain frees
+        else if (h === "Symptoms") dailyColStyles[i] = { cellWidth: "auto" };
+        else if (h === "Weather")  dailyColStyles[i] = { cellWidth: 34 };
+        else                       dailyColStyles[i] = { cellWidth: metricW, halign: "center" };
       });
-  }
 
-  const isEmptyLog = medicationLogs.length === 0;
-  autoTable(doc, {
-    startY: y3,
-    head: [["Date", "Medication", "Type", "Scheduled", "Status", "Time Taken", "Skip Reason"]],
-    body: medLogBody,
-    headStyles: {
-      fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9,
-      cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
-    },
-    bodyStyles: {
-      textColor: DARK, fontSize: 8,
-      cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 },
-      valign: "middle",
-    },
-    columnStyles: {
-      0: { cellWidth: 14 }, 1: { cellWidth: 40 }, 2: { cellWidth: 20 },
-      3: { cellWidth: 22 }, 4: { cellWidth: 18 }, 5: { cellWidth: 22 }, 6: { cellWidth: "auto" },
-    },
-    styles: { overflow: "linebreak" },
-    margin: { left: margin, right: margin, top: 14 },
-    theme: "grid",
-    didParseCell: isEmptyLog ? (data) => {
-      if (data.section === "body" && data.column.index === 0) {
-        data.cell.colSpan = 7;
-        data.cell.styles.halign = "center";
+      autoTable(doc, {
+        startY: y3,
+        head: [dailyHead],
+        // each day row, with its note on a full-width row beneath it. colSpan uses
+        // dailyHead.length so the span stays right when Pain or Weather drop out.
+        body: dailyRows.flatMap((row, i) => {
+          const note = dailyNotes[i];
+          if (!note) return [row];
+          return [row, [{
+            content: note,
+            colSpan: dailyHead.length,
+            styles: { fontSize: 7.5, fontStyle: "italic", textColor: GRAY, cellPadding: { top: 1, bottom: 1.5, left: 5, right: 2 } },
+          }]];
+        }),
+        headStyles: {
+          fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9,
+          cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
+        },
+        bodyStyles: {
+          textColor: DARK, fontSize: 8,
+          cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 },
+          minCellHeight: 5,
+          valign: "middle",
+        },
+        columnStyles: dailyColStyles,
+        styles: { overflow: "linebreak" },
+        margin: { left: margin, right: margin, top: 14 },
+        theme: "grid",
+      });
+      y3 = doc.lastAutoTable.finalY + gap;
+    }
+
+    // Daily Medication Log
+    if (has("medLog")) {
+      sectionTitle(doc, "Daily Medication Log", y3, margin);
+      y3 += 3;
+
+      let medLogBody;
+      if (periodLogs.length === 0) {
+        medLogBody = [["No medication logs in this period", "", "", "", "", "", ""]];
+      } else {
+        const medMap = {};
+        medications.forEach((m) => { medMap[m.id] = m; });
+        medLogBody = [...periodLogs]
+          .sort((a, b) => a.date.localeCompare(b.date) || (a.scheduledTime || "99:99").localeCompare(b.scheduledTime || "99:99"))
+          .map((log) => {
+            const med       = medMap[log.medicationId];
+            const d         = new Date(log.date + "T12:00:00");
+            const dateLabel = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+            const timeTaken = log.takenAt ? new Date(log.takenAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
+            return [
+              dateLabel, med?.name ?? "Unknown", med?.type ?? "—",
+              log.scheduledTime ? formatTime(log.scheduledTime) : "As needed",
+              log.status.charAt(0).toUpperCase() + log.status.slice(1),
+              timeTaken, log.skipReason || "—",
+            ];
+          });
       }
-    } : undefined,
-  });
+
+      const isEmptyLog = periodLogs.length === 0;
+      autoTable(doc, {
+        startY: y3,
+        head: [["Date", "Medication", "Type", "Scheduled", "Status", "Time Taken", "Skip Reason"]],
+        body: medLogBody,
+        headStyles: {
+          fillColor: PURPLE, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9,
+          cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
+        },
+        bodyStyles: {
+          textColor: DARK, fontSize: 8,
+          cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 },
+          valign: "middle",
+        },
+        columnStyles: {
+          0: { cellWidth: 14 }, 1: { cellWidth: 40 }, 2: { cellWidth: 20 },
+          3: { cellWidth: 22 }, 4: { cellWidth: 18 }, 5: { cellWidth: 22 }, 6: { cellWidth: "auto" },
+        },
+        styles: { overflow: "linebreak" },
+        margin: { left: margin, right: margin, top: 14 },
+        theme: "grid",
+        didParseCell: isEmptyLog ? (data) => {
+          if (data.section === "body" && data.column.index === 0) {
+            data.cell.colSpan = 7;
+            data.cell.styles.halign = "center";
+          }
+        } : undefined,
+      });
+    }
+  }
 
   // ─── HEADERS + FOOTERS ON EVERY PAGE ────────────────────────────────────────
   const totalPages = doc.internal.getNumberOfPages();

@@ -8,6 +8,10 @@
 //
 // Kept byte-identical with mobile/theme/doctorHelpers.js.
 
+// The report's own ceiling, so a visit summary can never ask for more than the
+// report will print. Both copies of this file sit beside their reportOptions.js.
+import { MAX_RANGE_DAYS } from "./reportOptions";
+
 // Six is what fits under the field without pushing the rest of the form off
 // screen on a phone. Suggestions are a shortcut, not a directory.
 export const MAX_SUGGESTIONS = 6;
@@ -64,4 +68,57 @@ export function suggestionLabel(doctor) {
   const name = String(doctor?.name || "").trim();
   const specialty = typeof doctor?.specialty === "string" ? doctor.specialty.trim() : "";
   return specialty ? `Use ${name}, ${specialty}` : `Use ${name}`;
+}
+
+// ── "Summary for this visit" ───────────────────────────────────────────────
+
+// Fixed month names rather than a locale API, so the heading reads the same on
+// every device and in tests.
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const ymdLabel = (ymd) => {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return `${MONTHS[m - 1]} ${d}, ${y}`;
+};
+const shiftYmd = (ymd, n) => {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d) + n * 86400000);
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}-${String(t.getUTCDate()).padStart(2, "0")}`;
+};
+
+/**
+ * The stretch a report for this visit should cover: since the last completed
+ * visit with the same doctor (same name, as normalizeName sees it), or the last
+ * 90 days when there wasn't one — never past today, and never more than a year.
+ * → { from, to, heading, priorVisitDate | null }, dates "YYYY-MM-DD".
+ */
+export function visitSummaryRange(appt, appointments, todayStr, localDate = (iso) => new Date(iso).toLocaleDateString("en-CA")) {
+  const name = String(appt.doctorName || "").trim();
+  const apptDay = localDate(appt.date);
+  const to = apptDay < todayStr ? apptDay : todayStr;
+
+  const key = normalizeName(appt.doctorName);
+  let prior = null;
+  (Array.isArray(appointments) ? appointments : []).forEach((a) => {
+    if (!a || a.id === appt.id || a.status !== "completed") return;
+    if (normalizeName(a.doctorName) !== key) return;
+    const day = localDate(a.date);
+    // a visit earlier the same day is not "the last time"
+    if (day < apptDay && (prior === null || day > prior)) prior = day;
+  });
+
+  let from;
+  let heading;
+  if (prior) {
+    from = prior < to ? prior : to;
+    heading = `Since your visit with ${name} on ${ymdLabel(prior)}`;
+  } else {
+    from = shiftYmd(to, -89); // 90 days, inclusive
+    heading = `Last 90 days · for your visit with ${name}`;
+  }
+  // a visit from three years ago shouldn't produce a 40-page PDF
+  if (from < shiftYmd(to, -MAX_RANGE_DAYS)) {
+    from = shiftYmd(to, -(MAX_RANGE_DAYS - 1));
+    heading = `Last 12 months · for your visit with ${name}`;
+  }
+  return { from, to, heading, priorVisitDate: prior };
 }

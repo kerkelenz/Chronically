@@ -2,16 +2,20 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import {
   FiCalendar, FiPlus, FiEdit2, FiTrash2, FiX, FiMapPin, FiClock,
-  FiChevronLeft, FiChevronRight, FiDownload,
+  FiChevronLeft, FiChevronRight, FiDownload, FiFileText,
 } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
 import { exportDoctorReport } from "../utils/exportReport";
+import { loadReportPrefs, prefsToOptions } from "../utils/reportPrefs";
+import { prefsSummary } from "../utils/reportOptions";
+import { localToday } from "../utils/flareHelpers";
+import ReportOptionsModal from "../components/ReportOptionsModal";
 import Navigation from "../components/Navigation";
 import PageHeader from "../components/PageHeader";
 import FormModal, { ModalFooter, labelClass, ConfirmDialog, PLUM, PLUM_TINT, SOFT_ERROR } from "../components/FormModal";
 import DoctorPicker from "../components/DoctorPicker";
 import DoctorsModal from "../components/DoctorsModal";
-import { isAlreadySaved } from "../utils/doctorHelpers";
+import { isAlreadySaved, visitSummaryRange } from "../utils/doctorHelpers";
 
 const EMPTY_FORM = {
   doctorName:   "",
@@ -77,6 +81,12 @@ function AppointmentsPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState(false);
+  // the remembered report choice, and the Customize dialog (remounted per open)
+  const [reportPrefs, setReportPrefs] = useState(loadReportPrefs);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [customizeKey, setCustomizeKey] = useState(0);
+  // which card's "Summary for this visit" is being prepared, so only it says so
+  const [summaryApptId, setSummaryApptId] = useState(null);
 
   // Visit lifecycle sheets (prep / outcome)
   const [prepFor, setPrepFor] = useState(null);
@@ -279,19 +289,41 @@ function AppointmentsPage() {
     }
   };
 
-  const handleExport = async () => {
+  // No options means the remembered choice: one tap exports what the card says
+  const handleExport = async (options = prefsToOptions(loadReportPrefs(), localToday())) => {
     setExporting(true);
     setExportError(false);
     try {
-      await exportDoctorReport({ token, username: user?.username });
+      await exportDoctorReport({ token, username: user?.username, options });
     } catch (err) {
       console.error("Export failed:", err);
       setExportError(true);
       setTimeout(() => setExportError(false), 5000);
     } finally {
       setExporting(false);
+      setSummaryApptId(null);
     }
   };
+
+  // A report covering exactly the stretch since this doctor last saw them
+  const exportVisitSummary = (appt) => {
+    const { from, to, heading } = visitSummaryRange(appt, appointments, localToday());
+    setSummaryApptId(appt.id);
+    handleExport({ from, to, heading });
+  };
+
+  const summaryButton = (appt) => (
+    <button
+      onClick={() => exportVisitSummary(appt)}
+      disabled={exporting}
+      className="flex items-center gap-1.5 px-3 text-xs transition-all duration-200 hover:opacity-80 underline"
+      style={{ color: "rgba(255,255,255,0.7)", minHeight: 44 }}
+      aria-label={`Summary for your visit with ${appt.doctorName}`}
+    >
+      <FiFileText size={11} />
+      {exporting && summaryApptId === appt.id ? "Preparing..." : "Summary for this visit"}
+    </button>
+  );
 
   // ── Visit lifecycle (prep / outcome / follow-up) ──────────────────────────
 
@@ -346,6 +378,9 @@ function AppointmentsPage() {
         `${import.meta.env.VITE_API_URL}/api/appointments/${outcomeFor.id}`,
         {
           ...outcomeFor,
+          // saving how a visit went is what marks it done; a completed or
+          // cancelled one keeps its status
+          status: outcomeFor.status === "upcoming" ? "completed" : outcomeFor.status,
           notesAfter: outcomeText,
           followUpDate: outcomeDate ? new Date(outcomeDate + "T12:00:00").toISOString() : null,
         },
@@ -531,17 +566,32 @@ function AppointmentsPage() {
             >
               <p className="text-white font-medium text-sm">Doctor Report</p>
               <p className="text-white/70 text-xs leading-relaxed">
-                Export a 30-day PDF summary of health metrics, medications, adherence,
-                and appointments — designed to bring to your next visit.
+                Export a PDF summary of health metrics, medications, adherence and
+                appointments, designed to bring to your next visit.
               </p>
-              <button
-                onClick={handleExport}
-                disabled={exporting}
-                className="mt-1 px-4 py-2 rounded-full bg-white text-sm font-medium self-start flex items-center gap-2 hover:scale-105 transition-all duration-200"
-                style={{ color: "#7C6BAE" }}
-              >
-                {exporting ? "Preparing..." : <><FiDownload size={14} /> Export PDF Report</>}
-              </button>
+              <div className="mt-1 flex items-center gap-1 flex-wrap">
+                <button
+                  onClick={() => handleExport()}
+                  disabled={exporting}
+                  className="px-4 py-2 rounded-full bg-white text-sm font-medium flex items-center gap-2 hover:scale-105 transition-all duration-200"
+                  style={{ color: "#7C6BAE" }}
+                >
+                  {exporting ? "Preparing..." : <><FiDownload size={14} /> Export PDF Report</>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setCustomizeKey((k) => k + 1); setCustomizeOpen(true); }}
+                  disabled={exporting}
+                  aria-label="Customize doctor report"
+                  className="px-3 text-sm text-white/70 hover:text-white hover:underline transition-colors"
+                  style={{ minHeight: 44 }}
+                >
+                  Customize
+                </button>
+              </div>
+              {prefsSummary(reportPrefs) && (
+                <p className="text-[11px] text-white/60">{prefsSummary(reportPrefs)}</p>
+              )}
               {exportError && (
                 <p className="text-[11px]" style={{ color: SOFT_ERROR }}>
                   Failed to prepare report. Please try again.
@@ -732,7 +782,7 @@ function AppointmentsPage() {
                           </button>
                           {appt.id === soonestUpcomingId && (
                             <button
-                              onClick={handleExport}
+                              onClick={() => handleExport()}
                               disabled={exporting}
                               className="flex items-center gap-1.5 px-3 py-1.5 text-xs transition-all duration-200 hover:opacity-80 underline"
                               style={{ color: "rgba(255,255,255,0.7)" }}
@@ -742,6 +792,7 @@ function AppointmentsPage() {
                               {exporting ? "Preparing…" : "Export a report to bring"}
                             </button>
                           )}
+                          {summaryButton(appt)}
                         </div>
 
                         {cancelConfirmId === appt.id && (
@@ -925,17 +976,22 @@ function AppointmentsPage() {
                             </div>
                           )}
 
-                          {/* Completed: add visit notes link when empty */}
-                          {isCompleted && !appt.notesAfter && (
-                            <button
-                              onClick={() => openOutcome(appt)}
-                              className="self-start flex items-center gap-1 text-xs underline transition-all duration-200 hover:opacity-80"
-                              style={{ color: "rgba(255,255,255,0.7)" }}
-                              aria-label={`Add visit notes for ${appt.doctorName}`}
-                            >
-                              <FiPlus size={12} />
-                              Add visit notes
-                            </button>
+                          {/* Completed: add visit notes link when empty, and the summary */}
+                          {isCompleted && (
+                            <div className="flex items-center flex-wrap gap-3">
+                              {!appt.notesAfter && (
+                                <button
+                                  onClick={() => openOutcome(appt)}
+                                  className="self-start flex items-center gap-1 text-xs underline transition-all duration-200 hover:opacity-80"
+                                  style={{ color: "rgba(255,255,255,0.7)" }}
+                                  aria-label={`Add visit notes for ${appt.doctorName}`}
+                                >
+                                  <FiPlus size={12} />
+                                  Add visit notes
+                                </button>
+                              )}
+                              {summaryButton(appt)}
+                            </div>
                           )}
 
                           {/* Completed: follow-up chained */}
@@ -1163,6 +1219,9 @@ function AppointmentsPage() {
           }
         >
           <div className="flex flex-col gap-3 pb-1">
+            {outcomeFor.status === "upcoming" && (
+              <p className="text-sm text-white/65 -mt-1">Saving marks this visit as done.</p>
+            )}
             <div>
               <label htmlFor="appt-visit-notes" className={labelClass}>Visit notes</label>
               <textarea id="appt-visit-notes"
@@ -1196,6 +1255,17 @@ function AppointmentsPage() {
         doctors={doctors}
         token={token}
         onChanged={fetchDoctors}
+      />
+
+      <ReportOptionsModal
+        key={customizeKey}
+        open={customizeOpen}
+        onClose={() => setCustomizeOpen(false)}
+        onExport={(options) => {
+          setCustomizeOpen(false);
+          setReportPrefs(loadReportPrefs());
+          handleExport(options);
+        }}
       />
 
       <ConfirmDialog

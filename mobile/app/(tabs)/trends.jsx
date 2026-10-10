@@ -16,70 +16,19 @@ import AdherenceBars from "../../components/AdherenceBars";
 import AdherenceLineChart from "../../components/AdherenceLineChart";
 import api from "../../lib/api";
 import FlaresSheet from "../../components/FlaresSheet";
-import { adherenceStats } from "../../theme/medications";
+import { adherenceStats, describeChange } from "../../theme/medications";
+import { formatFlareRange, localToday } from "../../theme/flareHelpers";
+import {
+  TREND_RANGES, DEFAULT_RANGE_DAYS, COMPARE_METRICS, rangeWindow, buildAnnotations,
+  dayIndex, formatComparison, comparisonTitle, comparisonFootnote, emptyRangeText,
+  COMPARISON_CAPTION, COMPARISON_NONE,
+} from "../../theme/trendHelpers";
 import ChronicleMark from "../../components/ChronicleMark";
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const TIMEFRAME_TABS = [
-  { label: "3d",    value: 2  },
-  { label: "Week",  value: 7  },
-  { label: "Month", value: 30 },
-];
-
-// ── Data computations (mirror web exactly) ────────────────────────────────────
-
-function getChartData(checkIns, timeframe) {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - timeframe);
-  const cutoffStr = cutoff.toLocaleDateString("en-CA");
-
-  const byDate = {};
-  checkIns
-    .filter((c) => c.date >= cutoffStr)
-    .forEach((c) => {
-      if (!byDate[c.date])
-        byDate[c.date] = {
-          pains: [],
-          moods: [],
-          energies: [],
-          anxieties: [],
-          appetites: [],
-          sleeps: [],
-        };
-      if (c.painLevel)     byDate[c.date].pains.push(c.painLevel);
-      byDate[c.date].moods.push(c.moodLevel);
-      if (c.energyLevel)   byDate[c.date].energies.push(c.energyLevel);
-      if (c.anxietyLevel)  byDate[c.date].anxieties.push(c.anxietyLevel);
-      if (c.appetiteLevel) byDate[c.date].appetites.push(c.appetiteLevel);
-      if (c.sleepLevel)    byDate[c.date].sleeps.push(c.sleepLevel);
-    });
-
-  const avg = (arr) =>
-    parseFloat((arr.reduce((s, v) => s + v, 0) / arr.length).toFixed(1));
-
-  return Object.entries(byDate)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, d]) => ({
-      date,
-      pain:     d.pains.length ? avg(d.pains) : null,
-      mood:     avg(d.moods),
-      energy:   d.energies.length   ? avg(d.energies)   : null,
-      anxiety:  d.anxieties.length  ? avg(d.anxieties)  : null,
-      appetite: d.appetites.length  ? avg(d.appetites)  : null,
-      sleep:    d.sleeps.length     ? avg(d.sleeps)     : null,
-    }));
-}
-
 // Adherence via the shared computed-missed engine math, so the charts, the
-// cabinet dots, and the doctor report can never disagree.
-function getAdherenceView(medications, medLogs, timeframe) {
-  const today = new Date();
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - timeframe);
-  const todayStr = today.toLocaleDateString("en-CA");
-  const cutoffStr = cutoff.toLocaleDateString("en-CA");
-  const stats = adherenceStats(medications, medLogs, cutoffStr, todayStr, todayStr);
+// cabinet dots, and the doctor report can never disagree. Follows the range.
+function getAdherenceView(medications, medLogs, win) {
+  const todayStr = localToday();
+  const stats = adherenceStats(medications, medLogs, win.startDate, win.endDate, todayStr);
   const medAdherence = stats.perMed
     .filter((m) => m.expected > 0)
     .map((m) => ({ name: m.name, adherence: m.pct, taken: m.taken, scheduled: m.expected }));
@@ -98,19 +47,24 @@ function getAdherenceView(medications, medLogs, timeframe) {
 
 export default function TrendsScreen() {
   const { width } = useWindowDimensions();
-  // Flares live on Trends because wave 2 draws them as bands over these charts;
-  // the list sits beside the thing it will annotate.
+  // "Your flares" lists every flare, whatever the range; the chart's bands come
+  // from the ranged fetch in load().
   const [flares, setFlares] = useState([]);
   const [showFlares, setShowFlares] = useState(false);
-  const [checkIns, setCheckIns] = useState([]);
   const [medications, setMedications] = useState([]);
-  const [medLogs, setMedLogs] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+  const [rangeDays, setRangeDays] = useState(DEFAULT_RANGE_DAYS);
+  // everything that belongs to one window, replaced together so the chart
+  // never mixes one range's rows with another's annotations
+  const [view, setView] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [switching, setSwitching] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [timeframe, setTimeframe] = useState(2);
   const [insights, setInsights] = useState(null);
-  const isFirstLoadRef = useRef(true);
+  const requestId = useRef(0);
+  const rangeRef = useRef(DEFAULT_RANGE_DAYS);
+  const hasViewRef = useRef(false);
 
   async function fetchFlares() {
     try {
@@ -121,79 +75,84 @@ export default function TrendsScreen() {
     }
   }
 
+  /**
+   * The one loader — focus, pull-to-refresh and every range change. One window
+   * drives every ranged fetch; a response that lands after a newer request is
+   * dropped, so 7 → 365 → 7 ends on 7. A failed summary keeps the last view;
+   * the annotation fetches fail silently.
+   */
+  async function load(days, { withStatic = false } = {}) {
+    const id = ++requestId.current;
+    const win = rangeWindow(localToday(), days);
+    const q = `startDate=${win.startDate}&endDate=${win.endDate}`;
+    if (withStatic) {
+      // Insights fetch is independent + silent-fail: on error the section hides
+      api.get("/api/insights").then((r) => setInsights(r.data)).catch(() => setInsights(null));
+      api.get("/api/medications").then((r) => setMedications(r.data.medications || [])).catch(() => {});
+      api.get("/api/appointments").then((r) => setAppointments(r.data.appointments || [])).catch(() => {});
+    }
+    const [summary, rangeFlares, changes, logs] = await Promise.all([
+      api.get(`/api/trends/summary?${q}`).then((r) => r.data).catch(() => null),
+      api.get(`/api/flares?${q}`).then((r) => r.data.flares || []).catch(() => []),
+      api.get(`/api/medications/changes?${q}`).then((r) => r.data.changes || []).catch(() => []),
+      api.get(`/api/medications/logs?${q}`).then((r) => r.data.logs || []).catch(() => null),
+    ]);
+    if (id !== requestId.current) return;
+    if (summary) {
+      hasViewRef.current = true;
+      setView({ win, summary, rangeFlares, changes, logs });
+      setError(null);
+    } else if (!hasViewRef.current) {
+      // only when there is nothing to show; a failed switch keeps the last view
+      setError("Could not load your data. Pull down to try again.");
+    }
+    setLoading(false);
+    setSwitching(false);
+  }
+
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-      if (isFirstLoadRef.current) setLoading(true);
-
-      // Insights fetch is independent + silent-fail: on error the section hides
-      api
-        .get("/api/insights")
-        .then((res) => { if (active) setInsights(res.data); })
-        .catch(() => { if (active) setInsights(null); });
-
-      (async () => {
-        try {
-          const thirtyDaysAgo = new Date();
-          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-          const startDate = thirtyDaysAgo.toLocaleDateString("en-CA");
-          const endDate = new Date().toLocaleDateString("en-CA");
-
-          const [checkInsRes, medsRes, logsRes] = await Promise.all([
-            api.get("/api/checkins"),
-            api.get("/api/medications"),
-            api.get(`/api/medications/logs?startDate=${startDate}&endDate=${endDate}`),
-          ]);
-          if (!active) return;
-          setCheckIns(checkInsRes.data.checkIns || []);
-          setMedications(medsRes.data.medications || []);
-          setMedLogs(logsRes.data.logs || []);
-          setError(null);
-          isFirstLoadRef.current = false;
-        } catch {
-          if (!active) return;
-          setError("Could not load your data. Pull down to try again.");
-        } finally {
-          if (active) setLoading(false);
-        }
-      })();
-
-      return () => { active = false; };
+      load(rangeRef.current, { withStatic: true });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
   );
 
   async function onRefresh() {
     setRefreshing(true);
-    try {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const startDate = thirtyDaysAgo.toLocaleDateString("en-CA");
-      const endDate = new Date().toLocaleDateString("en-CA");
-
-      const [checkInsRes, medsRes, logsRes] = await Promise.all([
-        api.get("/api/checkins"),
-        api.get("/api/medications"),
-        api.get(`/api/medications/logs?startDate=${startDate}&endDate=${endDate}`),
-      ]);
-      setCheckIns(checkInsRes.data.checkIns || []);
-      setMedications(medsRes.data.medications || []);
-      setMedLogs(logsRes.data.logs || []);
-      setError(null);
-    } catch {
-      setError("Could not load your data. Pull down to try again.");
-    } finally {
-      setRefreshing(false);
-    }
+    await load(rangeRef.current, { withStatic: true });
+    setRefreshing(false);
   }
+
+  const chooseRange = (days) => {
+    if (days === rangeDays) return;
+    rangeRef.current = days;
+    setRangeDays(days);
+    setSwitching(true);
+    load(days);
+  };
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
   // screenPad × 2 + cardPad × 2 = 40 + 32 = 72
   const chartWidth = width - 72;
-  const chartData = getChartData(checkIns, timeframe);
   const hasActiveMeds = medications.some((m) => m.active);
-
-  const { medAdherence, dailyAdherence } = getAdherenceView(medications, medLogs, timeframe);
+  const win = view?.win;
+  const summary = view?.summary;
+  const rows = summary ? summary.days.map((d) => ({ ...d, x: dayIndex(win.startDate, d.date) })) : [];
+  const annotations = view
+    ? buildAnnotations({
+      window: win,
+      flares: view.rangeFlares,
+      changes: view.changes,
+      appointments,
+      describeChange,
+      formatFlareRange,
+      todayYmd: localToday(),
+    })
+    : { bands: [], markers: [] };
+  const comparable = summary ? COMPARE_METRICS.filter((k) => summary.comparison[k]?.comparable) : [];
+  const notComparable = summary ? COMPARE_METRICS.filter((k) => !summary.comparison[k]?.comparable) : [];
+  const adherence = view && view.logs ? getAdherenceView(medications, view.logs, win) : null;
 
   // ── Loading ───────────────────────────────────────────────────────────────
 
@@ -227,7 +186,7 @@ export default function TrendsScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Page header + timeframe pills (shared by all charts) */}
+        {/* Page header + range pills (shared by all charts) */}
         <View style={styles.pageHeader}>
           <View style={styles.pageTitleRow}>
             <Text style={styles.pageTitle}>Trends</Text>
@@ -241,28 +200,25 @@ export default function TrendsScreen() {
               <Text style={styles.flareLinkText}>Your flares</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.timeframePills}>
-            {TIMEFRAME_TABS.map((t) => (
+        </View>
+        <View style={styles.timeframePills}>
+          {TREND_RANGES.map((r) => {
+            const selected = rangeDays === r.days;
+            return (
               <TouchableOpacity
-                key={t.value}
-                style={[
-                  styles.pill,
-                  timeframe === t.value && styles.pillActive,
-                ]}
-                onPress={() => setTimeframe(t.value)}
+                key={r.days}
+                style={[styles.pill, selected && styles.pillActive]}
+                onPress={() => chooseRange(r.days)}
                 activeOpacity={0.8}
+                hitSlop={{ top: 10, bottom: 10, left: 2, right: 2 }}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={r.label}
               >
-                <Text
-                  style={[
-                    styles.pillText,
-                    timeframe === t.value && styles.pillTextActive,
-                  ]}
-                >
-                  {t.label}
-                </Text>
+                <Text style={[styles.pillText, selected && styles.pillTextActive]}>{r.label}</Text>
               </TouchableOpacity>
-            ))}
-          </View>
+            );
+          })}
         </View>
 
         {error && (
@@ -305,24 +261,60 @@ export default function TrendsScreen() {
         )}
 
         {/* ── Health metrics chart ─────────────────────────────────────────── */}
-        {checkIns.length === 0 && !error ? (
+        {summary && !summary.everLogged ? (
           <View style={styles.card}>
             <Text style={styles.emptyText}>
               No data yet. Complete a check-in to see your trends.
             </Text>
           </View>
-        ) : checkIns.length > 0 ? (
-          <View style={styles.card}>
-            <Text style={styles.cardSubtitle}>
-              Energy · Mood · Pain · Anxiety · Appetite · Sleep
-            </Text>
-            <MetricsLineChart data={chartData} width={chartWidth} />
+        ) : summary ? (
+          <View style={{ opacity: switching ? 0.55 : 1 }}>
+            <View style={styles.card}>
+              <Text style={styles.cardSubtitle}>
+                Energy · Mood · Pain · Anxiety · Appetite · Sleep
+              </Text>
+              {rows.length === 0 ? (
+                <Text style={styles.emptyText}>{emptyRangeText(win.days)}</Text>
+              ) : (
+                <MetricsLineChart
+                  data={rows}
+                  width={chartWidth}
+                  win={win}
+                  bands={annotations.bands}
+                  markers={annotations.markers}
+                />
+              )}
+            </View>
+
+            {/* ── Period comparison — numbers and day counts only ─────────── */}
+            {rows.length > 0 ? (
+              <View style={styles.card}>
+                <Text style={styles.compareTitle}>{comparisonTitle(win.days)}</Text>
+                <Text style={styles.compareCaption}>{COMPARISON_CAPTION}</Text>
+                {comparable.length === 0 ? (
+                  <Text style={styles.compareRow}>{COMPARISON_NONE}</Text>
+                ) : (
+                  <>
+                    {comparable.map((k) => (
+                      <Text key={k} style={styles.compareRow}>
+                        {formatComparison(k.charAt(0).toUpperCase() + k.slice(1), summary.comparison[k], win.days)}
+                      </Text>
+                    ))}
+                    {notComparable.length > 0 ? (
+                      <Text style={styles.compareFoot}>{comparisonFootnote(notComparable)}</Text>
+                    ) : null}
+                  </>
+                )}
+              </View>
+            ) : null}
           </View>
         ) : null}
 
-        {/* ── Medication adherence section ─────────────────────────────────── */}
-        {!error && hasActiveMeds && (
-          <>
+        {/* ── Medication adherence section — follows the range, no markers ── */}
+        {adherence && hasActiveMeds && (() => {
+          const { medAdherence, dailyAdherence } = adherence;
+          return (
+          <View style={{ opacity: switching ? 0.55 : 1 }}>
             <Text style={styles.adherenceHeader}>Medication Adherence</Text>
 
             {medAdherence.length === 0 ? (
@@ -349,8 +341,9 @@ export default function TrendsScreen() {
                 )}
               </>
             )}
-          </>
-        )}
+          </View>
+          );
+        })()}
       </ScrollView>
 
       {showFlares ? (
@@ -359,7 +352,7 @@ export default function TrendsScreen() {
           mode="list"
           flares={flares}
           onClose={() => setShowFlares(false)}
-          onChanged={fetchFlares}
+          onChanged={() => { fetchFlares(); load(rangeRef.current); }}
         />
       ) : null}
     </ScreenBackground>
@@ -396,7 +389,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: 8,
   },
   pageTitle: {
     fontFamily: "PlayfairDisplay_500Medium",
@@ -416,7 +409,8 @@ const styles = StyleSheet.create({
   },
   timeframePills: {
     flexDirection: "row",
-    gap: 4,
+    gap: 6,
+    marginBottom: 16,
   },
   pill: {
     paddingHorizontal: 10,
@@ -525,6 +519,22 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.5)",
     marginTop: 6,
   },
+  compareTitle: { fontFamily: "Lato_700Bold", fontSize: 14, color: "white" },
+  compareCaption: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.6)",
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  compareRow: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.85)",
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  compareFoot: { fontFamily: "Lato_400Regular", fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 2 },
   insightHint: {
     fontFamily: "Lato_400Regular",
     fontSize: 12,

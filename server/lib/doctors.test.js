@@ -263,10 +263,20 @@ describe("normalizeName parity with the client helper", () => {
   const WEB = path.join(__dirname, "../../client/src/utils/doctorHelpers.js");
   const MOBILE = path.join(__dirname, "../../mobile/theme/doctorHelpers.js");
 
+  // The helper imports MAX_RANGE_DAYS from its sibling reportOptions.js; the
+  // import line is dropped and the real value read from that file instead, so
+  // the test can't hold a second, drifting copy of it.
+  const REPORT_OPTIONS = path.join(__dirname, "../../client/src/utils/reportOptions.js");
+  const { MAX_RANGE_DAYS } = new Function( // eslint-disable-line no-new-func
+    `${fs.readFileSync(REPORT_OPTIONS, "utf8").replace(/^export /gm, "")}; return { MAX_RANGE_DAYS };`,
+  )();
+
   const loadClient = (file) => {
-    const src = fs.readFileSync(file, "utf8").replace(/^export /gm, "");
+    const src = fs.readFileSync(file, "utf8")
+      .replace(/^import .*$/gm, "")
+      .replace(/^export /gm, "");
     // eslint-disable-next-line no-new-func
-    return new Function(`${src}; return { normalizeName, MAX_SUGGESTIONS };`)();
+    return new Function("MAX_RANGE_DAYS", `${src}; return { normalizeName, MAX_SUGGESTIONS, visitSummaryRange };`)(MAX_RANGE_DAYS);
   };
 
   const CASES = [
@@ -296,5 +306,69 @@ describe("normalizeName parity with the client helper", () => {
 
   test("the mobile copy is byte-identical to the web one", () => {
     expect(fs.readFileSync(MOBILE, "utf8")).toBe(fs.readFileSync(WEB, "utf8"));
+  });
+
+  describe("visitSummaryRange", () => {
+    const { visitSummaryRange } = loadClient(WEB);
+    const localDate = (iso) => iso.slice(0, 10);
+    const TODAY = "2026-10-09";
+    const visit = { id: 1, doctorName: "Dr. Lee", status: "upcoming", date: "2026-10-12T17:30:00.000Z" };
+    const A = (id, doctorName, date, status = "completed") => ({ id, doctorName, status, date: `${date}T16:00:00.000Z` });
+    const range = (appt, list, today = TODAY) => visitSummaryRange(appt, list, today, localDate);
+
+    test("the loader really found it", () => {
+      expect(typeof visitSummaryRange).toBe("function");
+      expect(MAX_RANGE_DAYS).toBe(365);
+    });
+
+    test("since the last completed visit with that doctor, name compared loosely", () => {
+      expect(range(visit, [visit, A(2, "dr.  LEE", "2026-08-30")])).toEqual({
+        from: "2026-08-30", to: TODAY,
+        heading: "Since your visit with Dr. Lee on Aug 30, 2026", priorVisitDate: "2026-08-30",
+      });
+    });
+
+    test("cancelled and upcoming visits are not a prior visit; nor is another doctor", () => {
+      const r = range(visit, [
+        A(2, "Dr. Lee", "2026-09-01", "cancelled"),
+        A(3, "Dr. Lee", "2026-09-05", "upcoming"),
+        A(4, "Dr. Patel", "2026-09-20"),
+      ]);
+      expect(r.priorVisitDate).toBeNull();
+      expect(r.heading).toBe("Last 90 days · for your visit with Dr. Lee");
+    });
+
+    test("two priors: the latest wins", () => {
+      expect(range(visit, [A(2, "Dr. Lee", "2026-03-02"), A(3, "Dr. Lee", "2026-07-15")]).from).toBe("2026-07-15");
+    });
+
+    test("another visit earlier the same day is not counted", () => {
+      const sameDay = { id: 5, doctorName: "Dr. Lee", status: "completed", date: "2026-10-12T15:00:00.000Z" };
+      expect(range(visit, [sameDay, A(2, "Dr. Lee", "2026-07-15")]).priorVisitDate).toBe("2026-07-15");
+    });
+
+    test("a future appointment ends today; a past one ends on its day", () => {
+      expect(range(visit, []).to).toBe(TODAY);
+      const past = { ...visit, status: "completed", date: "2026-09-15T17:30:00.000Z" };
+      expect(range(past, []).to).toBe("2026-09-15");
+    });
+
+    test("no prior: 90 days inclusive, across a month boundary", () => {
+      const r = range(visit, [], "2026-03-01");
+      expect(r).toEqual({
+        from: "2025-12-02", to: "2026-03-01",
+        heading: "Last 90 days · for your visit with Dr. Lee", priorVisitDate: null,
+      });
+    });
+
+    test("a prior visit more than a year back is clamped to 12 months", () => {
+      const r = range(visit, [A(2, "Dr. Lee", "2023-05-01")]);
+      expect(r).toEqual({
+        from: "2025-10-10", to: TODAY,
+        heading: "Last 12 months · for your visit with Dr. Lee", priorVisitDate: "2023-05-01",
+      });
+      // exactly 365 days back is not "more than": left alone
+      expect(range(visit, [A(2, "Dr. Lee", "2025-10-09")]).from).toBe("2025-10-09");
+    });
   });
 });

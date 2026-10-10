@@ -29,6 +29,7 @@ const feedbackRoutes = require("./routes/feedbackRoutes");
 const accountDeletionRoutes = require("./routes/accountDeletionRoutes");
 const eventRoutes = require("./routes/eventRoutes");
 const insightRoutes = require("./routes/insightRoutes");
+const trendRoutes = require("./routes/trendRoutes");
 const pushRoutes = require("./routes/pushRoutes");
 const announcementRoutes = require("./routes/announcementRoutes");
 const adminAnnouncementRoutes = require("./routes/adminAnnouncementRoutes");
@@ -144,6 +145,7 @@ const startServer = async () => {
   app.use("/api/flares", flareRoutes);
   app.use("/api/spoons", spoonRoutes);
   app.use("/api/insights", insightRoutes);
+  app.use("/api/trends", trendRoutes);
   app.use("/api/push", pushRoutes);
   app.use("/api/announcements", announcementRoutes);
   app.use("/api/admin/announcements", adminAnnouncementRoutes);

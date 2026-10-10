@@ -46,6 +46,8 @@ boot against the real database. There are no migration files.
   - `mobile/theme/supportResources.js` ↔ `client/src/utils/supportResources.js`
   - `mobile/theme/doctorHelpers.js` ↔ `client/src/utils/doctorHelpers.js`
   - `mobile/theme/flareHelpers.js` ↔ `client/src/utils/flareHelpers.js`
+  - `mobile/theme/reportOptions.js` ↔ `client/src/utils/reportOptions.js`
+  - `mobile/theme/trendHelpers.js` ↔ `client/src/utils/trendHelpers.js`
 - **Missed medication doses are computed at read time, never written as rows.**
   A `MedicationLog` row only ever means "taken" or "skipped".
 - **All six metrics use a 5 = best scale**, pain and anxiety included. Never

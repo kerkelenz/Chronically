@@ -1,5 +1,12 @@
-import { formatTime, describeSchedule, adherenceStats } from "../theme/medications";
+import {
+  formatTime, describeSchedule, adherenceStats, resolvePattern, describeChange, describeChangeDate,
+} from "../theme/medications";
 import { formatWeatherLine } from "../theme/weatherFormat";
+import { localToday } from "../theme/flareHelpers";
+import {
+  resolveReportOptions, rangeTitles, eachDay, chartLabelStep, flaresInRange, flareSummaryLine,
+  flareReportLine, medChangesInRange, helpedRows, helpedReportLine, truncationNote,
+} from "../theme/reportOptions";
 
 // ── Constants (mirror generateReport.js verbatim) ─────────────────────────────
 
@@ -31,15 +38,18 @@ export const formatApptDatePdf = (dateStr) => {
     " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
-// Returns 31 entries (30 days ago → today), oldest first.
+// A calendar date at local noon, the safe hour to format one from
+const atLocalNoon = (ymd) => {
+  const [yr, mo, dy] = ymd.split("-").map(Number);
+  return new Date(yr, mo - 1, dy, 12, 0, 0, 0);
+};
+
+// One entry per day of the range, oldest first.
 // Each: { date, label, pain, mood, energy, anxiety, appetite } — null when no data.
-export const buildDailyAverages = (periodCheckIns, thirtyDaysAgo) => {
+export const buildDailyAverages = (periodCheckIns, range) => {
   const result = [];
-  for (let i = 0; i <= 30; i++) {
-    const d = new Date(thirtyDaysAgo);
-    d.setDate(d.getDate() + i);
-    const dateStr     = d.toLocaleDateString("en-CA");
-    const label       = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  for (const dateStr of eachDay(range.from, range.to)) {
+    const label       = atLocalNoon(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
     const dayCheckins = periodCheckIns.filter((c) => c.date === dateStr);
     const metricAvg   = (key) => {
       const vals = dayCheckins.filter((c) => c[key] != null && c[key] !== 0);
@@ -66,7 +76,8 @@ export function buildTrendChartSvg(dailyData) {
   const plotW = plotRight - plotLeft;
   const plotH = plotBottom - plotTop;
 
-  const toX = (i) => plotLeft + (i / 30) * plotW;
+  const n   = dailyData.length;
+  const toX = (i) => plotLeft + (i / Math.max(1, n - 1)) * plotW;
   const toY = (v) => plotBottom - ((v - 1) / 4) * plotH;
   const p   = (n) => n.toFixed(2);
 
@@ -92,8 +103,8 @@ export function buildTrendChartSvg(dailyData) {
     parts.push(`<text x="${plotLeft - 8}" y="${p(toY(v))}" text-anchor="end" dominant-baseline="middle" fill="#6B5F7A" font-size="16" font-family="sans-serif">${text}</text>`);
   }
 
-  // X axis labels every 5 days
-  for (let i = 0; i <= 30; i += 5) {
+  // X axis labels: about seven of them, whatever the range (every 5th of 31 days)
+  for (let i = 0; i < n; i += chartLabelStep(n)) {
     const entry = dailyData[i];
     if (entry) {
       parts.push(`<text x="${p(toX(i))}" y="${plotBottom + 24}" text-anchor="middle" dominant-baseline="hanging" fill="#6B5F7A" font-size="14" font-family="sans-serif">${entry.label}</text>`);
@@ -104,7 +115,7 @@ export function buildTrendChartSvg(dailyData) {
   for (const { key, color } of activeMetrics) {
     let d = "";
     let prev = false;
-    for (let i = 0; i <= 30; i++) {
+    for (let i = 0; i < n; i++) {
       const val = dailyData[i]?.[key];
       if (val == null) { prev = false; continue; }
       const x = p(toX(i)), y = p(toY(val));
@@ -114,7 +125,7 @@ export function buildTrendChartSvg(dailyData) {
     if (d) {
       parts.push(`<path d="${d.trim()}" stroke="${color}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`);
     }
-    for (let i = 0; i <= 30; i++) {
+    for (let i = 0; i < n; i++) {
       const val = dailyData[i]?.[key];
       if (val == null) continue;
       parts.push(`<circle cx="${p(toX(i))}" cy="${p(toY(val))}" r="3" fill="${color}"/>`);
@@ -137,19 +148,42 @@ export function buildTrendChartSvg(dailyData) {
 
 // ── Main computation (mirrors generateReport body — pure JS, no PDF calls) ────
 
-export function computeReportData(checkIns, medications = [], medicationLogs = [], appointments = [], weatherDays = []) {
-  const today         = new Date();
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+/**
+ * Everything the report prints, computed once. buildReportHtml lays it out.
+ *
+ * `options = { from, to, sections, heading }`:
+ *   - `from` / `to`: "YYYY-MM-DD", inclusive, the patient's local dates. Missing
+ *     means the default range (today − 30 … today); see resolveReportOptions
+ *     for the clamps. Never throws over a bad range.
+ *   - `sections`: keys from REPORT_SECTIONS; undefined means all of them.
+ *   - `heading`: an optional subtitle printed under the title.
+ *
+ * Two more fields belong to the exporter (lib/exportReport.js), because the
+ * positional arguments have no slot for them:
+ *   - `flares`: the array GET /api/flares returned for the range.
+ *   - `medHistory`: `{ [medicationId]: entries[] }` from GET /api/medications/:id/history.
+ * `undefined` means "not fetched", and that section is left out. It never means
+ * "none" — a report must not tell a doctor there were no flares or no changes
+ * when nobody looked.
+ *
+ * `options = {}` computes the same report as before options existed.
+ */
+export function computeReportData(checkIns, medications = [], medicationLogs = [], appointments = [], weatherDays = [], options = {}) {
+  const today    = new Date();
+  const todayStr = localToday();
+  const range    = resolveReportOptions(options, todayStr);
+  const titles   = rangeTitles(range);
+  const fromDate = atLocalNoon(range.from);
+  const toDate   = atLocalNoon(range.to);
 
-  const todayStr         = today.toLocaleDateString("en-CA");
-  const thirtyDaysAgoStr = thirtyDaysAgo.toLocaleDateString("en-CA");
-
-  const periodCheckIns   = checkIns.filter((c) => c.date >= thirtyDaysAgoStr && c.date <= todayStr);
+  const periodCheckIns   = checkIns.filter((c) => c.date >= range.from && c.date <= range.to);
   const daysWithCheckIns = [...new Set(periodCheckIns.map((c) => c.date))];
   const totalDaysTracked = daysWithCheckIns.length;
 
-  const dailyData = buildDailyAverages(periodCheckIns, thirtyDaysAgo);
+  // Callers may pass logs from a wider window; everything below counts only the range
+  const periodLogs = medicationLogs.filter((l) => l.date >= range.from && l.date <= range.to);
+
+  const dailyData = buildDailyAverages(periodCheckIns, range);
 
   // Metric averages — exclude null/0
   const avg = (arr, key) => {
@@ -186,7 +220,7 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
 
   // Adherence: expected-vs-logged (computed-missed) — the shared engine math.
   // missed = expected past dose with no log; today's unlogged doses are neutral
-  const medStats = adherenceStats(medications, medicationLogs, thirtyDaysAgoStr, todayStr, todayStr);
+  const medStats = adherenceStats(medications, periodLogs, range.from, range.to, todayStr);
 
   const glanceAdherenceText = medStats.totals.expected > 0
     ? `${medStats.totals.pct}% (${medStats.totals.taken} of ${medStats.totals.expected} ${medStats.totals.expected === 1 ? "dose" : "doses"})`
@@ -226,9 +260,10 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
   });
 
   // Weather joins the daily table only when the period actually has some —
-  // an all-"—" column is noise on a page a doctor has to scan.
+  // an all-"—" column is noise on a page a doctor has to scan. The patient can
+  // also leave it out.
   const weatherByDate = Object.fromEntries((weatherDays || []).map((w) => [w.date, w]));
-  const hasWeather = dailyData.some((d) => formatWeatherLine(weatherByDate[d.date]));
+  const hasWeather = range.sections.has("weather") && dailyData.some((d) => formatWeatherLine(weatherByDate[d.date]));
 
   // Daily rows (derived from dailyData so chart and table always agree)
   const dailyRows = dailyData.map((d) => {
@@ -278,22 +313,28 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
       })
       .join("\n");
   };
-  // aligned to dailyData/dailyRows; "" means the day has no note and gets no row
-  const dailyNotes = dailyData.map((d) => dayNoteText(periodCheckIns.filter((c) => c.date === d.date)));
+  // aligned to dailyData/dailyRows; "" means the day has no note and gets no row.
+  // "Your notes" off drops them all.
+  const dailyNotes = dailyData.map((d) =>
+    range.sections.has("notes") ? dayNoteText(periodCheckIns.filter((c) => c.date === d.date)) : "");
 
   // Adherence by day of week — same computed-missed math
   const adherenceByDay = medStats.perWeekday.map((w) => (w.pct != null ? `${w.pct}%` : null));
 
   // Skip reasons
   const skipReasonCounts = {};
-  medicationLogs.forEach((log) => {
+  periodLogs.forEach((log) => {
     if (log.skipReason) skipReasonCounts[log.skipReason] = (skipReasonCounts[log.skipReason] || 0) + 1;
   });
   const skipReasonRows = Object.entries(skipReasonCounts).sort((a, b) => b[1] - a[1]).map(([r, c]) => [r, c]);
 
-  // Appointments
+  // Appointments — recent by the local date they fell on, and already past
   const recentAppts = appointments
-    .filter((a) => { const d = new Date(a.date); return d >= thirtyDaysAgo && d <= today; })
+    .filter((a) => {
+      const d = new Date(a.date);
+      const day = d.toLocaleDateString("en-CA");
+      return day >= range.from && day <= range.to && d <= today;
+    })
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const upcomingAppts = appointments
@@ -301,10 +342,10 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   // Period strings
-  const periodStart      = thirtyDaysAgo.toLocaleDateString("en-US", { month: "long",  day: "numeric", year: "numeric" });
-  const periodEnd        = today.toLocaleDateString("en-US",          { month: "long",  day: "numeric", year: "numeric" });
-  const periodStartShort = thirtyDaysAgo.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  const periodEndShort   = today.toLocaleDateString("en-US",          { month: "short", day: "numeric", year: "numeric" });
+  const periodStart      = fromDate.toLocaleDateString("en-US", { month: "long",  day: "numeric", year: "numeric" });
+  const periodEnd        = toDate.toLocaleDateString("en-US",   { month: "long",  day: "numeric", year: "numeric" });
+  const periodStartShort = fromDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const periodEndShort   = toDate.toLocaleDateString("en-US",   { month: "short", day: "numeric", year: "numeric" });
   const generatedDate    = today.toLocaleDateString("en-US",          { year: "numeric", month: "long", day: "numeric" });
 
   // Current medication list rows — the schedule column speaks the app's human
@@ -329,7 +370,7 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
   // Daily medication log rows sorted by date then scheduledTime (verbatim from web medLogBody)
   const medMap = {};
   medications.forEach((m) => { medMap[m.id] = m; });
-  const medLogRows = [...medicationLogs]
+  const medLogRows = [...periodLogs]
     .sort((a, b) => a.date.localeCompare(b.date) || (a.scheduledTime || "99:99").localeCompare(b.scheduledTime || "99:99"))
     .map((log) => {
       const med       = medMap[log.medicationId];
@@ -347,11 +388,26 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
       ];
     });
 
+  // The three optional datasets. Each is left out when there is nothing to
+  // show — "no flares" would read to a doctor as a clinical fact we don't have.
+  const flareList = options.flares === undefined ? [] : flaresInRange(options.flares, range.from, range.to);
+  const flareSummary = flareSummaryLine(flareList);
+  const flareRows = flareList.map((f) => ({
+    line: flareReportLine(f, todayStr),
+    note: range.sections.has("notes") && typeof f.note === "string" ? f.note.trim() : "",
+  }));
+  const medChangeRows = medChangesInRange(options.medHistory, medications, range.from, range.to)
+    .map((r) => ({ date: describeChangeDate(r.changedAt), medName: r.medName, lines: describeChange(r.entry) }));
+  const helpedTableRows = helpedRows(medications, periodLogs, range.from, range.to,
+    (m) => resolvePattern(m).kind === "as_needed")
+    .map((r) => ({ name: r.name, taken: r.taken, ratings: helpedReportLine(r.counts) }));
+
   return {
     // Raw (for 9b tables)
-    medications, medicationLogs, appointments,
+    medications, medicationLogs: periodLogs, appointments,
     // Period
-    today, thirtyDaysAgo, todayStr, thirtyDaysAgoStr,
+    today, todayStr, range, titles, fromDate, toDate,
+    truncation: truncationNote(checkIns, range.from, todayStr),
     periodStart, periodEnd, periodStartShort, periodEndShort, generatedDate,
     // Check-in data
     periodCheckIns, totalDaysTracked, dailyData,
@@ -370,5 +426,7 @@ export function computeReportData(checkIns, medications = [], medicationLogs = [
     recentAppts, upcomingAppts,
     medListRows, medListNotes, adherenceRows, medLogRows, hasWeather,
     hasPain, hasSleep, untrackedNote, dailyNotes,
+    // Optional datasets — empty when absent or not fetched
+    flareSummary, flareRows, medChangeRows, helpedTableRows,
   };
 }

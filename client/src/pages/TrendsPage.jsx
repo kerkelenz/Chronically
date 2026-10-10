@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import FlaresModal from "../components/FlaresModal";
@@ -9,30 +9,42 @@ import {
 import { curveCatmullRom } from "d3-shape";
 import Navigation from "../components/Navigation";
 import PageHeader from "../components/PageHeader";
-import { adherenceStats } from "../utils/medicationHelpers";
-import { METRIC_LABELS } from "../utils/metricLabels";
+import { adherenceStats, describeChange } from "../utils/medicationHelpers";
 import ChronicleMark from "../components/ChronicleMark";
+import TrendsMetricsChart from "../components/TrendsMetricsChart";
+import { formatFlareRange, localToday } from "../utils/flareHelpers";
+import {
+  TREND_RANGES, DEFAULT_RANGE_DAYS, COMPARE_METRICS, rangeWindow, dayIndex, buildAnnotations, formatComparison,
+  comparisonTitle, comparisonFootnote, emptyRangeText, COMPARISON_CAPTION, COMPARISON_NONE,
+} from "../utils/trendHelpers";
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const monDay = (ymd) => `${MONTHS[Number(ymd.slice(5, 7)) - 1]} ${Number(ymd.slice(8, 10))}`;
 
 function TrendsPage() {
   const { token } = useAuth();
-  // Flares live here because wave 2 draws them as bands on these charts; the
-  // list sits beside the thing it will annotate.
+  const hdrs = { Authorization: `Bearer ${token}` };
+  const api = (path) => axios.get(`${import.meta.env.VITE_API_URL}${path}`, { headers: hdrs });
+
+  // "Your flares" lists every flare, whatever the range; the chart's bands
+  // come from a ranged fetch below.
   const [flares, setFlares] = useState([]);
   const [showFlares, setShowFlares] = useState(false);
-  const [checkIns, setCheckIns] = useState([]);
   const [medications, setMedications] = useState([]);
-  const [medLogs, setMedLogs] = useState([]);
-  const [timeframe, setTimeframe] = useState(2);
+  const [appointments, setAppointments] = useState([]);
+  const [rangeDays, setRangeDays] = useState(DEFAULT_RANGE_DAYS);
+  // everything that belongs to one window, replaced together so the chart
+  // never mixes one range's rows with another's annotations
+  const [view, setView] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [reload, setReload] = useState(0);
   const [insights, setInsights] = useState(null);
+  const requestId = useRef(0);
 
-  // Insights are fetched independently and silent-fail: on error the section
-  // simply doesn't render.
   const fetchFlares = async () => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/flares`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api("/api/flares");
       setFlares(res.data.flares || []);
     } catch (err) {
       console.error("Failed to fetch flares:", err);
@@ -44,57 +56,57 @@ function TrendsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  // Insights are fetched independently and silent-fail: on error the section
+  // simply doesn't render.
   useEffect(() => {
     if (!token) return;
-    axios
-      .get(`${import.meta.env.VITE_API_URL}/api/insights`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+    api("/api/insights")
       .then((res) => setInsights(res.data))
       .catch(() => setInsights(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  const getChartData = () => {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - timeframe);
-    const cutoffStr = cutoff.toLocaleDateString("en-CA");
+  // once per page load: what the adherence and appointment markers read
+  useEffect(() => {
+    if (!token) return;
+    api("/api/medications").then((r) => setMedications(r.data.medications || [])).catch(() => {});
+    api("/api/appointments").then((r) => setAppointments(r.data.appointments || [])).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
-    const byDate = {};
-    checkIns
-      .filter((c) => c.date >= cutoffStr)
-      .forEach((c) => {
-        if (!byDate[c.date])
-          byDate[c.date] = { pains: [], moods: [], energies: [], anxieties: [], appetites: [], sleeps: [] };
-        if (c.painLevel)     byDate[c.date].pains.push(c.painLevel);
-        byDate[c.date].moods.push(c.moodLevel);
-        if (c.energyLevel)   byDate[c.date].energies.push(c.energyLevel);
-        if (c.anxietyLevel)  byDate[c.date].anxieties.push(c.anxietyLevel);
-        if (c.appetiteLevel) byDate[c.date].appetites.push(c.appetiteLevel);
-        if (c.sleepLevel)    byDate[c.date].sleeps.push(c.sleepLevel);
-      });
+  // Every range change: one window drives every fetch. A response that comes
+  // back after a newer request is dropped, so 7 → 365 → 7 ends on 7. If the
+  // summary fails the last view stays; the annotation fetches fail silently.
+  useEffect(() => {
+    if (!token) return;
+    const id = ++requestId.current;
+    const win = rangeWindow(localToday(), rangeDays);
+    const q = `startDate=${win.startDate}&endDate=${win.endDate}`;
+    Promise.all([
+      api(`/api/trends/summary?${q}`).then((r) => r.data).catch(() => null),
+      api(`/api/flares?${q}`).then((r) => r.data.flares || []).catch(() => []),
+      api(`/api/medications/changes?${q}`).then((r) => r.data.changes || []).catch(() => []),
+      api(`/api/medications/logs?${q}`).then((r) => r.data.logs || []).catch(() => null),
+    ]).then(([summary, rangeFlares, changes, logs]) => {
+      if (id !== requestId.current) return;
+      if (summary) setView({ win, summary, rangeFlares, changes, logs });
+      setLoading(false);
+      setRefreshing(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, rangeDays, reload]);
 
-    return Object.entries(byDate)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, { pains, moods, energies, anxieties, appetites, sleeps }]) => ({
-        date,
-        pain:     pains.length      ? parseFloat((pains.reduce((s, v) => s + v, 0)      / pains.length).toFixed(1))      : null,
-        mood:     parseFloat((moods.reduce((s, v) => s + v, 0) / moods.length).toFixed(1)),
-        energy:   energies.length   ? parseFloat((energies.reduce((s, v) => s + v, 0)   / energies.length).toFixed(1))   : null,
-        anxiety:  anxieties.length  ? parseFloat((anxieties.reduce((s, v) => s + v, 0)  / anxieties.length).toFixed(1))  : null,
-        appetite: appetites.length  ? parseFloat((appetites.reduce((s, v) => s + v, 0)  / appetites.length).toFixed(1))  : null,
-        sleep:    sleeps.length     ? parseFloat((sleeps.reduce((s, v) => s + v, 0)     / sleeps.length).toFixed(1))     : null,
-      }));
+  const chooseRange = (days) => {
+    if (days === rangeDays) return;
+    setRefreshing(true);
+    setRangeDays(days);
   };
 
   // Adherence via the shared computed-missed engine math, so the charts, the
   // cabinet dots, and the doctor report can never disagree.
-  const getAdherenceView = () => {
-    const today = new Date();
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - timeframe);
-    const todayStr = today.toLocaleDateString("en-CA");
-    const cutoffStr = cutoff.toLocaleDateString("en-CA");
-    const stats = adherenceStats(medications, medLogs, cutoffStr, todayStr, todayStr);
+  const getAdherenceView = (win, logs) => {
+    const todayStr = localToday();
+    const stats = adherenceStats(medications, logs, win.startDate, win.endDate, todayStr);
     const medAdherence = stats.perMed
       .filter((m) => m.expected > 0)
       .map((m) => ({ name: m.name, adherence: m.pct, taken: m.taken, scheduled: m.expected }));
@@ -109,38 +121,30 @@ function TrendsPage() {
     return { medAdherence, dailyAdherence };
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const startDate = thirtyDaysAgo.toLocaleDateString("en-CA");
-        const endDate   = new Date().toLocaleDateString("en-CA");
-        const hdrs = { Authorization: `Bearer ${token}` };
+  const win = view?.win;
+  const summary = view?.summary;
+  const rows = summary
+    ? summary.days.map((d) => ({ ...d, x: dayIndex(win.startDate, d.date), label: monDay(d.date) }))
+    : [];
+  const annotations = view
+    ? buildAnnotations({
+      window: win,
+      flares: view.rangeFlares,
+      changes: view.changes,
+      appointments,
+      describeChange,
+      formatFlareRange,
+      todayYmd: localToday(),
+    })
+    : { bands: [], markers: [] };
+  const comparable = summary
+    ? COMPARE_METRICS.filter((k) => summary.comparison[k]?.comparable)
+    : [];
+  const notComparable = summary
+    ? COMPARE_METRICS.filter((k) => !summary.comparison[k]?.comparable)
+    : [];
 
-        const [checkInsRes, medsRes, logsRes] = await Promise.all([
-          axios.get(`${import.meta.env.VITE_API_URL}/api/checkins`, { headers: hdrs }),
-          axios.get(`${import.meta.env.VITE_API_URL}/api/medications`, { headers: hdrs }),
-          axios.get(`${import.meta.env.VITE_API_URL}/api/medications/logs?startDate=${startDate}&endDate=${endDate}`, { headers: hdrs }),
-        ]);
-
-        setCheckIns(checkInsRes.data.checkIns);
-        setMedications(medsRes.data.medications);
-        setMedLogs(logsRes.data.logs);
-      } catch (error) {
-        console.error("Error fetching trends data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (token) fetchData();
-  }, [token]);
-
-  const TIMEFRAME_TABS = [
-    { label: "3d",    value: 2  },
-    { label: "Week",  value: 7  },
-    { label: "Month", value: 30 },
-  ];
+  const card = { background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" };
 
   return (
     <div
@@ -196,24 +200,17 @@ function TrendsPage() {
                   Insights
                 </p>
                 {insights.cards.length > 0 ? (
-                  insights.cards.map((card) => (
-                    <div
-                      key={card.id}
-                      className="p-4 rounded-2xl"
-                      style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
-                    >
-                      <p className="font-bold text-white" style={{ fontSize: "15px" }}>{card.headline}</p>
-                      <p className="mt-1" style={{ fontSize: "14px", color: "rgba(255,255,255,0.8)" }}>{card.body}</p>
-                      <p className="mt-1.5" style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)" }}>{card.evidence}</p>
+                  insights.cards.map((c) => (
+                    <div key={c.id} className="p-4 rounded-2xl" style={card}>
+                      <p className="font-bold text-white" style={{ fontSize: "15px" }}>{c.headline}</p>
+                      <p className="mt-1" style={{ fontSize: "14px", color: "rgba(255,255,255,0.8)" }}>{c.body}</p>
+                      <p className="mt-1.5" style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)" }}>{c.evidence}</p>
                     </div>
                   ))
                 ) : (
                   /* Chronicle keeps the empty state company. He appears only
                      here — once there are real cards, they speak for themselves. */
-                  <div
-                    className="p-4 rounded-2xl flex items-center gap-3"
-                    style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
-                  >
+                  <div className="p-4 rounded-2xl flex items-center gap-3" style={card}>
                     <ChronicleMark size={36} className="text-white shrink-0" />
                     <p style={{ fontSize: "14px", color: "rgba(255,255,255,0.8)" }}>{insights.meta.message}</p>
                   </div>
@@ -227,7 +224,7 @@ function TrendsPage() {
             )}
 
             {/* Health metrics chart */}
-            {checkIns.length === 0 ? (
+            {!summary || !summary.everLogged ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
                 <p className="text-base" style={{ color: "rgba(255,255,255,0.7)" }}>
                   No data yet. Complete a check-in to see your trends.
@@ -235,83 +232,75 @@ function TrendsPage() {
               </div>
             ) : (
               <div
-                className="p-4 rounded-2xl"
-                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
+                className="flex flex-col gap-4 transition-opacity"
+                style={{ opacity: refreshing ? 0.55 : 1 }}
+                aria-busy={refreshing}
               >
-                <div className="flex justify-between items-center mb-4">
-                  <p className="text-sm font-medium" style={{ color: "white" }}>
-                    Energy · Mood · Pain · Anxiety · Appetite · Sleep
-                  </p>
-                  <div className="flex gap-2">
-                    {TIMEFRAME_TABS.map((t) => (
-                      <button
-                        key={t.value}
-                        onClick={() => setTimeframe(t.value)}
-                        className="text-xs px-3 py-1 rounded-full transition-all duration-200"
-                        style={{
-                          background: timeframe === t.value ? "#7C6BAE" : "rgba(255,255,255,0.15)",
-                          color: "white",
-                        }}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
+                <div className="p-4 rounded-2xl" style={card}>
+                  <div className="flex justify-between items-center flex-wrap gap-2 mb-4">
+                    <p className="text-sm font-medium" style={{ color: "white" }}>
+                      Energy · Mood · Pain · Anxiety · Appetite · Sleep
+                    </p>
+                    <div className="flex gap-2" role="group" aria-label="Range">
+                      {TREND_RANGES.map((r) => (
+                        <button
+                          key={r.days}
+                          type="button"
+                          onClick={() => chooseRange(r.days)}
+                          aria-pressed={rangeDays === r.days}
+                          className="text-xs px-3 py-1 rounded-full transition-all duration-200"
+                          style={{
+                            background: rangeDays === r.days ? "#7C6BAE" : "rgba(255,255,255,0.15)",
+                            color: "white",
+                          }}
+                        >
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                  {rows.length === 0 ? (
+                    <p className="text-sm text-center py-12" style={{ color: "rgba(255,255,255,0.7)" }}>
+                      {emptyRangeText(win.days)}
+                    </p>
+                  ) : (
+                    <TrendsMetricsChart rows={rows} win={win} annotations={annotations} />
+                  )}
                 </div>
-                <ResponsiveContainer width="100%" height={240}>
-                  <LineChart
-                    data={getChartData()}
-                    margin={{ top: 5, right: 5, left: 0, bottom: 0 }}
-                  >
-                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: "rgba(255,255,255,0.7)" }} />
-                    <YAxis
-                      domain={[1, 5]}
-                      ticks={[1, 3, 5]}
-                      width={32}
-                      tick={{ fontSize: 9, fill: "rgba(255,255,255,0.7)" }}
-                      tickFormatter={(v) => ({ 1: "Bad", 3: "Mid", 5: "Good" })[v] ?? ""}
-                    />
-                    <Tooltip
-                      formatter={(value, name) => {
-                        const r = Math.round(value);
-                        // per-metric wording (5 = best), so pain/anxiety read correctly
-                        const label = METRIC_LABELS[name]?.[r] ?? r;
-                        return [label, name.charAt(0).toUpperCase() + name.slice(1)];
-                      }}
-                    />
-                    <Line type={curveCatmullRom.alpha(0.5)} dataKey="energy"   stroke="#8FAF9B" strokeWidth={2} dot={false} />
-                    <Line type={curveCatmullRom.alpha(0.5)} dataKey="mood"     stroke="#C4A8C0" strokeWidth={2} dot={false} />
-                    <Line type={curveCatmullRom.alpha(0.5)} dataKey="pain"     stroke="#7C6BAE" strokeWidth={2} dot={false} />
-                    <Line type={curveCatmullRom.alpha(0.5)} dataKey="anxiety"  stroke="#9BAFC4" strokeWidth={2} dot={false} />
-                    <Line type={curveCatmullRom.alpha(0.5)} dataKey="appetite" stroke="#C4A882" strokeWidth={2} dot={false} />
-                    <Line type={curveCatmullRom.alpha(0.5)} dataKey="sleep"    stroke="#9AD0C8" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-                <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-3">
-                  {[
-                    { key: "energy",   color: "#8FAF9B" },
-                    { key: "mood",     color: "#C4A8C0" },
-                    { key: "pain",     color: "#7C6BAE" },
-                    { key: "anxiety",  color: "#9BAFC4" },
-                    { key: "appetite", color: "#C4A882" },
-                    { key: "sleep",    color: "#9AD0C8" },
-                  ].map(({ key, color }) => (
-                    <span key={key} className="flex items-center gap-1 text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>
-                      <span style={{ display: "inline-block", width: 16, height: 2, background: color, borderRadius: 1 }} />
-                      {key}
-                    </span>
-                  ))}
-                </div>
+
+                {/* Period comparison — numbers and day counts only */}
+                {rows.length > 0 && (
+                  <div className="p-4 rounded-2xl" style={card}>
+                    <p className="text-sm font-medium text-white">{comparisonTitle(win.days)}</p>
+                    <p className="text-xs mt-1 mb-3" style={{ color: "rgba(255,255,255,0.6)" }}>{COMPARISON_CAPTION}</p>
+                    {comparable.length === 0 ? (
+                      <p className="text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>{COMPARISON_NONE}</p>
+                    ) : (
+                      <ul className="flex flex-col gap-1.5">
+                        {comparable.map((k) => (
+                          <li key={k} className="text-sm" style={{ color: "rgba(255,255,255,0.85)" }}>
+                            {formatComparison(k.charAt(0).toUpperCase() + k.slice(1), summary.comparison[k], win.days)}
+                          </li>
+                        ))}
+                        {notComparable.length > 0 && (
+                          <li className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.6)" }}>
+                            {comparisonFootnote(notComparable)}
+                          </li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Medication adherence section */}
-            {medications.some((m) => m.active) && (() => {
-              const { medAdherence, dailyAdherence } = getAdherenceView();
+            {/* Medication adherence section — follows the range, no markers */}
+            {view && view.logs && medications.some((m) => m.active) && (() => {
+              const { medAdherence, dailyAdherence } = getAdherenceView(view.win, view.logs);
               const barHeight         = Math.max(120, medAdherence.length * 44);
 
               return (
-                <>
+                <div className="flex flex-col gap-4 transition-opacity" style={{ opacity: refreshing ? 0.55 : 1 }}>
                   <p className="text-xs uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>
                     Medication Adherence
                   </p>
@@ -323,10 +312,7 @@ function TrendsPage() {
                   ) : (
                     <>
                       {/* Chart 1 — per-medication horizontal bars */}
-                      <div
-                        className="p-4 rounded-2xl"
-                        style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
-                      >
+                      <div className="p-4 rounded-2xl" style={card}>
                         <p className="text-sm font-medium mb-4" style={{ color: "white" }}>
                           Adherence by medication
                         </p>
@@ -361,10 +347,7 @@ function TrendsPage() {
 
                       {/* Chart 2 — daily adherence trend (only meaningful with 2+ days) */}
                       {dailyAdherence.length > 1 && (
-                        <div
-                          className="p-4 rounded-2xl"
-                          style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
-                        >
+                        <div className="p-4 rounded-2xl" style={card}>
                           <p className="text-sm font-medium mb-4" style={{ color: "white" }}>
                             Daily adherence trend
                           </p>
@@ -403,7 +386,8 @@ function TrendsPage() {
                                 dataKey="percentage"
                                 stroke="#8FAF9B"
                                 strokeWidth={2}
-                                dot={{ r: 3, fill: "#8FAF9B", strokeWidth: 0 }}
+                                // a year of dots is a smear; past a month the line speaks alone
+                                dot={dailyAdherence.length > 31 ? false : { r: 3, fill: "#8FAF9B", strokeWidth: 0 }}
                               />
                             </LineChart>
                           </ResponsiveContainer>
@@ -411,7 +395,7 @@ function TrendsPage() {
                       )}
                     </>
                   )}
-                </>
+                </div>
               );
             })()}
           </>
@@ -427,7 +411,7 @@ function TrendsPage() {
           flares={flares}
           token={token}
           onClose={() => setShowFlares(false)}
-          onChanged={fetchFlares}
+          onChanged={() => { fetchFlares(); setReload((n) => n + 1); }}
         />
       )}
     </div>
