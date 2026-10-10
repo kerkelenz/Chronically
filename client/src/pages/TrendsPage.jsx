@@ -7,8 +7,8 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
 import { curveCatmullRom } from "d3-shape";
-import Navigation, { NavHamburger } from "../components/Navigation";
-import HomeLogo from "../components/HomeLogo";
+import Navigation from "../components/Navigation";
+import PageHeader from "../components/PageHeader";
 import { adherenceStats } from "../utils/medicationHelpers";
 import { METRIC_LABELS } from "../utils/metricLabels";
 import ChronicleMark from "../components/ChronicleMark";
@@ -159,29 +159,19 @@ function TrendsPage() {
 
       {/* Header */}
       <div className="relative z-20">
-        <div
-          className="px-6 py-4 flex justify-between items-center"
-          style={{ maxWidth: "1024px", margin: "0 auto" }}
-        >
-          <div className="flex items-center gap-2.5">
-            <HomeLogo />
-            <h1
-              className="text-white font-medium text-lg"
-              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-            >
-              Trends
-            </h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowFlares(true)}
-              className="text-sm text-white/70 hover:text-white transition-colors"
-            >
-              Your flares
-            </button>
-            <NavHamburger />
-          </div>
-        </div>
+        <PageHeader
+          title="Trends"
+          actions={
+            <>
+              <button
+                onClick={() => setShowFlares(true)}
+                className="text-sm text-white/70 hover:text-white transition-colors"
+              >
+                Your flares
+              </button>
+            </>
+          }
+        />
       </div>
 
       {/* Main content */}

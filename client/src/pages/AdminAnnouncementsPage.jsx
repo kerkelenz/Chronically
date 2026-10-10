@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { FiPlus, FiEdit2, FiTrash2 } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
-import Navigation, { NavHamburger } from "../components/Navigation";
-import HomeLogo from "../components/HomeLogo";
+import Navigation from "../components/Navigation";
+import PageHeader from "../components/PageHeader";
 import FormModal, { ModalFooter, ConfirmDialog, labelClass } from "../components/FormModal";
 import AnnouncementCard from "../components/AnnouncementCard";
 
@@ -168,15 +168,9 @@ function AdminAnnouncementsPage() {
       />
 
       <div className="relative z-20">
-        <div className="px-6 py-4 flex justify-between items-center" style={{ maxWidth: 1024, margin: "0 auto" }}>
-          <div className="flex items-center gap-2.5">
-            <HomeLogo />
-            <h1 className="text-white font-medium text-lg" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
-              Announcements
-            </h1>
-          </div>
-          <NavHamburger />
-        </div>
+        <PageHeader
+          title="Announcements"
+        />
       </div>
 
       <div className="relative z-10 p-6 pb-24 flex flex-col gap-4" style={{ maxWidth: 1024, margin: "0 auto" }}>

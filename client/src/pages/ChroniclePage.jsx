@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
-import Navigation, { NavHamburger } from "../components/Navigation";
+import Navigation from "../components/Navigation";
+import PageHeader from "../components/PageHeader";
 import ChronicleMark from "../components/ChronicleMark";
 
 // "12 September 2026" — matches the mobile copy exactly
@@ -54,8 +55,10 @@ function ChroniclePage() {
       />
 
       <div className="relative z-20">
-        <div className="px-6 py-4 flex justify-between items-center" style={{ maxWidth: 1024, margin: "0 auto" }}>
-          <div className="flex items-center gap-2.5">
+        {/* reached from Profile, so the way back is to Profile */}
+        <PageHeader
+          title="From Chronicle"
+          leading={
             <button
               onClick={() => navigate("/profile")}
               aria-label="Back to profile"
@@ -64,12 +67,8 @@ function ChroniclePage() {
             >
               ‹
             </button>
-            <h1 className="text-white font-medium text-lg" style={{ fontFamily: "Playfair Display, Georgia, serif" }}>
-              From Chronicle
-            </h1>
-          </div>
-          <NavHamburger />
-        </div>
+          }
+        />
       </div>
 
       <div className="relative z-10 p-6 pb-24 flex flex-col gap-3" style={{ maxWidth: 1024, margin: "0 auto" }}>

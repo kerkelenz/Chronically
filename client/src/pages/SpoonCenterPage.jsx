@@ -6,8 +6,8 @@ import {
 import { BsPin, BsPinFill } from "react-icons/bs";
 import { useAuth } from "../hooks/useAuth";
 import { track } from "../lib/analytics";
-import Navigation, { NavHamburger } from "../components/Navigation";
-import HomeLogo from "../components/HomeLogo";
+import Navigation from "../components/Navigation";
+import PageHeader from "../components/PageHeader";
 import FormModal, { ModalFooter, labelClass, ConfirmDialog } from "../components/FormModal";
 
 const API = import.meta.env.VITE_API_URL;
@@ -1078,31 +1078,21 @@ export default function SpoonCenterPage() {
 
       {/* Header */}
       <div className="relative z-20">
-        <div
-          className="px-6 py-4 flex justify-between items-center"
-          style={{ maxWidth: "1024px", margin: "0 auto" }}
-        >
-          <div className="flex items-center gap-2.5">
-            <HomeLogo />
-            <h1
-              className="text-white font-medium text-lg"
-              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-            >
-              Spoon Center
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => { setShowAdd(true); setEditingCosts(false); }}
-              disabled={!day}
-              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:opacity-90 disabled:opacity-40"
-              style={{ background: "rgba(255,255,255,0.25)", color: "white", border: "1px solid rgba(255,255,255,0.4)" }}
-            >
-              <FiPlus size={14} /> Add
-            </button>
-            <NavHamburger />
-          </div>
-        </div>
+        <PageHeader
+          title="Spoon Center"
+          actions={
+            <>
+              <button
+                onClick={() => { setShowAdd(true); setEditingCosts(false); }}
+                disabled={!day}
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:opacity-90 disabled:opacity-40"
+                style={{ background: "rgba(255,255,255,0.25)", color: "white", border: "1px solid rgba(255,255,255,0.4)" }}
+              >
+                <FiPlus size={14} /> Add
+              </button>
+            </>
+          }
+        />
       </div>
 
       {/* Main content */}

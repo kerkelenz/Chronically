@@ -4,7 +4,8 @@ import { useAuth } from "../hooks/useAuth";
 import CheckInModal from "../components/CheckInModal";
 import { FiEdit2, FiTrash2, FiCalendar, FiFileText } from "react-icons/fi";
 import { exportDoctorReport } from "../utils/exportReport";
-import Navigation, { NavHamburger } from "../components/Navigation";
+import Navigation from "../components/Navigation";
+import PageHeader from "../components/PageHeader";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
 import { SymptomIcon } from "../components/SymptomIcon";
@@ -281,36 +282,28 @@ function DashboardPage() {
 
       {/* Header */}
       <div className="relative z-20">
-        <div
-          className="px-6 py-4 flex justify-between items-center"
-          style={{ maxWidth: "1024px", margin: "0 auto" }}
-        >
-          <div className="flex items-center gap-3">
-            <Avatar user={user} size={40} />
-            <div>
-              <h1
-                className="text-white font-medium text-lg"
-                style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-              >
-                {(() => {
-                  const hour = new Date().getHours();
-                  if (hour < 12) return "Good morning,";
-                  if (hour < 17) return "Good afternoon,";
-                  return "Good evening,";
-                })()}{" "}
-                {user?.username}
-              </h1>
-              <p className="text-white/70 text-xs mt-1">
-                {todaysDone
-                  ? `Next check-in at ${new Date(
-                      new Date(checkIns[0].createdAt).getTime() + 4 * 60 * 60 * 1000,
-                    ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                  : "Ready to check in?"}
-              </p>
-            </div>
-          </div>
-          <NavHamburger />
-        </div>
+        {/* the dashboard is home, so it leads with the avatar, not the mark */}
+        <PageHeader
+          leading={<Avatar user={user} size={40} />}
+          title={
+            <>
+              {(() => {
+                const hour = new Date().getHours();
+                if (hour < 12) return "Good morning,";
+                if (hour < 17) return "Good afternoon,";
+                return "Good evening,";
+              })()}{" "}
+              {user?.username}
+            </>
+          }
+          subtitle={
+            todaysDone
+              ? `Next check-in at ${new Date(
+                  new Date(checkIns[0].createdAt).getTime() + 4 * 60 * 60 * 1000,
+                ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+              : "Ready to check in?"
+          }
+        />
       </div>
 
       {/* Main content */}

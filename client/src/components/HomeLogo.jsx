@@ -3,8 +3,11 @@ import mark from "../assets/logo-mark.png";
 
 /**
  * The Chronically brand mark (the C with the lavender sprig), sized for a page
- * header's top-left corner and linking home (the dashboard). Present on every
- * in-app page so the logo doubles as a consistent "back to home" affordance.
+ * header's top-left corner and linking home (the dashboard), so the logo
+ * doubles as a "back to home" affordance.
+ *
+ * Which pages show it is decided in one place: it is PageHeader's default
+ * `leading`, and a page opts out there (see PageHeader for which do and why).
  */
 export default function HomeLogo() {
   return (

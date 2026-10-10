@@ -6,8 +6,8 @@ import {
   FiEdit2, FiTrash2, FiRotateCcw, FiPlus, FiPause, FiPlay, FiX,
   FiSunrise, FiSun, FiMoon, FiClock, FiChevronDown, FiChevronRight,
 } from "react-icons/fi";
-import Navigation, { NavHamburger } from "../components/Navigation";
-import HomeLogo from "../components/HomeLogo";
+import Navigation from "../components/Navigation";
+import PageHeader from "../components/PageHeader";
 import FormModal, { ModalFooter, labelClass, ConfirmDialog, PLUM_TINT, SOFT_ERROR } from "../components/FormModal";
 import MedHistoryModal from "../components/MedHistoryModal";
 import {
@@ -1136,31 +1136,21 @@ function MedicationsPage() {
 
       {/* Header */}
       <div className="relative z-20">
-        <div
-          className="px-6 py-4 flex justify-between items-center"
-          style={{ maxWidth: "1024px", margin: "0 auto" }}
-        >
-          <div className="flex items-center gap-2.5">
-            <HomeLogo />
-            <h1
-              className="text-white font-medium text-lg"
-              style={{ fontFamily: "Playfair Display, Georgia, serif" }}
-            >
-              Medications
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={openAdd}
-              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:opacity-90"
-              style={{ background: "rgba(255,255,255,0.25)", color: "white", border: "1px solid rgba(255,255,255,0.4)" }}
-            >
-              <FiPlus size={14} />
-              Add
-            </button>
-            <NavHamburger />
-          </div>
-        </div>
+        <PageHeader
+          title="Medications"
+          actions={
+            <>
+              <button
+                onClick={openAdd}
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:opacity-90"
+                style={{ background: "rgba(255,255,255,0.25)", color: "white", border: "1px solid rgba(255,255,255,0.4)" }}
+              >
+                <FiPlus size={14} />
+                Add
+              </button>
+            </>
+          }
+        />
       </div>
 
       {/* Main content */}
