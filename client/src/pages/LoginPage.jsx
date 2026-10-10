@@ -151,7 +151,7 @@ function LoginPage() {
           <p className="text-white font-medium text-sm">Welcome back</p>
           <input
             type="email"
-            placeholder="Email"
+            placeholder="Email" aria-label="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full px-3 py-2 rounded-lg text-sm text-white placeholder-white/60 outline-none glass-input transition-all duration-300"
@@ -162,7 +162,7 @@ function LoginPage() {
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder="Password" aria-label="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-3 py-2 rounded-lg text-sm text-white placeholder-white/60 outline-none glass-input transition-all duration-300"

@@ -1330,7 +1330,7 @@ export default function SpoonCenterScreen() {
                       ]}
                     >
                       {/* Check toggle */}
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityRole="checkbox" accessibilityState={{ checked: entry.completed }} accessibilityLabel={entry.name}
                         onPress={() => toggleEntry(entry)}
                         style={[
                           styles.checkCircle,
@@ -1356,7 +1356,7 @@ export default function SpoonCenterScreen() {
                       </Text>
 
                       {/* Remove */}
-                      <TouchableOpacity
+                      <TouchableOpacity accessibilityLabel={`Remove ${entry.name}`}
                         onPress={() => removeEntry(entry.id)}
                         style={styles.removeBtn}
                         activeOpacity={0.7}
@@ -1570,7 +1570,7 @@ export default function SpoonCenterScreen() {
                           key={`cost-${act.id}-${act.cost}`}
                           style={styles.costInput}
                           keyboardType="number-pad"
-                          defaultValue={String(act.cost)}
+                          defaultValue={String(act.cost)} accessibilityLabel={`Spoon cost for ${act.name}`}
                           onEndEditing={(e) => updateActivityCost(act.id, e.nativeEvent.text)}
                           selectTextOnFocus
                         />
@@ -1593,7 +1593,7 @@ export default function SpoonCenterScreen() {
                 <View style={styles.customRow}>
                   <TextInput
                     style={styles.customNameInput}
-                    placeholder="Activity name"
+                    placeholder="Activity name" accessibilityLabel="Activity name"
                     placeholderTextColor="rgba(255,255,255,0.3)"
                     value={customName}
                     onChangeText={setCustomName}
@@ -1601,7 +1601,7 @@ export default function SpoonCenterScreen() {
                   />
                   <TextInput
                     style={styles.customCostInput}
-                    placeholder="Cost"
+                    placeholder="Cost" accessibilityLabel="Spoon cost"
                     placeholderTextColor="rgba(255,255,255,0.3)"
                     keyboardType="number-pad"
                     value={customCost}
@@ -1662,7 +1662,7 @@ export default function SpoonCenterScreen() {
             <TextInput
               style={formStyles.input}
               keyboardType="number-pad"
-              placeholder="e.g. 12"
+              placeholder="e.g. 12" accessibilityLabel="How many spoons is a typical day for you?"
               placeholderTextColor="rgba(255,255,255,0.3)"
               value={baselineInput}
               onChangeText={setBaselineInput}
@@ -1704,7 +1704,7 @@ export default function SpoonCenterScreen() {
             <TextInput
               style={formStyles.input}
               keyboardType="number-pad"
-              value={budgetInput}
+              value={budgetInput} accessibilityLabel={isToday ? "Today's spoon budget" : "This day's spoon budget"}
               onChangeText={setBudgetInput}
               autoFocus
             />

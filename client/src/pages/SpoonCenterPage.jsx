@@ -1354,7 +1354,7 @@ export default function SpoonCenterPage() {
                       }}
                     >
                       {/* Check toggle */}
-                      <button
+                      <button role="checkbox" aria-checked={entry.completed} aria-label={entry.name}
                         onClick={() => toggleEntry(entry)}
                         className="flex-shrink-0 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all duration-200"
                         style={{
@@ -1382,7 +1382,7 @@ export default function SpoonCenterPage() {
                       </div>
 
                       {/* Remove */}
-                      <button
+                      <button aria-label={`Remove ${entry.name}`}
                         onClick={() => removeEntry(entry.id)}
                         className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center hover:opacity-75 transition-opacity"
                         style={{ background: "rgba(255,255,255,0.15)" }}
@@ -1608,7 +1608,7 @@ export default function SpoonCenterPage() {
                           <input
                             type="number"
                             min={1}
-                            defaultValue={act.cost}
+                            defaultValue={act.cost} aria-label={`Spoon cost for ${act.name}`}
                             onBlur={(e) => saveActivityCost(act.id, e.target.value)}
                             className="w-14 px-2 py-1 rounded-lg text-sm text-center outline-none"
                             style={frostedInput}
@@ -1638,7 +1638,7 @@ export default function SpoonCenterPage() {
                 <div className="flex gap-2 mb-2">
                   <input
                     type="text"
-                    placeholder="Activity name"
+                    placeholder="Activity name" aria-label="Activity name"
                     value={customName}
                     onChange={(e) => setCustomName(e.target.value)}
                     className="flex-1 px-3 py-2 rounded-lg text-sm outline-none placeholder-white/30"
@@ -1646,7 +1646,7 @@ export default function SpoonCenterPage() {
                   />
                   <input
                     type="number"
-                    placeholder="Cost"
+                    placeholder="Cost" aria-label="Spoon cost"
                     min={1}
                     value={customCost}
                     onChange={(e) => setCustomCost(e.target.value)}
@@ -1693,10 +1693,11 @@ export default function SpoonCenterPage() {
                 Most people start somewhere around 10–14. Yours is yours — change it anytime.
               </p>
             </div>
-            <p className="text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>
+            <label htmlFor="spoons-baseline" className="block text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>
               How many spoons is a typical day for you?
-            </p>
+            </label>
             <input
+              id="spoons-baseline"
               type="number"
               min={1}
               placeholder="e.g. 12"
@@ -1735,7 +1736,7 @@ export default function SpoonCenterPage() {
             <input
               type="number"
               min={1}
-              value={budgetInput}
+              value={budgetInput} aria-label={isToday ? "Today's spoon budget" : "This day's spoon budget"}
               onChange={(e) => setBudgetInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && saveBudget()}
               className="w-full px-3 py-2 rounded-lg text-sm outline-none"

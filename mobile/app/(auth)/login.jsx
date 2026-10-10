@@ -70,7 +70,7 @@ export default function LoginScreen() {
               style={styles.input}
               value={email}
               onChangeText={setEmail}
-              placeholder="Email"
+              placeholder="Email" accessibilityLabel="Email"
               placeholderTextColor="rgba(255,255,255,0.45)"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -82,7 +82,7 @@ export default function LoginScreen() {
               style={[styles.input, styles.inputSpaced]}
               value={password}
               onChangeText={setPassword}
-              placeholder="Password"
+              placeholder="Password" accessibilityLabel="Password"
               placeholderTextColor="rgba(255,255,255,0.45)"
               secureTextEntry
               autoCapitalize="none"

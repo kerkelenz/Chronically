@@ -378,8 +378,8 @@ function ProfilePage() {
             </p>
             <div className="flex flex-col gap-3">
               <div>
-                <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Username</p>
-                <input
+                <label htmlFor="profile-username" className="block text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Username</label>
+                <input id="profile-username"
                   type="text"
                   value={username}
                   onChange={(e) => { setUsername(e.target.value); setSuccess(""); setError(""); }}
@@ -388,8 +388,8 @@ function ProfilePage() {
                 />
               </div>
               <div>
-                <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Email</p>
-                <input
+                <label htmlFor="profile-email" className="block text-xs mb-1" style={{ color: "rgba(255,255,255,0.7)" }}>Email</label>
+                <input id="profile-email"
                   type="email"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setSuccess(""); setError(""); }}
@@ -618,8 +618,8 @@ function ProfilePage() {
                 </div>
                 <div className="p-5 flex flex-col gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <p className="text-xs font-medium" style={{ color: "#6B5F7A" }}>Zoom</p>
-                    <input
+                    <label htmlFor="profile-zoom" className="block text-xs font-medium" style={{ color: "#6B5F7A" }}>Zoom</label>
+                    <input id="profile-zoom"
                       type="range"
                       min={1}
                       max={3}
@@ -713,7 +713,7 @@ function ProfilePage() {
                   ))}
                 </div>
                 <textarea
-                  value={reportMessage}
+                  value={reportMessage} aria-label="Describe what happened"
                   onChange={(e) => setReportMessage(e.target.value)}
                   rows={4}
                   placeholder="Describe what happened…"

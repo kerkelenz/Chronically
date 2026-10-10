@@ -37,6 +37,23 @@ const valid = [
   { name: "file input (driven by a labelled button)", code: `<input type="file" />` },
   { name: "spread props: may carry the name", code: `<input {...props} />` },
   { name: "not a field at all", code: `<div><p>Label</p><span /></div>` },
+  // removed from the accessibility tree: never announced, so it needs no name
+  { name: "honeypot hidden from assistive tech", code: `<input type="text" tabIndex={-1} aria-hidden="true" />` },
+  { name: "aria-hidden as a boolean expression", code: `<input aria-hidden={true} />` },
+  { name: "bare aria-hidden", code: `<input aria-hidden />` },
+  { name: "RN accessibilityElementsHidden", code: `<TextInput accessibilityElementsHidden />` },
+  { name: "RN importantForAccessibility no-hide-descendants", code: `<TextInput importantForAccessibility="no-hide-descendants" />` },
+  // ── buttons: named by their text, or by aria-label when they are only an icon ──
+  { name: "button with text", code: `<button onClick={f}>Save</button>` },
+  { name: "button with icon and text", code: `<button onClick={f}><FiPlus /> Add</button>` },
+  { name: "icon button with aria-label", code: `<button aria-label="Close" onClick={f}><FiX /></button>` },
+  { name: "icon button with title", code: `<button title="Close" onClick={f}><FiX /></button>` },
+  { name: "button whose content is a variable (may be text)", code: `<button onClick={f}>{label}</button>` },
+  { name: "button rendering a component (may render text)", code: `<button onClick={f}><Avatar user={u} /></button>` },
+  { name: "icon button hidden from assistive tech", code: `<button aria-hidden="true" tabIndex={-1}><FiX /></button>` },
+  { name: "RN touchable with accessibilityLabel", code: `<TouchableOpacity onPress={f} accessibilityLabel="Close"><Ionicons name="close" /></TouchableOpacity>` },
+  { name: "RN touchable with Text", code: `<TouchableOpacity onPress={f}><Text>Done</Text></TouchableOpacity>` },
+  { name: "RN touchable with no handler is layout", code: `<TouchableOpacity><Ionicons name="close" /></TouchableOpacity>` },
   // ── mobile ──
   { name: "TextInput accessibilityLabel", code: `<TextInput accessibilityLabel="Name" />` },
   { name: "TextInput aria-label", code: `<TextInput aria-label="Name" />` },
@@ -54,6 +71,18 @@ const invalid = [
   { name: "dynamic type is still a text field", code: `<input type={kind} />`, errors: [{ messageId: "web" }] },
   { name: "a label elsewhere does not name a field with no id", code: `<div><label htmlFor="a">X</label><input /></div>`, errors: [{ messageId: "web" }] },
   { name: "two unnamed fields, two reports", code: `<div><input /><input /></div>`, errors: [{ messageId: "web" }, { messageId: "web" }] },
+  // only a literal true hides an element; anything else leaves it announced
+  { name: "aria-hidden false is still visible", code: `<input aria-hidden="false" />`, errors: [{ messageId: "web" }] },
+  { name: "dynamic aria-hidden is not assumed hidden", code: `<input aria-hidden={hide} />`, errors: [{ messageId: "web" }] },
+  { name: "importantForAccessibility yes is still visible", code: `<TextInput importantForAccessibility="yes" />`, errors: [{ messageId: "native" }] },
+  // the buttons a screen reader can only call "button"
+  { name: "icon-only button", code: `<button onClick={f}><FiX /></button>`, errors: [{ messageId: "webButton" }] },
+  { name: "icon swapped by a conditional (the menu toggle)", code: `<button onClick={f}>{open ? <FiX size={18} /> : <FiMenu size={18} />}</button>`, errors: [{ messageId: "webButton" }] },
+  { name: "icon shown only sometimes (the done tick)", code: `<button onClick={f}>{done && <FiCheck />}</button>`, errors: [{ messageId: "webButton" }] },
+  { name: "an svg is an icon", code: `<button onClick={f}><svg /></button>`, errors: [{ messageId: "webButton" }] },
+  { name: "RN icon-only touchable", code: `<TouchableOpacity onPress={f}><Ionicons name="close" /></TouchableOpacity>`, errors: [{ messageId: "nativeButton", data: { tag: "TouchableOpacity" } }] },
+  { name: "RN Pressable with a conditional icon", code: `<Pressable onPress={f}>{on ? <Ionicons name="a" /> : <Ionicons name="b" />}</Pressable>`, errors: [{ messageId: "nativeButton", data: { tag: "Pressable" } }] },
+  { name: "RN touchable whose tick appears only when done", code: `<TouchableOpacity onPress={f}>{done && <Ionicons name="checkmark" />}</TouchableOpacity>`, errors: [{ messageId: "nativeButton" }] },
   // the pattern the audit found 32 times on mobile
   { name: "TextInput with only a placeholder", code: `<TextInput placeholder="Name" />`, errors: [{ messageId: "native" }] },
   { name: "Animated.TextInput", code: `<Animated.TextInput />`, errors: [{ messageId: "native" }] },

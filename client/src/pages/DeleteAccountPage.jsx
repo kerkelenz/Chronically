@@ -67,12 +67,12 @@ export default function DeleteAccountPage() {
             />
             <input
               type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-              placeholder="Your account email"
+              placeholder="Your account email" aria-label="Your account email"
               style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.15)", color: "white", fontSize: 15 }}
             />
             <textarea
               value={reason} onChange={(e) => setReason(e.target.value)} rows={3}
-              placeholder="Reason (optional)"
+              placeholder="Reason (optional)" aria-label="Reason (optional)"
               style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.15)", color: "white", fontSize: 15, resize: "none" }}
             />
             {error && <p style={{ color: "rgba(255,255,255,0.85)", fontSize: 14 }}>{error}</p>}

@@ -624,13 +624,13 @@ export default function AppointmentsScreen() {
         {/* ── Calendar ─────────────────────────────────────────────────────── */}
         <View style={styles.card}>
           <View style={styles.monthNav}>
-            <TouchableOpacity style={styles.chevronBtn} onPress={prevMonth} activeOpacity={0.7}>
+            <TouchableOpacity accessibilityLabel="Previous month" style={styles.chevronBtn} onPress={prevMonth} activeOpacity={0.7}>
               <Ionicons name="chevron-back" size={16} color="white" />
             </TouchableOpacity>
             <Text style={styles.monthLabel}>
               {calendarMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
             </Text>
-            <TouchableOpacity style={styles.chevronBtn} onPress={nextMonth} activeOpacity={0.7}>
+            <TouchableOpacity accessibilityLabel="Next month" style={styles.chevronBtn} onPress={nextMonth} activeOpacity={0.7}>
               <Ionicons name="chevron-forward" size={16} color="white" />
             </TouchableOpacity>
           </View>
@@ -740,7 +740,7 @@ export default function AppointmentsScreen() {
                     <Text style={styles.popoverSpecialty}>{popoverAppointment.specialty}</Text>
                   )}
                 </View>
-                <TouchableOpacity
+                <TouchableOpacity accessibilityLabel="Close"
                   style={styles.popoverClose}
                   onPress={() => { setPopoverAppointment(null); setSelectedDate(null); }}
                   hitSlop={8}
@@ -1148,7 +1148,7 @@ export default function AppointmentsScreen() {
                 style={formStyles.input}
                 value={form.doctorName}
                 onChangeText={(v) => setForm((f) => ({ ...f, doctorName: v }))}
-                placeholder="Dr. Smith"
+                placeholder="Dr. Smith" accessibilityLabel="Doctor name, required"
                 placeholderTextColor="rgba(255,255,255,0.3)"
                 autoCapitalize="words"
                 returnKeyType="next"
@@ -1173,7 +1173,7 @@ export default function AppointmentsScreen() {
                 style={formStyles.input}
                 value={form.specialty}
                 onChangeText={(v) => setForm((f) => ({ ...f, specialty: v }))}
-                placeholder="Neurology"
+                placeholder="Neurology" accessibilityLabel="Specialty"
                 placeholderTextColor="rgba(255,255,255,0.3)"
                 autoCapitalize="words"
                 returnKeyType="next"
@@ -1221,7 +1221,7 @@ export default function AppointmentsScreen() {
                 style={formStyles.input}
                 value={form.location}
                 onChangeText={(v) => setForm((f) => ({ ...f, location: v }))}
-                placeholder="Hospital or clinic name"
+                placeholder="Hospital or clinic name" accessibilityLabel="Location"
                 placeholderTextColor="rgba(255,255,255,0.3)"
                 autoCapitalize="words"
                 returnKeyType="next"
@@ -1233,7 +1233,7 @@ export default function AppointmentsScreen() {
                 style={formStyles.input}
                 value={form.reason}
                 onChangeText={(v) => setForm((f) => ({ ...f, reason: v }))}
-                placeholder="Annual checkup, follow-up, etc."
+                placeholder="Annual checkup, follow-up, etc." accessibilityLabel="Reason for visit"
                 placeholderTextColor="rgba(255,255,255,0.3)"
                 autoCapitalize="sentences"
                 returnKeyType="next"
@@ -1245,7 +1245,7 @@ export default function AppointmentsScreen() {
                 style={[formStyles.input, formStyles.inputMultiline]}
                 value={form.notesBefore}
                 onChangeText={(v) => setForm((f) => ({ ...f, notesBefore: v }))}
-                placeholder="Questions to ask, things to mention..."
+                placeholder="Questions to ask, things to mention..." accessibilityLabel="Notes before"
                 placeholderTextColor="rgba(255,255,255,0.3)"
                 multiline
                 numberOfLines={2}
@@ -1286,7 +1286,7 @@ export default function AppointmentsScreen() {
                     style={[formStyles.input, formStyles.inputMultiline]}
                     value={form.notesAfter}
                     onChangeText={(v) => setForm((f) => ({ ...f, notesAfter: v }))}
-                    placeholder="What was discussed, next steps..."
+                    placeholder="What was discussed, next steps..." accessibilityLabel="Notes after"
                     placeholderTextColor="rgba(255,255,255,0.3)"
                     multiline
                     numberOfLines={2}
@@ -1353,7 +1353,7 @@ export default function AppointmentsScreen() {
           style={[formStyles.input, formStyles.inputMultiline]}
           value={prepText}
           onChangeText={setPrepText}
-          placeholder="Questions to ask, symptoms to mention, refills to request…"
+          placeholder="Questions to ask, symptoms to mention, refills to request…" accessibilityLabel="Notes for this visit"
           placeholderTextColor="rgba(255,255,255,0.3)"
           multiline
           numberOfLines={4}
@@ -1380,7 +1380,7 @@ export default function AppointmentsScreen() {
           style={[formStyles.input, formStyles.inputMultiline]}
           value={outcomeText}
           onChangeText={setOutcomeText}
-          placeholder="What was said, decisions, next steps…"
+          placeholder="What was said, decisions, next steps…" accessibilityLabel="Visit notes"
           placeholderTextColor="rgba(255,255,255,0.3)"
           multiline
           numberOfLines={4}

@@ -521,7 +521,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
             <Text style={formStyles.label}>Name *</Text>
             <TextInput
               style={formStyles.input}
-              placeholder="e.g. Baclofen"
+              placeholder="e.g. Baclofen" accessibilityLabel="Name, required"
               placeholderTextColor="rgba(255,255,255,0.35)"
               value={form.name}
               onChangeText={(v) => setForm({ ...form, name: v })}
@@ -558,7 +558,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
             <Text style={formStyles.label}>Dosage (optional)</Text>
             <TextInput
               style={formStyles.input}
-              placeholder="e.g. 20mg"
+              placeholder="e.g. 20mg" accessibilityLabel="Dosage (optional)"
               placeholderTextColor="rgba(255,255,255,0.35)"
               value={form.dosage}
               onChangeText={(v) => setForm({ ...form, dosage: v })}
@@ -629,7 +629,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
                 <TextInput
                   style={formStyles.input}
                   keyboardType="number-pad"
-                  value={String(form.removalOffsetHours)}
+                  value={String(form.removalOffsetHours)} accessibilityLabel="Remove after how many hours?"
                   onChangeText={(v) => {
                     const n = parseInt(v, 10);
                     if (!isNaN(n))
@@ -653,7 +653,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
                 <TextInput
                   style={formStyles.input}
                   keyboardType="number-pad"
-                  value={String(form.intervalDays)}
+                  value={String(form.intervalDays)} accessibilityLabel="Every how many days?"
                   onChangeText={(v) => {
                     const n = parseInt(v, 10);
                     if (!isNaN(n))
@@ -791,7 +791,7 @@ function MedModal({ visible, form, setForm, onSave, onCancel, saving, saveError 
             <Text style={formStyles.label}>Notes (optional)</Text>
             <TextInput
               style={[formStyles.input, formStyles.inputMultiline]}
-              placeholder="Any notes about this medication…"
+              placeholder="Any notes about this medication…" accessibilityLabel="Notes (optional)"
               placeholderTextColor="rgba(255,255,255,0.35)"
               value={form.notes}
               onChangeText={(v) => setForm({ ...form, notes: v })}

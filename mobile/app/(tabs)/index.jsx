@@ -63,7 +63,7 @@ function CheckInRow({ checkIn, onEdit, onDelete, isLatest }) {
       <View style={styles.rowHeader}>
         <Text style={styles.rowTime}>{time}</Text>
         <View style={styles.rowActions}>
-          <TouchableOpacity
+          <TouchableOpacity accessibilityLabel={`Edit the ${time} check-in`}
             style={styles.rowBtn}
             onPress={() => onEdit(checkIn)}
             activeOpacity={0.8}
@@ -71,7 +71,7 @@ function CheckInRow({ checkIn, onEdit, onDelete, isLatest }) {
             <Ionicons name="pencil" size={13} color="white" />
           </TouchableOpacity>
           {isLatest && (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityLabel={`Delete the ${time} check-in`}
               style={[styles.rowBtn, styles.rowBtnDelete]}
               onPress={() => onDelete(checkIn.id)}
               activeOpacity={0.8}

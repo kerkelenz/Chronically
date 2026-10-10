@@ -40,6 +40,39 @@ const UNNAMED_INPUT_TYPES = new Set(["hidden", "submit", "button", "reset", "ima
 const WEB_NAMES = ["aria-label", "aria-labelledby", "title"];
 const RN_NAMES = ["accessibilityLabel", "aria-label", "accessibilityLabelledBy", "aria-labelledby"];
 
+// Controls whose name comes from their content. When the content is nothing
+// but an icon, there is no name: a screen reader says "button" and stops.
+const WEB_BUTTONS = new Set(["button"]);
+const RN_TOUCHABLES = new Set(["TouchableOpacity", "TouchableHighlight", "TouchableWithoutFeedback", "Pressable"]);
+// react-icons (FiX, BsPin, GiSpoon…), Expo's vector icon sets, and anything
+// named *Icon. An <svg> is an icon too.
+const ICON_NAME = /^((Fi|Bs|Gi|Io|Md|Ai|Hi|Ri|Tb)[A-Z]\w*|Ionicons|MaterialCommunityIcons|MaterialIcons|Feather|FontAwesome\d?|AntDesign|Entypo|\w*Icon|svg)$/;
+
+// Could this child only ever render an icon, or nothing? Follows conditionals,
+// so {open ? <FiX /> : <FiMenu />} counts as icon-only — the shape an earlier
+// audit missed. Anything else (text, a variable, a call) might be a name.
+function iconOnly(n) {
+  if (!n) return true;
+  switch (n.type) {
+    case "JSXText": return n.value.trim() === "";
+    case "JSXElement": {
+      const tag = elementName(n.openingElement);
+      return !!tag && ICON_NAME.test(tag);
+    }
+    case "JSXExpressionContainer": return iconOnly(n.expression);
+    case "JSXEmptyExpression": return true;
+    case "ConditionalExpression": return iconOnly(n.consequent) && iconOnly(n.alternate);
+    case "LogicalExpression": return iconOnly(n.right);
+    case "Literal": return n.value === null || n.value === false || n.value === "";
+    case "JSXFragment": return n.children.every(iconOnly);
+    default: return false;
+  }
+}
+function hasOnlyIcons(element) {
+  const kids = element.children.filter((c) => !(c.type === "JSXText" && c.value.trim() === ""));
+  return kids.length > 0 && kids.every(iconOnly);
+}
+
 function elementName(node) {
   const n = node.name;
   if (!n) return null;
@@ -57,6 +90,28 @@ function attr(node, name) {
 
 function hasSpread(node) {
   return node.attributes.some((a) => a.type === "JSXSpreadAttribute");
+}
+
+// An element removed from the accessibility tree is never announced, so it
+// needs no name — and giving one to, say, a spam honeypot would expose a field
+// that is meant to be invisible to everyone. Only a literal true counts:
+// aria-hidden="false" or a dynamic value leaves the field visible.
+function isTrue(attribute) {
+  if (!attribute) return false;
+  const v = attribute.value;
+  if (v === null) return true; // bare attribute: <input aria-hidden />
+  if (v.type === "Literal") return v.value === true || v.value === "true";
+  if (v.type === "JSXExpressionContainer" && v.expression.type === "Literal") {
+    return v.expression.value === true || v.expression.value === "true";
+  }
+  return false;
+}
+function hiddenFromAT(node) {
+  if (isTrue(attr(node, "aria-hidden"))) return true;
+  if (isTrue(attr(node, "accessibilityElementsHidden"))) return true;
+  const ifa = attr(node, "importantForAccessibility");
+  return !!(ifa && ifa.value && ifa.value.type === "Literal"
+    && /^no(-hide-descendants)?$/.test(ifa.value.value));
 }
 
 // A label's htmlFor and an input's id are compared by key: the string for a
@@ -110,6 +165,10 @@ const rule = {
         "Tie it to a <label htmlFor>, nest it in a <label>, or give it aria-label.",
       native:
         "<TextInput> has no accessibilityLabel, so a screen reader announces it as a blank field.",
+      webButton:
+        "This <button> contains only an icon, so a screen reader announces it as just \"button\". Give it aria-label.",
+      nativeButton:
+        "This <{{tag}}> contains only an icon, so a screen reader announces it as just \"button\". Give it accessibilityLabel.",
     },
   },
 
@@ -130,6 +189,21 @@ const rule = {
         }
 
         if (hasSpread(node)) return;
+        if (hiddenFromAT(node)) return;
+
+        if (WEB_BUTTONS.has(tag)) {
+          if (WEB_NAMES.some((n) => attr(node, n))) return;
+          if (hasOnlyIcons(node.parent)) context.report({ node, messageId: "webButton" });
+          return;
+        }
+
+        if (RN_TOUCHABLES.has(tag)) {
+          if (RN_NAMES.some((n) => attr(node, n))) return;
+          // a touchable with no handler is a layout wrapper, not a control
+          if (!attr(node, "onPress") && !attr(node, "onLongPress")) return;
+          if (hasOnlyIcons(node.parent)) context.report({ node, messageId: "nativeButton", data: { tag } });
+          return;
+        }
 
         if (WEB_FIELDS.has(tag)) {
           if (tag === "input" && UNNAMED_INPUT_TYPES.has(literalType(node))) return;

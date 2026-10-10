@@ -109,7 +109,7 @@ function ResetPasswordPage() {
               <p className="text-white font-medium text-sm">Choose a new password</p>
               <input
                 type="password"
-                placeholder="New password"
+                placeholder="New password" aria-label="New password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg text-sm text-white placeholder-white/60 outline-none glass-input transition-all duration-300"
@@ -117,7 +117,7 @@ function ResetPasswordPage() {
               />
               <input
                 type="password"
-                placeholder="Confirm new password"
+                placeholder="Confirm new password" aria-label="Confirm new password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg text-sm text-white placeholder-white/60 outline-none glass-input transition-all duration-300"

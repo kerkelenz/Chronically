@@ -337,7 +337,7 @@ export default function ProfileScreen() {
             <Text style={styles.fieldLabel}>Username</Text>
             <TextInput
               style={styles.input}
-              value={username}
+              value={username} accessibilityLabel="Username"
               onChangeText={(v) => {
                 setUsername(v);
                 setSuccess("");
@@ -350,7 +350,7 @@ export default function ProfileScreen() {
             <Text style={styles.fieldLabel}>Email</Text>
             <TextInput
               style={styles.input}
-              value={email}
+              value={email} accessibilityLabel="Email"
               onChangeText={(v) => {
                 setEmail(v);
                 setSuccess("");
@@ -637,7 +637,7 @@ export default function ProfileScreen() {
                 style={styles.reportInput}
                 value={reportMessage}
                 onChangeText={setReportMessage}
-                placeholder="Describe what happened…"
+                placeholder="Describe what happened…" accessibilityLabel="Describe what happened"
                 placeholderTextColor="rgba(255,255,255,0.4)"
                 multiline
                 textAlignVertical="top"

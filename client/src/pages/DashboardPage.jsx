@@ -712,7 +712,7 @@ function DashboardPage() {
                           </div>
                         </div>
                         <div className="flex-shrink-0 flex flex-col gap-2 self-center">
-                          <button
+                          <button aria-label={`Edit the ${new Date(c.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} check-in`}
                             onClick={() => setEditingCheckIn(c)}
                             className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
                             style={{ background: "rgba(255,255,255,0.25)" }}
@@ -720,7 +720,7 @@ function DashboardPage() {
                             <FiEdit2 size={12} color="white" />
                           </button>
                           {c.id === recentCheckIns[0].id && (
-                            <button
+                            <button aria-label={`Delete the ${new Date(c.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} check-in`}
                               onClick={() => handleDelete(c.id)}
                               className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80"
                               style={{ background: PLUM_TINT }}

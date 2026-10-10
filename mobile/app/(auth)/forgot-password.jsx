@@ -100,7 +100,7 @@ export default function ForgotPasswordScreen() {
               style={styles.input}
               value={email}
               onChangeText={setEmail}
-              placeholder="Email"
+              placeholder="Email" accessibilityLabel="Email"
               placeholderTextColor="rgba(255,255,255,0.45)"
               keyboardType="email-address"
               autoCapitalize="none"

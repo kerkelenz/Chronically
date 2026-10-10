@@ -459,7 +459,7 @@ function AppointmentsPage() {
             >
               {/* Month nav */}
               <div className="flex justify-between items-center mb-4">
-                <button
+                <button aria-label="Previous month"
                   onClick={prevMonth}
                   className="p-1.5 rounded-full transition-all duration-200 hover:opacity-70"
                   style={{ background: "rgba(255,255,255,0.15)" }}
@@ -469,7 +469,7 @@ function AppointmentsPage() {
                 <p className="text-sm font-medium" style={{ color: "white" }}>
                   {calendarMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
                 </p>
-                <button
+                <button aria-label="Next month"
                   onClick={nextMonth}
                   className="p-1.5 rounded-full transition-all duration-200 hover:opacity-70"
                   style={{ background: "rgba(255,255,255,0.15)" }}
@@ -581,7 +581,7 @@ function AppointmentsPage() {
                         </p>
                       )}
                     </div>
-                    <button
+                    <button aria-label="Close"
                       onClick={() => { setPopoverAppointment(null); setSelectedDate(null); }}
                       className="flex-shrink-0 p-1 rounded-full hover:opacity-70 transition-opacity"
                       style={{ color: "rgba(255,255,255,0.6)" }}
@@ -1008,8 +1008,8 @@ function AppointmentsPage() {
         >
             <div className="flex flex-col gap-3 pb-1">
               <div>
-                <p className={labelClass}>Doctor name *</p>
-                <input
+                <label htmlFor="appt-doctor-name" className={labelClass}>Doctor name *</label>
+                <input id="appt-doctor-name"
                   type="text"
                   value={form.doctorName}
                   onChange={(e) => setForm((f) => ({ ...f, doctorName: e.target.value }))}
@@ -1032,8 +1032,8 @@ function AppointmentsPage() {
                 />
               </div>
               <div>
-                <p className={labelClass}>Specialty</p>
-                <input
+                <label htmlFor="appt-specialty" className={labelClass}>Specialty</label>
+                <input id="appt-specialty"
                   type="text"
                   value={form.specialty}
                   onChange={(e) => setForm((f) => ({ ...f, specialty: e.target.value }))}
@@ -1043,8 +1043,8 @@ function AppointmentsPage() {
                 />
               </div>
               <div>
-                <p className={labelClass}>Date & time *</p>
-                <input
+                <label htmlFor="appt-date-time" className={labelClass}>Date & time *</label>
+                <input id="appt-date-time"
                   type="datetime-local"
                   value={form.date}
                   onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
@@ -1053,8 +1053,8 @@ function AppointmentsPage() {
                 />
               </div>
               <div>
-                <p className={labelClass}>Location</p>
-                <input
+                <label htmlFor="appt-location" className={labelClass}>Location</label>
+                <input id="appt-location"
                   type="text"
                   value={form.location}
                   onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
@@ -1064,8 +1064,8 @@ function AppointmentsPage() {
                 />
               </div>
               <div>
-                <p className={labelClass}>Reason for visit</p>
-                <input
+                <label htmlFor="appt-reason-for-visit" className={labelClass}>Reason for visit</label>
+                <input id="appt-reason-for-visit"
                   type="text"
                   value={form.reason}
                   onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
@@ -1075,8 +1075,8 @@ function AppointmentsPage() {
                 />
               </div>
               <div>
-                <p className={labelClass}>Notes before</p>
-                <textarea
+                <label htmlFor="appt-notes-before" className={labelClass}>Notes before</label>
+                <textarea id="appt-notes-before"
                   rows={2}
                   value={form.notesBefore}
                   onChange={(e) => setForm((f) => ({ ...f, notesBefore: e.target.value }))}
@@ -1086,8 +1086,8 @@ function AppointmentsPage() {
                 />
               </div>
               <div>
-                <p className={labelClass}>Status</p>
-                <select
+                <label htmlFor="appt-status" className={labelClass}>Status</label>
+                <select id="appt-status"
                   value={form.status}
                   onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none"
@@ -1100,8 +1100,8 @@ function AppointmentsPage() {
               </div>
               {form.status === "completed" && (
                 <div>
-                  <p className={labelClass}>Notes after</p>
-                  <textarea
+                  <label htmlFor="appt-notes-after" className={labelClass}>Notes after</label>
+                  <textarea id="appt-notes-after"
                     rows={2}
                     value={form.notesAfter}
                     onChange={(e) => setForm((f) => ({ ...f, notesAfter: e.target.value }))}
@@ -1113,8 +1113,8 @@ function AppointmentsPage() {
               )}
               {form.status === "completed" && (
                 <div>
-                  <p className={labelClass}>Follow-up date</p>
-                  <input
+                  <label htmlFor="appt-follow-up-date-2" className={labelClass}>Follow-up date</label>
+                  <input id="appt-follow-up-date-2"
                     type="date"
                     value={form.followUpDate}
                     onChange={(e) => setForm((f) => ({ ...f, followUpDate: e.target.value }))}
@@ -1145,7 +1145,7 @@ function AppointmentsPage() {
           <div className="pb-1">
             <textarea
               rows={4}
-              value={prepText}
+              value={prepText} aria-label="Notes for this visit"
               onChange={(e) => setPrepText(e.target.value)}
               placeholder="Questions to ask, symptoms to mention, refills to request…"
               className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none placeholder-white/30"
@@ -1174,8 +1174,8 @@ function AppointmentsPage() {
         >
           <div className="flex flex-col gap-3 pb-1">
             <div>
-              <p className={labelClass}>Visit notes</p>
-              <textarea
+              <label htmlFor="appt-visit-notes" className={labelClass}>Visit notes</label>
+              <textarea id="appt-visit-notes"
                 rows={4}
                 value={outcomeText}
                 onChange={(e) => setOutcomeText(e.target.value)}
@@ -1186,8 +1186,8 @@ function AppointmentsPage() {
               />
             </div>
             <div>
-              <p className={labelClass}>Follow-up date (optional)</p>
-              <input
+              <label htmlFor="appt-follow-up-date" className={labelClass}>Follow-up date (optional)</label>
+              <input id="appt-follow-up-date"
                 type="date"
                 value={outcomeDate}
                 onChange={(e) => setOutcomeDate(e.target.value)}

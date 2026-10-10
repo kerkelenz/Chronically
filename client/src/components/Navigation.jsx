@@ -33,7 +33,7 @@ export function NavHamburger() {
 
   return (
     <div ref={ref} className="relative hidden md:block">
-      <button
+      <button aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className="p-2 rounded-full transition-opacity hover:opacity-80"
         style={{ color: "white", background: "rgba(255,255,255,0.2)" }}

@@ -383,7 +383,7 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
       <input
         type="text"
         value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        onChange={(e) => setSearch(e.target.value)} aria-label="Search or add a symptom"
         placeholder="Search or add a symptom…"
         className="w-full px-4 py-2.5 rounded-xl text-sm outline-none placeholder-white/40"
         style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: "white" }}
@@ -494,7 +494,7 @@ function ReviewRow({ label, value, labels, onEdit, emptyLabel = "Skipped" }) {
       {/* null means not asked or skipped — never a value, never a zero. Pain
           words it as "No pain" so the review echoes the button that set it. */}
       <p className="text-white font-medium">{value == null ? emptyLabel : labels[value]}</p>
-      <button
+      <button aria-label={`Edit ${label}`}
         onClick={onEdit}
         className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
       >
@@ -966,7 +966,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
                     </span>
                   ))}
                 </div>
-                <button
+                <button aria-label="Edit symptoms"
                   onClick={() => {
                     // pre-filled review edits the list; the normal flow restarts
                     // the symptom step from empty

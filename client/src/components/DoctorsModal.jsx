@@ -150,8 +150,8 @@ export default function DoctorsModal({ open, onClose, doctors, token, onChanged 
         {mode === "form" ? (
           <div className="flex flex-col gap-3 pb-1">
             <div>
-              <p className={labelClass}>Doctor name *</p>
-              <input
+              <label htmlFor="doctors-doctor-name" className={labelClass}>Doctor name *</label>
+              <input id="doctors-doctor-name"
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
@@ -161,8 +161,8 @@ export default function DoctorsModal({ open, onClose, doctors, token, onChanged 
               />
             </div>
             <div>
-              <p className={labelClass}>Specialty</p>
-              <input
+              <label htmlFor="doctors-specialty" className={labelClass}>Specialty</label>
+              <input id="doctors-specialty"
                 type="text"
                 value={form.specialty}
                 onChange={(e) => setForm((f) => ({ ...f, specialty: e.target.value }))}
@@ -172,8 +172,8 @@ export default function DoctorsModal({ open, onClose, doctors, token, onChanged 
               />
             </div>
             <div>
-              <p className={labelClass}>Location</p>
-              <input
+              <label htmlFor="doctors-location" className={labelClass}>Location</label>
+              <input id="doctors-location"
                 type="text"
                 value={form.location}
                 onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}

@@ -346,8 +346,8 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
       <div className="flex flex-col gap-4 pb-1">
         {/* Name */}
         <div>
-          <p className={labelClass}>Name</p>
-          <input
+          <label htmlFor="med-name" className={labelClass}>Name</label>
+          <input id="med-name"
             type="text"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -390,8 +390,8 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
 
         {/* Dosage */}
         <div>
-          <p className={labelClass}>Dosage (optional)</p>
-          <input
+          <label htmlFor="med-dosage" className={labelClass}>Dosage (optional)</label>
+          <input id="med-dosage"
             type="text"
             value={form.dosage}
             onChange={(e) => setForm({ ...form, dosage: e.target.value })}
@@ -453,8 +453,8 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
         {/* Patch removal */}
         {form.type === "patch" && (
           <div>
-            <p className={labelClass}>Remove after how many hours?</p>
-            <input
+            <label htmlFor="med-remove-after-how-many-hours" className={labelClass}>Remove after how many hours?</label>
+            <input id="med-remove-after-how-many-hours"
               type="number"
               min={1}
               max={168}
@@ -475,8 +475,8 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
         {/* Every N days */}
         {form.pattern === "every_n_days" && (
           <div>
-            <p className={labelClass}>Every how many days?</p>
-            <input
+            <label htmlFor="med-every-how-many-days" className={labelClass}>Every how many days?</label>
+            <input id="med-every-how-many-days"
               type="number"
               min={1}
               max={90}
@@ -494,10 +494,11 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
         {/* Start date (every N days + monthly) */}
         {showStartDate && (
           <div>
-            <p className={labelClass}>
+            <label htmlFor="med-start-date" className={labelClass}>
               {form.pattern === "monthly" ? "Starts on (sets the day of the month)" : "Starting from"}
-            </p>
+            </label>
             <input
+              id="med-start-date"
               type="date"
               value={form.startDate}
               onChange={(e) => setForm({ ...form, startDate: e.target.value })}
@@ -517,7 +518,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
               {form.scheduledTimes.map((t, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <input
-                    type="time"
+                    type="time" aria-label={`Dose time ${i + 1}`}
                     value={t || "08:00"}
                     onChange={(e) => {
                       const times = [...form.scheduledTimes];
@@ -562,8 +563,8 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
 
         {/* Notes */}
         <div>
-          <p className={labelClass}>Notes (optional)</p>
-          <textarea
+          <label htmlFor="med-notes" className={labelClass}>Notes (optional)</label>
+          <textarea id="med-notes"
             value={form.notes}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
             rows={2}
@@ -587,8 +588,8 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
         ) : (
           <div className="flex flex-col gap-3">
             <div>
-              <p className={labelClass}>How many on hand</p>
-              <input
+              <label htmlFor="med-how-many-on-hand" className={labelClass}>How many on hand</label>
+              <input id="med-how-many-on-hand"
                 type="number"
                 min={0}
                 max={9999}
@@ -603,8 +604,8 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
               </p>
             </div>
             <div>
-              <p className={labelClass}>Per dose</p>
-              <input
+              <label htmlFor="med-per-dose" className={labelClass}>Per dose</label>
+              <input id="med-per-dose"
                 type="number"
                 min={0.5}
                 max={50}
@@ -634,7 +635,7 @@ function MedModal({ form, setForm, onSave, onClose, saving }) {
                   type="number"
                   min={1}
                   max={60}
-                  value={form.refillReminderDays}
+                  value={form.refillReminderDays} aria-label="Days left before reminding"
                   disabled={!form.remindRefill}
                   onChange={(e) => setForm({ ...form, refillReminderDays: e.target.value })}
                   className="px-2 py-1.5 rounded-lg text-sm outline-none w-16"

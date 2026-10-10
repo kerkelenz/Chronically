@@ -70,7 +70,7 @@ function ForgotPasswordPage() {
               <p className="text-white/70 text-xs">Enter your email and we'll send you a reset link.</p>
               <input
                 type="email"
-                placeholder="Email"
+                placeholder="Email" aria-label="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg text-sm text-white placeholder-white/60 outline-none glass-input transition-all duration-300"

@@ -1,14 +1,10 @@
 {
   "client": {
-    "errors": 82,
+    "errors": 28,
     "warnings": 5,
     "byRule": {
-      "chronically/control-has-name": {
-        "error": 46,
-        "warning": 0
-      },
       "jsx-a11y/click-events-have-key-events": {
-        "error": 8,
+        "error": 4,
         "warning": 0
       },
       "jsx-a11y/no-autofocus": {
@@ -16,7 +12,7 @@
         "warning": 0
       },
       "jsx-a11y/no-static-element-interactions": {
-        "error": 8,
+        "error": 4,
         "warning": 0
       },
       "react-hooks/exhaustive-deps": {
@@ -34,13 +30,9 @@
     }
   },
   "mobile": {
-    "errors": 32,
+    "errors": 0,
     "warnings": 38,
     "byRule": {
-      "chronically/control-has-name": {
-        "error": 32,
-        "warning": 0
-      },
       "import/first": {
         "error": 0,
         "warning": 28

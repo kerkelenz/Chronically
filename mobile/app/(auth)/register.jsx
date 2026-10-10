@@ -107,7 +107,7 @@ export default function RegisterScreen() {
               style={styles.input}
               value={username}
               onChangeText={setUsername}
-              placeholder="Username"
+              placeholder="Username" accessibilityLabel="Username"
               placeholderTextColor="rgba(255,255,255,0.45)"
               autoCapitalize="none"
               autoCorrect={false}
@@ -118,7 +118,7 @@ export default function RegisterScreen() {
               style={[styles.input, styles.inputSpaced]}
               value={email}
               onChangeText={setEmail}
-              placeholder="Email"
+              placeholder="Email" accessibilityLabel="Email"
               placeholderTextColor="rgba(255,255,255,0.45)"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -130,7 +130,7 @@ export default function RegisterScreen() {
               style={[styles.input, styles.inputSpaced]}
               value={password}
               onChangeText={setPassword}
-              placeholder="Password"
+              placeholder="Password" accessibilityLabel="Password"
               placeholderTextColor="rgba(255,255,255,0.45)"
               secureTextEntry
               autoCapitalize="none"
@@ -141,7 +141,7 @@ export default function RegisterScreen() {
               style={[styles.input, styles.inputSpaced]}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              placeholder="Confirm password"
+              placeholder="Confirm password" accessibilityLabel="Confirm password"
               placeholderTextColor="rgba(255,255,255,0.45)"
               secureTextEntry
               autoCapitalize="none"

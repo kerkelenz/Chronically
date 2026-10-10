@@ -160,7 +160,7 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
         style={styles.searchInput}
         value={search}
         onChangeText={setSearch}
-        placeholder="Search or add a symptom…"
+        placeholder="Search or add a symptom…" accessibilityLabel="Search or add a symptom"
         placeholderTextColor="rgba(255,255,255,0.4)"
         autoCapitalize="none"
         returnKeyType="done"
@@ -230,7 +230,7 @@ function ReviewRow({ label, value, labelMap, onEdit, emptyLabel = "Skipped" }) {
             words it as "No pain" so the review echoes the button that set it. */}
         <Text style={styles.reviewValue}>{value == null ? emptyLabel : labelMap[value]}</Text>
       </View>
-      <TouchableOpacity
+      <TouchableOpacity accessibilityLabel={`Edit ${label}`}
         style={styles.reviewSpacer}
         onPress={onEdit}
         activeOpacity={0.7}
@@ -760,7 +760,7 @@ export default function CheckInScreen() {
                       <View style={styles.reviewSymptomsBox}>
                         <View style={styles.reviewSymptomsHeader}>
                           <Text style={styles.reviewLabel}>Symptoms</Text>
-                          <TouchableOpacity
+                          <TouchableOpacity accessibilityLabel="Edit symptoms"
                             onPress={() => {
                               // pre-filled review edits the list; the normal
                               // flow restarts the symptom step from empty

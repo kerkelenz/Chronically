@@ -167,7 +167,7 @@ function RegisterPage() {
               <p className="text-white font-medium text-sm">Create account</p>
               <input
                 type="text"
-                placeholder="Username"
+                placeholder="Username" aria-label="Username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg text-sm text-white placeholder-white/60 outline-none glass-input transition-all duration-300"
@@ -178,7 +178,7 @@ function RegisterPage() {
               />
               <input
                 type="email"
-                placeholder="Email"
+                placeholder="Email" aria-label="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg text-sm text-white placeholder-white/60 outline-none glass-input transition-all duration-300"
@@ -189,7 +189,7 @@ function RegisterPage() {
               />
               <input
                 type="password"
-                placeholder="Password"
+                placeholder="Password" aria-label="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg text-sm text-white placeholder-white/60 outline-none glass-input transition-all duration-300"

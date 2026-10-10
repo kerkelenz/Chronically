@@ -130,7 +130,7 @@ export default function DoctorsSheet({ visible, onClose, doctors, onChanged }) {
                 style={formStyles.input}
                 value={form.name}
                 onChangeText={(v) => setForm((f) => ({ ...f, name: v }))}
-                placeholder="Dr. Smith"
+                placeholder="Dr. Smith" accessibilityLabel="Doctor name, required"
                 placeholderTextColor="rgba(255,255,255,0.3)"
                 autoCapitalize="words"
               />
@@ -139,7 +139,7 @@ export default function DoctorsSheet({ visible, onClose, doctors, onChanged }) {
                 style={formStyles.input}
                 value={form.specialty}
                 onChangeText={(v) => setForm((f) => ({ ...f, specialty: v }))}
-                placeholder="Neurology"
+                placeholder="Neurology" accessibilityLabel="Specialty"
                 placeholderTextColor="rgba(255,255,255,0.3)"
               />
               <Text style={formStyles.label}>Location</Text>
@@ -147,7 +147,7 @@ export default function DoctorsSheet({ visible, onClose, doctors, onChanged }) {
                 style={formStyles.input}
                 value={form.location}
                 onChangeText={(v) => setForm((f) => ({ ...f, location: v }))}
-                placeholder="Hospital or clinic name"
+                placeholder="Hospital or clinic name" accessibilityLabel="Location"
                 placeholderTextColor="rgba(255,255,255,0.3)"
               />
             </>
