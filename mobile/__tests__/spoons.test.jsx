@@ -1,11 +1,6 @@
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react-native";
 import SpoonCenterScreen from "../app/(tabs)/spoons";
 
-// The first test in this file pays for loading and first-rendering the whole
-// Spoons screen. On a CI runner that alone can pass jest's 5 s default, though
-// it takes about a second locally; every assertion still has to pass.
-jest.setTimeout(15000);
-
 // ── a fake API that behaves like the real one where it matters ──────────────
 const mockApi = { days: {}, weekDays: [], failPut: false, calls: [], nextId: 100 };
 
