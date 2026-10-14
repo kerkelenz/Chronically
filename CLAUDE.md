@@ -48,6 +48,7 @@ boot against the real database. There are no migration files.
   - `mobile/theme/flareHelpers.js` ↔ `client/src/utils/flareHelpers.js`
   - `mobile/theme/reportOptions.js` ↔ `client/src/utils/reportOptions.js`
   - `mobile/theme/trendHelpers.js` ↔ `client/src/utils/trendHelpers.js`
+  - `mobile/theme/tips.js` ↔ `client/src/utils/tips.js`
 - **Missed medication doses are computed at read time, never written as rows.**
   A `MedicationLog` row only ever means "taken" or "skipped".
 - **All six metrics use a 5 = best scale**, pain and anxiety included. Never
@@ -99,8 +100,8 @@ insights, no causal language about correlations.
 
 **Chronicle** is the mascot — a lavender bud companion, rendered via the inline
 `ChronicleMark` component on both platforms. He appears in the welcome overview,
-the insights empty state, milestone celebrations, announcement cards and the
-From Chronicle history, and deliberately nowhere else. He speaks as a companion
+the insights empty state, milestone celebrations, announcement cards, first-visit
+tips and the From Chronicle history, and deliberately nowhere else. He speaks as a companion
 who notices things, never as a product announcing features.
 
 ## Constraints

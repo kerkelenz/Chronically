@@ -2,8 +2,8 @@
 /**
  * The paired-file invariant from CLAUDE.md, enforced instead of remembered.
  *
- * Eight helpers exist twice, once per platform, and must be byte-identical. A
- * ninth pair is partial: METRIC_LABELS inside mobile/theme/metrics.js has to
+ * Nine helpers exist twice, once per platform, and must be byte-identical. A
+ * tenth pair is partial: METRIC_LABELS inside mobile/theme/metrics.js has to
  * match client/src/utils/metricLabels.js, while the rest of those files differ.
  *
  * Drift here is silent and nasty — the two apps quietly disagree about what a
@@ -26,6 +26,7 @@ const PAIRS = [
   ["mobile/theme/flareHelpers.js", "client/src/utils/flareHelpers.js"],
   ["mobile/theme/reportOptions.js", "client/src/utils/reportOptions.js"],
   ["mobile/theme/trendHelpers.js", "client/src/utils/trendHelpers.js"],
+  ["mobile/theme/tips.js", "client/src/utils/tips.js"],
 ];
 
 let failures = 0;

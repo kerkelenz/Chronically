@@ -8,6 +8,8 @@ import { useAuth } from "../hooks/useAuth";
 import { track } from "../lib/analytics";
 import Navigation from "../components/Navigation";
 import PageHeader from "../components/PageHeader";
+import TipsOverlay from "../components/TipsOverlay";
+import { useScreenTips } from "../lib/tipsStore";
 import FormModal, { ModalFooter, labelClass, ConfirmDialog } from "../components/FormModal";
 
 const API = import.meta.env.VITE_API_URL;
@@ -589,6 +591,11 @@ export default function SpoonCenterPage() {
   const [customCost,    setCustomCost]    = useState("");
   const [editingCosts,  setEditingCosts]  = useState(false);
 
+  // first-visit tips come after the baseline question, never on top of it
+  const tips = useScreenTips("spoons", {
+    blocked: loading || showBaseline || showAdd || showBudgetEdit || showNoteEditor || clearConfirm,
+  });
+
   // loadDay's closure predates the month fetch, so it reads the map through a ref
   const monthDaysRef = useRef(null);
 
@@ -1147,6 +1154,7 @@ export default function SpoonCenterPage() {
           <>
             {/* Budget ring card */}
             <div
+              data-tip="spoons.ring"
               className="rounded-2xl p-6 flex flex-col items-center gap-3"
               style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
             >
@@ -1178,6 +1186,7 @@ export default function SpoonCenterPage() {
         {/* Calendar — outside the day's loading branch so switching days never
             takes the grid away mid-navigation */}
         <div
+          data-tip="spoons.calendar"
           className="rounded-2xl px-5 py-4"
           style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
         >
@@ -1281,6 +1290,7 @@ export default function SpoonCenterPage() {
 
             {/* Activity list */}
             <div
+              data-tip="spoons.activities"
               className="rounded-2xl overflow-hidden"
               style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
             >
@@ -1749,6 +1759,8 @@ export default function SpoonCenterPage() {
       )}
 
       <Navigation />
+
+      {tips.show && <TipsOverlay screen="spoons" tipsSeen={tips.tipsSeen} onDone={tips.done} />}
     </div>
   );
 }

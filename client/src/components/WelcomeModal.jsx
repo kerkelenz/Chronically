@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { refreshTips } from "../lib/tipsStore";
 import { useAuth } from "../hooks/useAuth";
 import axios from "axios";
 import { track } from "../lib/analytics";
@@ -46,6 +47,8 @@ export default function WelcomeModal({ onClose }) {
     } catch {
       // non-fatal — still dismiss locally
     }
+    // closing the welcome is what enrols a new account in first-visit tips
+    refreshTips();
     track("welcome_completed");
     updateUser({ ...user, hasSeenWelcome: true });
     onClose();

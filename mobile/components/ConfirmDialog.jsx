@@ -1,5 +1,6 @@
 import { Modal, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from "react-native";
 import { PLUM } from "./FormSheet";
+import { useRegisterOverlay } from "../lib/overlayStack";
 
 /**
  * Centered, frosted confirmation for destructive actions. Interrupts (never
@@ -18,6 +19,8 @@ export default function ConfirmDialog({
   busy = false,
   error,
 }) {
+  // while open, first-visit tips wait
+  useRegisterOverlay(!!visible);
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
       <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={onCancel}>

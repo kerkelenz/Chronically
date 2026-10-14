@@ -22,6 +22,8 @@ import {
   HELPED_CHOICES,
 } from "../utils/medicationHelpers";
 import { MedicationTypeIcon } from "../components/SymptomIcon";
+import TipsOverlay from "../components/TipsOverlay";
+import { useScreenTips } from "../lib/tipsStore";
 
 const EMPTY_FORM = {
   name: "",
@@ -677,6 +679,9 @@ function MedicationsPage() {
   const hdrs = { Authorization: `Bearer ${token}` };
   const today = new Date().toLocaleDateString("en-CA");
   const weekDates = lastNDates(7, today);
+  const tips = useScreenTips("medications", {
+    blocked: loading || showModal || deleteConfirm !== null || refillFor !== null || historyFor !== null,
+  });
 
   // One range call covers both zones: today's checklist reads the today slice,
   // the cabinet dots read the whole week.
@@ -1141,6 +1146,7 @@ function MedicationsPage() {
           actions={
             <>
               <button
+                data-tip="meds.add"
                 onClick={openAdd}
                 className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:opacity-90"
                 style={{ background: "rgba(255,255,255,0.25)", color: "white", border: "1px solid rgba(255,255,255,0.4)" }}
@@ -1193,7 +1199,7 @@ function MedicationsPage() {
               <p className="text-xs uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>
                 Today
               </p>
-              <div className="p-4 rounded-2xl" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}>
+              <div className="p-4 rounded-2xl" data-tip="meds.today" style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}>
                 {activeMeds.length === 0 ? (
                   <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>
                     No active medications yet. Tap Add to create one.
@@ -1367,6 +1373,7 @@ function MedicationsPage() {
             {medications.length > 0 && (
               <div className="flex flex-col gap-3">
                 <button
+                  data-tip="meds.cabinet"
                   onClick={() => setCabinetOpen((o) => !o)}
                   aria-expanded={cabinetOpen}
                   className="flex items-center gap-1.5 text-left w-fit"
@@ -1489,6 +1496,8 @@ function MedicationsPage() {
       />
 
       <Navigation />
+
+      {tips.show && <TipsOverlay screen="medications" tipsSeen={tips.tipsSeen} onDone={tips.done} />}
     </div>
   );
 }

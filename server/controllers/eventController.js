@@ -9,6 +9,8 @@ const ALLOWED = new Set([
   "feedback_sent",
   "welcome_completed",
   "spoon_day_planned",
+  // once per tips sequence; which screen and how it ended ride as metadata
+  "tips_closed",
 ]);
 
 const MAX_BATCH = 20;

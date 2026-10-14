@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -35,6 +35,11 @@ import {
   getPermissionState,
 } from "../../lib/pushNotifications";
 import { setPushDeclined } from "../../lib/storage";
+import TipAnchor from "../../components/TipAnchor";
+import TipsOverlay from "../../components/TipsOverlay";
+import { useScreenTips, useTipsState, resetTips } from "../../lib/tipsStore";
+import { useTipScroll } from "../../lib/tipAnchors";
+import { tipsRowLabel } from "../../theme/tips";
 
 export default function ProfileScreen() {
   const { user, signOut, updateUser } = useAuth();
@@ -157,6 +162,26 @@ export default function ProfileScreen() {
   const [reportSending, setReportSending] = useState(false);
   const [reportError, setReportError] = useState("");
   const [reportSent, setReportSent] = useState(false);
+
+  // ── First-visit tips ──────────────────────────────────────────────────────
+  const tipScroll = useTipScroll();
+  const tips = useScreenTips("profile", {
+    blocked: showTracking || showWeather || showDeleteModal || showReport,
+  });
+  const tipsState = useTipsState();
+  const [tipsNote, setTipsNote] = useState(null); // { ok, text }
+  const tipsNoteTimer = useRef(null);
+  useEffect(() => () => clearTimeout(tipsNoteTimer.current), []);
+  const showTipsAgain = async () => {
+    clearTimeout(tipsNoteTimer.current);
+    try {
+      await resetTips();
+      setTipsNote({ ok: true, text: "Tips will appear the next time you open each screen." });
+    } catch {
+      setTipsNote({ ok: false, text: "Couldn't do that just now. Please try again." });
+    }
+    tipsNoteTimer.current = setTimeout(() => setTipsNote(null), 5000);
+  };
 
   const hasChanges =
     username !== (user?.username || "") || email !== (user?.email || "");
@@ -281,6 +306,9 @@ export default function ProfileScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
+          ref={tipScroll.scrollRef}
+          onScroll={tipScroll.onScroll}
+          scrollEventThrottle={16}
           style={{ flex: 1 }}
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
@@ -404,6 +432,7 @@ export default function ProfileScreen() {
           )}
 
           {/* ── Notifications ─────────────────────────────────────────────── */}
+          <TipAnchor id="profile.notifications">
           <View style={styles.card}>
             <Text style={styles.sectionLabel}>Notifications</Text>
 
@@ -551,6 +580,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             )}
           </View>
+          </TipAnchor>
 
           {/* ── Account / danger section ──────────────────────────────────── */}
           <View style={styles.card}>
@@ -571,16 +601,18 @@ export default function ProfileScreen() {
               <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
             </TouchableOpacity>
             {/* Changes what's offered first, never what exists */}
-            <TouchableOpacity
-              style={[styles.legalRow, styles.chevronRow]}
-              onPress={() => setShowTracking(true)}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={`Tracking focus, ${trackingLabel(trackingMode)}`}
-            >
-              <Text style={styles.legalText}>Tracking focus</Text>
-              <Text style={styles.rowValue} numberOfLines={1}>{trackingLabel(trackingMode)}</Text>
-            </TouchableOpacity>
+            <TipAnchor id="profile.tracking">
+              <TouchableOpacity
+                style={[styles.legalRow, styles.chevronRow]}
+                onPress={() => setShowTracking(true)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Tracking focus, ${trackingLabel(trackingMode)}`}
+              >
+                <Text style={styles.legalText}>Tracking focus</Text>
+                <Text style={styles.rowValue} numberOfLines={1}>{trackingLabel(trackingMode)}</Text>
+              </TouchableOpacity>
+            </TipAnchor>
             {/* Typed city, never GPS — so there is no OS permission prompt */}
             <TouchableOpacity
               style={[styles.legalRow, styles.chevronRow]}
@@ -594,14 +626,38 @@ export default function ProfileScreen() {
                 {weatherLocation || "Not set"}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.legalRow, styles.chevronRow]}
-              onPress={() => router.push("/chronicle")}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.legalText}>From Chronicle</Text>
-              <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
-            </TouchableOpacity>
+            <TipAnchor id="profile.chronicle">
+              <TouchableOpacity
+                style={[styles.legalRow, styles.chevronRow]}
+                onPress={() => router.push("/chronicle")}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.legalText}>From Chronicle</Text>
+                <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
+              </TouchableOpacity>
+            </TipAnchor>
+            {/* the way back to first-visit tips, and the only way in for an
+                account that finished the welcome before they existed */}
+            <TipAnchor id="profile.tips">
+              <TouchableOpacity
+                style={[styles.legalRow, styles.chevronRow]}
+                onPress={showTipsAgain}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={tipsRowLabel(tipsState.tipsSeen)}
+              >
+                <Text style={styles.legalText}>{tipsRowLabel(tipsState.tipsSeen)}</Text>
+                <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
+              </TouchableOpacity>
+              {tipsNote ? (
+                <Text
+                  accessibilityLiveRegion="polite"
+                  style={[styles.tipsNote, !tipsNote.ok && { color: SOFT_ERROR }]}
+                >
+                  {tipsNote.text}
+                </Text>
+              ) : null}
+            </TipAnchor>
             <TouchableOpacity
               style={styles.legalRow}
               onPress={() => openLink("https://mychronically.app/privacy")}
@@ -725,6 +781,9 @@ export default function ProfileScreen() {
         busy={deleteLoading}
         error={deleteError}
       />
+      {tips.show && (
+        <TipsOverlay screen="profile" tipsSeen={tips.tipsSeen} onDone={tips.done} scroll={tipScroll} />
+      )}
     </ScreenBackground>
   );
 }
@@ -869,6 +928,13 @@ const styles = StyleSheet.create({
   supportBtn: { backgroundColor: "white", borderRadius: 22, paddingVertical: 12, alignItems: "center" },
   supportBtnText: { fontFamily: "Lato_700Bold", fontSize: 15, color: "#5A3A60" },
 
+  tipsNote: {
+    fontFamily: "Lato_400Regular",
+    fontSize: 13,
+    color: "rgba(255,255,255,0.7)",
+    paddingTop: 6,
+    paddingBottom: 10,
+  },
   legalRow: {
     paddingVertical: 12,
     borderBottomWidth: 1,

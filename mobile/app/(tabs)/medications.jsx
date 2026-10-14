@@ -22,6 +22,10 @@ import ScreenBackground from "../../components/ScreenBackground";
 import api from "../../lib/api";
 import { track } from "../../lib/analytics";
 import { MedicationTypeIcon } from "../../components/SymptomIcon";
+import TipAnchor from "../../components/TipAnchor";
+import TipsOverlay from "../../components/TipsOverlay";
+import { useScreenTips } from "../../lib/tipsStore";
+import { useTipScroll } from "../../lib/tipAnchors";
 import {
   SKIP_REASONS,
   formatTime,
@@ -915,6 +919,12 @@ export default function MedicationsScreen() {
   const [refillError, setRefillError] = useState("");
   const [deleting, setDeleting] = useState(false);
 
+  const tipScroll = useTipScroll();
+  const tips = useScreenTips("medications", {
+    blocked: loading || !!error || showModal || deleteConfirm !== null || refillFor !== null ||
+      historyFor !== null || helpedPrompt !== null,
+  });
+
   const isFirstLoadRef = useRef(true);
   const today = new Date().toLocaleDateString("en-CA");
   const weekDates = lastNDates(7, today);
@@ -1326,6 +1336,9 @@ export default function MedicationsScreen() {
   return (
     <ScreenBackground edges={["top", "left", "right"]}>
       <ScrollView
+        ref={tipScroll.scrollRef}
+        onScroll={tipScroll.onScroll}
+        scrollEventThrottle={16}
         style={{ flex: 1 }}
         contentContainerStyle={styles.scroll}
         refreshControl={
@@ -1340,14 +1353,16 @@ export default function MedicationsScreen() {
         {/* Page header + Add button */}
         <View style={styles.pageHeader}>
           <Text style={styles.pageTitle}>Medications</Text>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={openAdd}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={15} color="white" />
-            <Text style={styles.addBtnText}>Add</Text>
-          </TouchableOpacity>
+          <TipAnchor id="meds.add">
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={openAdd}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={15} color="white" />
+              <Text style={styles.addBtnText}>Add</Text>
+            </TouchableOpacity>
+          </TipAnchor>
         </View>
 
         {error && (
@@ -1360,6 +1375,7 @@ export default function MedicationsScreen() {
         )}
 
         {/* ── Zone 1: Today ─────────────────────────────────────────────────── */}
+        <TipAnchor id="meds.today">
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Today</Text>
 
@@ -1513,27 +1529,30 @@ export default function MedicationsScreen() {
             </>
           )}
         </View>
+        </TipAnchor>
 
         {/* ── Zone 2: Medicine cabinet (collapsed by default) ───────────────── */}
         {medications.length > 0 && (
           <>
-            <TouchableOpacity
-              style={styles.cabinetHeader}
-              onPress={() => setCabinetOpen((o) => !o)}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: cabinetOpen }}
-              accessibilityLabel={`Medicine cabinet, ${activeMeds.length} active medication${activeMeds.length === 1 ? "" : "s"}`}
-            >
-              <Text style={styles.regimenTitle}>
-                Medicine cabinet ({activeMeds.length})
-              </Text>
-              <Ionicons
-                name={cabinetOpen ? "chevron-down" : "chevron-forward"}
-                size={18}
-                color="rgba(255,255,255,0.7)"
-              />
-            </TouchableOpacity>
+            <TipAnchor id="meds.cabinet">
+              <TouchableOpacity
+                style={styles.cabinetHeader}
+                onPress={() => setCabinetOpen((o) => !o)}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: cabinetOpen }}
+                accessibilityLabel={`Medicine cabinet, ${activeMeds.length} active medication${activeMeds.length === 1 ? "" : "s"}`}
+              >
+                <Text style={styles.regimenTitle}>
+                  Medicine cabinet ({activeMeds.length})
+                </Text>
+                <Ionicons
+                  name={cabinetOpen ? "chevron-down" : "chevron-forward"}
+                  size={18}
+                  color="rgba(255,255,255,0.7)"
+                />
+              </TouchableOpacity>
+            </TipAnchor>
 
             {cabinetOpen && (
               <>
@@ -1673,6 +1692,9 @@ export default function MedicationsScreen() {
         onConfirm={() => handleDelete(deleteConfirm)}
         busy={deleting}
       />
+      {tips.show && (
+        <TipsOverlay screen="medications" tipsSeen={tips.tipsSeen} onDone={tips.done} scroll={tipScroll} />
+      )}
     </ScreenBackground>
   );
 }

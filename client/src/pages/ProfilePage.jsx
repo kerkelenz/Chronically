@@ -14,6 +14,9 @@ import { PLUM, PLUM_TINT, SOFT_ERROR } from "../components/FormModal";
 import { SUPPORT_ROW_LABEL } from "../utils/supportResources";
 import TrackingFocusModal from "../components/TrackingFocusModal";
 import { trackingLabel } from "../utils/trackingFocus";
+import TipsOverlay from "../components/TipsOverlay";
+import { useScreenTips, useTipsState, resetTips } from "../lib/tipsStore";
+import { tipsRowLabel } from "../utils/tips";
 
 function getCroppedImg(imageSrc, croppedAreaPixels) {
   return new Promise((resolve, reject) => {
@@ -160,6 +163,24 @@ function ProfilePage() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [savingAvatar, setSavingAvatar] = useState(false);
   const [cropError, setCropError] = useState("");
+
+  // ── First-visit tips ─────────────────────────────────────────────────────
+  const tips = useScreenTips("profile", {
+    blocked: showTracking || showWeather || showDeleteModal || showReportModal || showCropModal,
+  });
+  const tipsState = useTipsState();
+  const [tipsNote, setTipsNote] = useState(null); // { ok, text }
+  const tipsNoteTimer = useRef(null);
+  const showTipsAgain = async () => {
+    clearTimeout(tipsNoteTimer.current);
+    try {
+      await resetTips();
+      setTipsNote({ ok: true, text: "Tips will appear the next time you open each screen." });
+    } catch {
+      setTipsNote({ ok: false, text: "Couldn't do that just now. Please try again." });
+    }
+    tipsNoteTimer.current = setTimeout(() => setTipsNote(null), 5000);
+  };
 
   const hasChanges =
     username !== (user?.username || "") || email !== (user?.email || "");
@@ -444,6 +465,7 @@ function ProfilePage() {
         {/* Notifications — the toggles are account-wide, so they take effect on
             the phone even though the browser itself never receives a push */}
         <div
+          data-tip="profile.notifications"
           className="rounded-2xl p-4 mb-4"
           style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
         >
@@ -536,6 +558,7 @@ function ProfilePage() {
           </button>
           {/* Changes what's offered first, never what exists */}
           <button
+            data-tip="profile.tracking"
             onClick={() => setShowTracking(true)}
             className="w-full px-4 py-3 text-left text-sm flex justify-between items-center gap-3 transition-colors hover:bg-white/10"
             style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.2)" }}
@@ -559,6 +582,7 @@ function ProfilePage() {
           {/* The permanent record — dismissing a card clears the dashboard,
               it doesn't destroy the message */}
           <button
+            data-tip="profile.chronicle"
             onClick={() => navigate("/chronicle")}
             className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
             style={{ color: "rgba(255,255,255,0.8)", borderBottom: "1px solid rgba(255,255,255,0.2)" }}
@@ -566,6 +590,26 @@ function ProfilePage() {
             From Chronicle
             <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
           </button>
+          {/* the way back to first-visit tips, and the only way in for an
+              account that finished the welcome before they existed */}
+          <div data-tip="profile.tips" style={{ borderBottom: "1px solid rgba(255,255,255,0.2)" }}>
+            <button
+              onClick={showTipsAgain}
+              aria-label={tipsRowLabel(tipsState.tipsSeen)}
+              className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
+              style={{ color: "rgba(255,255,255,0.8)" }}
+            >
+              {tipsRowLabel(tipsState.tipsSeen)}
+              <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
+            </button>
+            <p
+              aria-live="polite"
+              className="px-4 text-xs"
+              style={{ color: tipsNote?.ok ? "rgba(255,255,255,0.7)" : SOFT_ERROR, paddingBottom: tipsNote ? 10 : 0 }}
+            >
+              {tipsNote?.text || ""}
+            </p>
+          </div>
           <button
             onClick={() => navigate("/privacy")}
             className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
@@ -826,6 +870,8 @@ function ProfilePage() {
       />
 
       <Navigation />
+
+      {tips.show && <TipsOverlay screen="profile" tipsSeen={tips.tipsSeen} onDone={tips.done} />}
     </div>
   );
 }

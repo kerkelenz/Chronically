@@ -22,6 +22,10 @@ import Svg, { Circle } from "react-native-svg";
 import ScreenBackground from "../../components/ScreenBackground";
 import Card from "../../components/Card";
 import api from "../../lib/api";
+import TipAnchor from "../../components/TipAnchor";
+import TipsOverlay from "../../components/TipsOverlay";
+import { useScreenTips } from "../../lib/tipsStore";
+import { useTipScroll } from "../../lib/tipAnchors";
 import { track } from "../../lib/analytics";
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
@@ -555,6 +559,8 @@ export default function SpoonCenterScreen() {
   const [showNoteEditor, setShowNoteEditor] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [clearConfirm, setClearConfirm] = useState(false);
+  // first-visit tips come after the baseline question, never on top of it
+  const tipScroll = useTipScroll();
   // the 17:00 gate is re-read on focus, so coming back to the app in the
   // evening shows the card without a reload
   const [nowHour, setNowHour] = useState(new Date().getHours());
@@ -1064,6 +1070,10 @@ export default function SpoonCenterScreen() {
 
   // ── Loading state ──────────────────────────────────────────────────────────
 
+  const tips = useScreenTips("spoons", {
+    blocked: loading || showBaseline || showAdd || showBudget || showNoteEditor || clearConfirm,
+  });
+
   if (loading && !day) {
     return (
       <ScreenBackground edges={["top", "left", "right"]}>
@@ -1080,6 +1090,9 @@ export default function SpoonCenterScreen() {
   return (
     <ScreenBackground edges={["top", "left", "right"]}>
       <ScrollView
+        ref={tipScroll.scrollRef}
+        onScroll={tipScroll.onScroll}
+        scrollEventThrottle={16}
         style={{ flex: 1 }}
         contentContainerStyle={[styles.scroll, { paddingBottom: bottomPad }]}
         showsVerticalScrollIndicator={false}
@@ -1145,6 +1158,7 @@ export default function SpoonCenterScreen() {
             </View>
           </Card>
         ) : (
+          <TipAnchor id="spoons.ring">
           <Card style={styles.ringCard}>
             <BudgetRing spent={spent} budget={day.budget} />
             {isToday &&
@@ -1173,10 +1187,12 @@ export default function SpoonCenterScreen() {
               </Text>
             </TouchableOpacity>
           </Card>
+          </TipAnchor>
         )}
 
         {/* Calendar — outside the day's loading branch so switching days never
             takes the grid away mid-navigation */}
+        <TipAnchor id="spoons.calendar">
         <Card>
           {/* the label is the collapse target; the chevron is its own so the
               Week | Month control can sit between them */}
@@ -1257,6 +1273,7 @@ export default function SpoonCenterScreen() {
             </View>
           )}
         </Card>
+        </TipAnchor>
 
         {!loading && day && (
           <>
@@ -1270,6 +1287,7 @@ export default function SpoonCenterScreen() {
             )}
 
             {/* Activity list */}
+            <TipAnchor id="spoons.activities">
             <Card style={{ padding: 0, overflow: "hidden" }}>
               {entries.length === 0 ? (
                 <View style={styles.emptyState}>
@@ -1383,6 +1401,7 @@ export default function SpoonCenterScreen() {
                 </>
               )}
             </Card>
+            </TipAnchor>
 
             {/* End-of-day reflection */}
             {showReflection && (
@@ -1727,6 +1746,9 @@ export default function SpoonCenterScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      {tips.show && (
+        <TipsOverlay screen="spoons" tipsSeen={tips.tipsSeen} onDone={tips.done} scroll={tipScroll} />
+      )}
     </ScreenBackground>
   );
 }

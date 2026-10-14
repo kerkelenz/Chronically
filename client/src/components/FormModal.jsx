@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useRegisterOverlay } from "../lib/overlayStack";
 
 /**
  * Shared shell for the app's add/edit dialogs — the web twin of mobile's
@@ -55,6 +56,8 @@ export default function FormModal({
   // drives the open pose one frame after mount so the CSS transition runs.
   const [mounted, setMounted] = useState(open);
   const [entered, setEntered] = useState(false);
+  // while open, first-visit tips wait
+  useRegisterOverlay(mounted);
 
   useEffect(() => {
     if (open && !mounted) setMounted(true);
@@ -218,6 +221,7 @@ export function ConfirmDialog({
 }) {
   const [mounted, setMounted] = useState(open);
   const [entered, setEntered] = useState(false);
+  useRegisterOverlay(mounted);
 
   useEffect(() => {
     if (open && !mounted) setMounted(true);

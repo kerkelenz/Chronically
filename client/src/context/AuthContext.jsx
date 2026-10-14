@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import * as Sentry from "@sentry/react";
 import { setAnalyticsToken, trackSession } from "../lib/analytics";
 import { AuthContext } from "../hooks/useAuth";
+import { setTipsToken } from "../lib/tipsStore";
 
 const INACTIVITY_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -17,6 +18,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem("user", JSON.stringify(userData));
     localStorage.setItem("lastActive", Date.now().toString());
     setAnalyticsToken(tokenData);
+    setTipsToken(tokenData);
     // numeric id only — no email/name attached to error reports
     if (userData?.id) Sentry.setUser({ id: userData.id });
     trackSession();
@@ -26,6 +28,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     setToken(null);
     setAnalyticsToken(null);
+    setTipsToken(null);
     Sentry.setUser(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -53,6 +56,7 @@ export function AuthProvider({ children }) {
         setUser(savedUser);
         localStorage.setItem("lastActive", Date.now().toString());
         setAnalyticsToken(savedToken);
+        setTipsToken(savedToken);
         if (savedUser?.id) Sentry.setUser({ id: savedUser.id });
         trackSession();
       }

@@ -8,6 +8,8 @@ import { COMMON_SYMPTOMS, COMMON_MENTAL_SYMPTOMS, SYMPTOM_CATALOG } from "../uti
 import { SymptomIcon } from "./SymptomIcon";
 import { SUPPORT_TOAST_LINK } from "../utils/supportResources";
 import { METRIC_LABELS } from "../utils/metricLabels";
+import TipsOverlay from "./TipsOverlay";
+import { useScreenTips } from "../lib/tipsStore";
 
 // Mirrors NOTE_MAX in server/lib/checkInNote.js, which is the authority and has
 // the test. Both maxLength counts and the server measure the same UTF-16 units,
@@ -454,7 +456,7 @@ function SymptomPicker({ selected, onToggle, search, setSearch, recents, onAddCu
 
 function LevelButtons({ labels, selected, onSelect }) {
   return (
-    <div className="grid grid-cols-2 gap-3 w-full">
+    <div className="grid grid-cols-2 gap-3 w-full" data-tip="checkin.levels">
       {[1, 2, 3, 4].map((level) => (
         <button
           key={level}
@@ -550,6 +552,11 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
   // This responds to an explicit choice — the app never infers a state.
   const [toastSupport, setToastSupport] = useState(false);
   const toastTimerRef = useRef(null);
+  // first-visit tips: a fresh check-in only, on its first question, never
+  // under a toast or the confetti — and never over "Same as last time"
+  const tips = useScreenTips("checkin", {
+    blocked: prefilled || step !== firstStep || !!toastMessage || step === 8,
+  });
 
   // fetch the user's personal recent symptoms; silent-fail to none
   useEffect(() => {
@@ -743,6 +750,8 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
 
       {step === 8 && <LavenderConfetti />}
 
+      {tips.show && <TipsOverlay screen="checkin" tipsSeen={tips.tipsSeen} onDone={tips.done} />}
+
       <div
         className="relative z-10 flex flex-col items-center gap-6 w-full max-w-md px-6"
         style={{ maxHeight: "90vh" }}
@@ -802,6 +811,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
               onSelect={(level) => chooseMetric("sleep", level)}
             />
             <button
+              data-tip="checkin.skip"
               onClick={skipSleepStep}
               className="text-white/50 text-xs hover:text-white/80 transition-colors"
             >
@@ -1082,6 +1092,7 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
               </button>
             )}
             <button
+              data-tip="checkin.cancel"
               onClick={onClose}
               className="text-white/50 text-xs hover:text-white/80 transition-colors"
             >

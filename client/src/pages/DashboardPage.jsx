@@ -27,6 +27,8 @@ const FLARE_CARD_BG = "rgba(52,38,86,0.98)";
 import AnnouncementCard from "../components/AnnouncementCard";
 import { formatWeatherLine, deviceLocale } from "../utils/weatherFormat";
 import { MILESTONES, totalCheckInDays } from "../utils/milestones";
+import TipsOverlay from "../components/TipsOverlay";
+import { useScreenTips } from "../lib/tipsStore";
 
 const BAR_HEIGHTS = [8, 10, 12, 14, 16];
 const COLORS_BETTER = [
@@ -280,6 +282,13 @@ function DashboardPage() {
   const showCheckInPrompt = checkIns.length === 0 || !todaysDone;
   const offerFlare = flares !== null && !flares.some((f) => !f.endDate);
 
+  // First-visit tips wait for everything that already competes for this screen:
+  // the welcome, a milestone, an announcement, and any dialog or sheet.
+  const tips = useScreenTips("dashboard", {
+    blocked: loading || showWelcome || celebrationMilestone !== null || announcement !== null ||
+      showCheckIn || editingCheckIn !== null || flareView !== null || deleteCheckInId !== null || customizeOpen,
+  });
+
   return (
     <div
       className="min-h-screen"
@@ -350,6 +359,7 @@ function DashboardPage() {
               It only takes a moment.
             </p>
             <button
+              data-tip="dashboard.checkin"
               onClick={() => { setCheckInPrefill(null); setShowCheckIn(true); }}
               className="mt-2 px-8 py-3 rounded-full text-white font-medium hover:scale-105 transition-all duration-200 shockwave-btn"
               style={{ background: "rgba(255,255,255,0.25)" }}
@@ -373,6 +383,7 @@ function DashboardPage() {
                 )}
                 {offerFlare && (
                   <button
+                    data-tip="dashboard.flare"
                     onClick={() => setFlareView("start")}
                     className="text-sm text-white/70 hover:text-white transition-colors min-h-[44px] px-3"
                   >
@@ -410,6 +421,7 @@ function DashboardPage() {
             return (
               <div className="flex justify-center">
                 <button
+                  data-tip="dashboard.flare"
                   onClick={() => setFlareView("start")}
                   className="text-sm text-white/70 hover:text-white transition-colors min-h-[44px] px-4"
                 >
@@ -420,6 +432,7 @@ function DashboardPage() {
           }
           return (
             <div
+              data-tip="dashboard.flare"
               className="w-full p-4 rounded-2xl flex flex-col gap-3"
               style={{ background: FLARE_CARD_BG, border: "1px solid rgba(255,255,255,0.18)" }}
               aria-label={flareCardLabel(ongoing.startDate, today)}
@@ -514,7 +527,7 @@ function DashboardPage() {
                   <p className="text-xs uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>
                     Last 14 days
                   </p>
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3" data-tip="dashboard.dials">
                     {/* Circular progress dials */}
                     <div className="grid grid-cols-3 sm:grid-cols-6 gap-x-2 gap-y-4 items-start py-3">
                       {dials.map(({ label, value, color }) => {
@@ -1075,6 +1088,8 @@ function DashboardPage() {
       )}
 
       {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
+
+      {tips.show && <TipsOverlay screen="dashboard" tipsSeen={tips.tipsSeen} onDone={tips.done} />}
 
       <ConfirmDialog
         open={!!deleteCheckInId}

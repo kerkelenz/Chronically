@@ -24,6 +24,10 @@ import {
   COMPARISON_CAPTION, COMPARISON_NONE,
 } from "../../theme/trendHelpers";
 import ChronicleMark from "../../components/ChronicleMark";
+import TipAnchor from "../../components/TipAnchor";
+import TipsOverlay from "../../components/TipsOverlay";
+import { useScreenTips } from "../../lib/tipsStore";
+import { useTipScroll } from "../../lib/tipAnchors";
 // Adherence via the shared computed-missed engine math, so the charts, the
 // cabinet dots, and the doctor report can never disagree. Follows the range.
 function getAdherenceView(medications, medLogs, win) {
@@ -65,6 +69,8 @@ export default function TrendsScreen() {
   const requestId = useRef(0);
   const rangeRef = useRef(DEFAULT_RANGE_DAYS);
   const hasViewRef = useRef(false);
+  const tipScroll = useTipScroll();
+  const tips = useScreenTips("trends", { blocked: loading || showFlares });
 
   async function fetchFlares() {
     try {
@@ -175,6 +181,9 @@ export default function TrendsScreen() {
   return (
     <ScreenBackground edges={["top", "left", "right"]}>
       <ScrollView
+        ref={tipScroll.scrollRef}
+        onScroll={tipScroll.onScroll}
+        scrollEventThrottle={16}
         style={{ flex: 1 }}
         contentContainerStyle={styles.scroll}
         refreshControl={
@@ -201,6 +210,7 @@ export default function TrendsScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        <TipAnchor id="trends.range">
         <View style={styles.timeframePills}>
           {TREND_RANGES.map((r) => {
             const selected = rangeDays === r.days;
@@ -220,6 +230,7 @@ export default function TrendsScreen() {
             );
           })}
         </View>
+        </TipAnchor>
 
         {error && (
           <View style={[styles.card, styles.errorCard]}>
@@ -232,6 +243,7 @@ export default function TrendsScreen() {
 
         {/* ── Insights ─────────────────────────────────────────────────────── */}
         {insights && (
+          <TipAnchor id="trends.insights">
           <View style={styles.insightsSection}>
             <Text style={styles.adherenceHeader}>Insights</Text>
             {insights.cards.length > 0 ? (
@@ -258,6 +270,7 @@ export default function TrendsScreen() {
               </Text>
             )}
           </View>
+          </TipAnchor>
         )}
 
         {/* ── Health metrics chart ─────────────────────────────────────────── */}
@@ -269,6 +282,7 @@ export default function TrendsScreen() {
           </View>
         ) : summary ? (
           <View style={{ opacity: switching ? 0.55 : 1 }}>
+            <TipAnchor id="trends.chart">
             <View style={styles.card}>
               <Text style={styles.cardSubtitle}>
                 Energy · Mood · Pain · Anxiety · Appetite · Sleep
@@ -285,6 +299,7 @@ export default function TrendsScreen() {
                 />
               )}
             </View>
+            </TipAnchor>
 
             {/* ── Period comparison — numbers and day counts only ─────────── */}
             {rows.length > 0 ? (
@@ -345,6 +360,10 @@ export default function TrendsScreen() {
           );
         })()}
       </ScrollView>
+
+      {tips.show && (
+        <TipsOverlay screen="trends" tipsSeen={tips.tipsSeen} onDone={tips.done} scroll={tipScroll} />
+      )}
 
       {showFlares ? (
         <FlaresSheet

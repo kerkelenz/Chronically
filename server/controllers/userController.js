@@ -1,6 +1,8 @@
 const crypto = require("crypto");
 const { Resend } = require("resend");
 const User = require("../models/User");
+const { sequelize } = require("../config/db");
+const { TIP_SCREENS, normalizeTipsSeen, markScreenSeen, resetTips } = require("../lib/tips");
 const { searchPlaces, roundCoord, placeLabel } = require("../lib/weather");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -297,6 +299,13 @@ const updateTrackingMode = async (req, res) => {
 
 const markWelcomeSeen = async (req, res) => {
   try {
+    // Closing the welcome is what enrols an account in first-visit tips — but
+    // only one that hadn't finished it before and was never enrolled. Anyone
+    // who finished the welcome before tips existed stays null (no tips).
+    await User.update(
+      { tipsSeen: resetTips() },
+      { where: { id: req.user.id, hasSeenWelcome: false, tipsSeen: null } },
+    );
     await User.update({ hasSeenWelcome: true }, { where: { id: req.user.id } });
     res.status(200).json({ hasSeenWelcome: true });
   } catch (error) {
@@ -305,4 +314,56 @@ const markWelcomeSeen = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen, updateNotificationPrefs, updateTimezone, searchWeatherLocation, clearWeatherLocation, updateTrackingMode };
+// ── First-visit tips ───────────────────────────────────────────────────────
+// Read fresh on every call rather than from the cached profile, so phone and
+// web agree. Writes are read-modify-write under a row lock, so two marks
+// landing together (web and phone) can't drop one another's key.
+
+const getTips = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, { attributes: ["id", "tipsSeen"] });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.status(200).json({ tipsSeen: normalizeTipsSeen(user.tipsSeen) });
+  } catch (error) {
+    console.error("Get tips error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+const markTipsSeen = async (req, res) => {
+  const { screen } = req.params;
+  if (!TIP_SCREENS.includes(screen)) return res.status(400).json({ error: "Unknown screen" });
+  try {
+    const tipsSeen = await sequelize.transaction(async (t) => {
+      const user = await User.findByPk(req.user.id, {
+        attributes: ["id", "tipsSeen"], transaction: t, lock: t.LOCK.UPDATE,
+      });
+      if (!user) return undefined;
+      const next = markScreenSeen(user.tipsSeen, screen);
+      // a null state stays null — marking never enrols anyone
+      if (next !== null) await User.update({ tipsSeen: next }, { where: { id: req.user.id }, transaction: t });
+      return next;
+    });
+    if (tipsSeen === undefined) return res.status(404).json({ error: "User not found" });
+    res.status(200).json({ tipsSeen });
+  } catch (error) {
+    console.error("Mark tips seen error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+// Profile's "Show tips": enrols (or re-enrols) this account with nothing seen
+const resetTipsSeen = async (req, res) => {
+  try {
+    await sequelize.transaction(async (t) => {
+      await User.findByPk(req.user.id, { attributes: ["id"], transaction: t, lock: t.LOCK.UPDATE });
+      await User.update({ tipsSeen: resetTips() }, { where: { id: req.user.id }, transaction: t });
+    });
+    res.status(200).json({ tipsSeen: resetTips() });
+  } catch (error) {
+    console.error("Reset tips error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+module.exports = { getTips, markTipsSeen, resetTipsSeen, getProfile, updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen, updateNotificationPrefs, updateTimezone, searchWeatherLocation, clearWeatherLocation, updateTrackingMode };

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import * as Sentry from "@sentry/react-native";
 import api, { setOnUnauthorized } from "../lib/api";
 import { trackSession } from "../lib/analytics";
+import { setTipsSignedIn } from "../lib/tipsStore";
 import {
   getToken as loadToken,
   setToken as saveToken,
@@ -44,6 +45,7 @@ export function AuthProvider({ children }) {
     // clearAuth is about to delete from SecureStore
     await unregisterPushNotifications();
     await clearAuth();
+    setTipsSignedIn(false);
     Sentry.setUser(null);
     setToken(null);
     setUserState(null);
@@ -75,6 +77,7 @@ export function AuthProvider({ children }) {
       if (u?.id) Sentry.setUser({ id: u.id });
       trackSession();
       syncNotificationState();
+      setTipsSignedIn(true);
       // Optimistic restore — validate the token AND refresh the user record in
       // the background. Refreshing repairs stale stored users (e.g. an email
       // saved before it was persisted) so fields hydrate correctly next boot.
@@ -106,6 +109,7 @@ export function AuthProvider({ children }) {
       if (newUser?.id) Sentry.setUser({ id: newUser.id });
       trackSession();
       syncNotificationState();
+      setTipsSignedIn(true);
     } catch (err) {
       const msg =
         err.response?.data?.error || "Something went wrong. Please try again.";

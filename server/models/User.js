@@ -74,6 +74,16 @@ const User = sequelize.define("User", {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
+  // First-visit tips, per screen. Null means "not enrolled": every account that
+  // finished the welcome before tips existed, and a new one until it closes the
+  // welcome — neither ever sees tips unless they ask for them from Profile.
+  // {} or { screen: true, … } means enrolled; a screen shows its tips while its
+  // key isn't true. No default, so adding the column leaves every existing row
+  // null with no backfill. See server/lib/tips.js.
+  tipsSeen: {
+    type: DataTypes.JSON,
+    allowNull: true,
+  },
   // symptom names the user has removed from their personal suggestions;
   // history is never touched — the name just stops being offered (re-using it
   // un-hides it, see createCheckIn)

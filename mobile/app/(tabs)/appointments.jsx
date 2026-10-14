@@ -31,6 +31,10 @@ import { prefsSummary } from "../../theme/reportOptions";
 import { localToday } from "../../theme/flareHelpers";
 import ReportOptionsSheet from "../../components/ReportOptionsSheet";
 import { useAuth } from "../../context/AuthContext";
+import TipAnchor from "../../components/TipAnchor";
+import TipsOverlay from "../../components/TipsOverlay";
+import { useScreenTips } from "../../lib/tipsStore";
+import { useTipScroll } from "../../lib/tipAnchors";
 import {
   DAY_HEADERS,
   formatApptDate,
@@ -421,6 +425,14 @@ export default function AppointmentsScreen() {
   // list is loaded, then open that sheet only if the appointment is still there
   // and not cancelled. Opening never changes anything — only saving does. The
   // param is cleared either way, so coming back to the tab does not reopen it.
+  // first-visit tips never land on a sheet — including the prep and outcome
+  // sheets a notification tap opens
+  const tipScroll = useTipScroll();
+  const tips = useScreenTips("appointments", {
+    blocked: loading || !!error || showModal || prepFor !== null || outcomeFor !== null || showDoctors ||
+      customizeOpen || cancelConfirmId !== null || deleteConfirmId !== null,
+  });
+
   const params = useLocalSearchParams();
   const router = useRouter();
   const handledApptParam = useRef(null);
@@ -588,6 +600,9 @@ export default function AppointmentsScreen() {
   return (
     <ScreenBackground edges={["top", "left", "right"]}>
       <ScrollView
+        ref={tipScroll.scrollRef}
+        onScroll={tipScroll.onScroll}
+        scrollEventThrottle={16}
         style={{ flex: 1 }}
         contentContainerStyle={styles.scroll}
         refreshControl={
@@ -603,19 +618,23 @@ export default function AppointmentsScreen() {
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>Appointments</Text>
           <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.myDoctorsBtn}
-              onPress={() => { ensureDoctors(); setShowDoctors(true); }}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="My doctors"
-            >
-              <Text style={styles.myDoctorsText}>My doctors</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.addBtn} onPress={openAdd} activeOpacity={0.8}>
-              <Ionicons name="add" size={15} color="white" />
-              <Text style={styles.addBtnText}>Add</Text>
-            </TouchableOpacity>
+            <TipAnchor id="appts.doctors">
+              <TouchableOpacity
+                style={styles.myDoctorsBtn}
+                onPress={() => { ensureDoctors(); setShowDoctors(true); }}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="My doctors"
+              >
+                <Text style={styles.myDoctorsText}>My doctors</Text>
+              </TouchableOpacity>
+            </TipAnchor>
+            <TipAnchor id="appts.add">
+              <TouchableOpacity style={styles.addBtn} onPress={openAdd} activeOpacity={0.8}>
+                <Ionicons name="add" size={15} color="white" />
+                <Text style={styles.addBtnText}>Add</Text>
+              </TouchableOpacity>
+            </TipAnchor>
           </View>
         </View>
 
@@ -699,6 +718,7 @@ export default function AppointmentsScreen() {
         </View>
 
         {/* ── Doctor report card ────────────────────────────────────────────── */}
+        <TipAnchor id="appts.report">
         <View style={styles.reportCard}>
           <Text style={styles.reportCardTitle}>Doctor Report</Text>
           <Text style={styles.reportCardDesc}>
@@ -747,6 +767,7 @@ export default function AppointmentsScreen() {
             <Text style={styles.reportErrorText}>Failed to prepare report. Please try again.</Text>
           )}
         </View>
+        </TipAnchor>
 
         {/* ── Selected-day panel ────────────────────────────────────────────── */}
         {popoverAppointment && selectedDate && (() => {
@@ -1489,6 +1510,9 @@ export default function AppointmentsScreen() {
         onCancel={() => setDeleteConfirmId(null)}
         onConfirm={() => handleDelete(deleteConfirmId)}
       />
+      {tips.show && (
+        <TipsOverlay screen="appointments" tipsSeen={tips.tipsSeen} onDone={tips.done} scroll={tipScroll} />
+      )}
     </ScreenBackground>
   );
 }

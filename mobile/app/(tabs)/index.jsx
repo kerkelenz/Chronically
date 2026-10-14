@@ -39,6 +39,10 @@ import { formatWeatherLine, deviceLocale } from "../../theme/weatherFormat";
 import { getPushDeclined } from "../../lib/storage";
 import { getPermissionState } from "../../lib/pushNotifications";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import TipAnchor from "../../components/TipAnchor";
+import TipsOverlay from "../../components/TipsOverlay";
+import { useScreenTips } from "../../lib/tipsStore";
+import { useTipScroll } from "../../lib/tipAnchors";
 import { MILESTONES, totalCheckInDays } from "../../lib/milestones";
 
 const BAR_HEIGHTS = [12, 16, 20, 24, 28];
@@ -155,6 +159,15 @@ export default function DashboardScreen() {
   const [showPrimer, setShowPrimer] = useState(false);
   const [deleteCheckInId, setDeleteCheckInId] = useState(null);
   const [deletingCheckIn, setDeletingCheckIn] = useState(false);
+
+  // First-visit tips wait for everything that already competes for this screen:
+  // the welcome, the notification primer, a milestone, an announcement, and
+  // any sheet or dialog (the kit ones also count themselves in).
+  const tipScroll = useTipScroll();
+  const tips = useScreenTips("dashboard", {
+    blocked: loading || !!error || showWelcome || showPrimer || celebration !== null ||
+      announcement !== null || editingCheckIn !== null || flareView !== null || deleteCheckInId !== null,
+  });
   const isFirstLoadRef = useRef(true);
   const seededRef = useRef(false);
 
@@ -464,6 +477,9 @@ export default function DashboardScreen() {
   return (
     <ScreenBackground edges={["top", "left", "right"]}>
       <ScrollView
+        ref={tipScroll.scrollRef}
+        onScroll={tipScroll.onScroll}
+        scrollEventThrottle={16}
         style={{ flex: 1 }}
         contentContainerStyle={styles.scroll}
         refreshControl={
@@ -509,13 +525,15 @@ export default function DashboardScreen() {
               How are you feeling right now?
             </Text>
             <Text style={styles.checkInPromptSub}>It only takes a moment.</Text>
-            <TouchableOpacity
-              style={styles.checkInPromptBtn}
-              onPress={() => openCheckIn(askSleep)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.checkInPromptBtnText}>Start Check-in</Text>
-            </TouchableOpacity>
+            <TipAnchor id="dashboard.checkin">
+              <TouchableOpacity
+                style={styles.checkInPromptBtn}
+                onPress={() => openCheckIn(askSleep)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.checkInPromptBtnText}>Start Check-in</Text>
+              </TouchableOpacity>
+            </TipAnchor>
             {(repeatPrefill || offerFlare) && (
               // two quiet ways to tell the app how today is going, on one line;
               // each keeps a full 44pt touch target
@@ -541,15 +559,17 @@ export default function DashboardScreen() {
                   </Text>
                 )}
                 {offerFlare && (
-                  <TouchableOpacity
-                    onPress={() => setFlareView("start")}
-                    style={styles.promptLinkBtn}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel="Having a flare?"
-                  >
-                    <Text style={styles.promptLinkText}>Having a flare?</Text>
-                  </TouchableOpacity>
+                  <TipAnchor id="dashboard.flare">
+                    <TouchableOpacity
+                      onPress={() => setFlareView("start")}
+                      style={styles.promptLinkBtn}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel="Having a flare?"
+                    >
+                      <Text style={styles.promptLinkText}>Having a flare?</Text>
+                    </TouchableOpacity>
+                  </TipAnchor>
                 )}
               </View>
             )}
@@ -582,19 +602,22 @@ export default function DashboardScreen() {
               if (showCheckInPrompt) return null;
               return (
                 <View style={styles.flareLinkWrap}>
-                  <TouchableOpacity
-                    onPress={() => setFlareView("start")}
-                    style={styles.flareLinkBtn}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel="Having a flare?"
-                  >
-                    <Text style={styles.flareLinkText}>Having a flare?</Text>
-                  </TouchableOpacity>
+                  <TipAnchor id="dashboard.flare">
+                    <TouchableOpacity
+                      onPress={() => setFlareView("start")}
+                      style={styles.flareLinkBtn}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel="Having a flare?"
+                    >
+                      <Text style={styles.flareLinkText}>Having a flare?</Text>
+                    </TouchableOpacity>
+                  </TipAnchor>
                 </View>
               );
             }
             return (
+              <TipAnchor id="dashboard.flare">
               <View
                 style={styles.flareCard}
                 accessible
@@ -627,6 +650,7 @@ export default function DashboardScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
+              </TipAnchor>
             );
           })()
         ) : null}
@@ -634,6 +658,7 @@ export default function DashboardScreen() {
         {checkIns.length > 0 && (
           <>
             {/* 14-day dials */}
+            <TipAnchor id="dashboard.dials">
             <View style={styles.dialsSection}>
               <Text style={styles.cardTitle}>Last 14 days</Text>
               <View style={styles.dialsRow}>
@@ -648,6 +673,7 @@ export default function DashboardScreen() {
                 ))}
               </View>
             </View>
+            </TipAnchor>
 
             {/* Common symptoms (last 14 days) */}
             <View style={styles.commonCard}>
@@ -874,6 +900,10 @@ export default function DashboardScreen() {
       {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
 
       {showPrimer && <NotificationPrimer onDone={() => setShowPrimer(false)} />}
+
+      {tips.show && (
+        <TipsOverlay screen="dashboard" tipsSeen={tips.tipsSeen} onDone={tips.done} scroll={tipScroll} />
+      )}
 
       {celebration && (
         <MilestoneCelebration

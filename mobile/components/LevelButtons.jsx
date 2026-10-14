@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import TipAnchor from "./TipAnchor";
 
 function LevelBtn({ level, labels, selected, onSelect, style }) {
   const active = selected === level;
@@ -15,9 +16,9 @@ function LevelBtn({ level, labels, selected, onSelect, style }) {
   );
 }
 
-export default function LevelButtons({ labels, selected, onSelect }) {
+export default function LevelButtons({ labels, selected, onSelect, tipAnchor }) {
   const props = { labels, selected, onSelect };
-  return (
+  const grid = (
     <View style={styles.grid}>
       <View style={styles.row}>
         <LevelBtn level={1} {...props} style={styles.half} />
@@ -30,6 +31,8 @@ export default function LevelButtons({ labels, selected, onSelect }) {
       <LevelBtn level={5} {...props} />
     </View>
   );
+  // a check-in's first question is what its first-visit tip points at
+  return tipAnchor ? <TipAnchor id={tipAnchor} style={styles.anchor}>{grid}</TipAnchor> : grid;
 }
 
 const styles = StyleSheet.create({
@@ -37,6 +40,7 @@ const styles = StyleSheet.create({
     gap: 12,
     width: "100%",
   },
+  anchor: { width: "100%" },
   row: {
     flexDirection: "row",
     gap: 12,

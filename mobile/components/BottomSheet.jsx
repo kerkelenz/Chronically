@@ -4,6 +4,7 @@ import {
   StyleSheet, Animated, Easing, AccessibilityInfo, useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRegisterOverlay } from "../lib/overlayStack";
 
 /**
  * Slide-up bottom sheet with the app's standard frosted card, scrim,
@@ -28,6 +29,8 @@ export default function BottomSheet({
   // the Modal stays mounted through the exit animation, then unmounts
   const [mounted, setMounted] = useState(visible);
   const [reduceMotion, setReduceMotion] = useState(false);
+  // while open, first-visit tips wait
+  useRegisterOverlay(mounted);
 
   const scrimOpacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
   const translateY = useRef(new Animated.Value(visible ? 0 : OFFSCREEN)).current;

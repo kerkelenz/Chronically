@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { refreshTips } from "../lib/tipsStore";
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import ChronicleMark from "./ChronicleMark";
@@ -37,6 +38,8 @@ export default function WelcomeModal({ onClose }) {
     } catch {
       // non-fatal — still dismiss locally
     }
+    // closing the welcome is what enrols a new account in first-visit tips
+    refreshTips();
     track("welcome_completed");
     updateUser({ ...user, hasSeenWelcome: true });
     onClose();

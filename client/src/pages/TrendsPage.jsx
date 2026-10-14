@@ -13,6 +13,8 @@ import { adherenceStats, describeChange } from "../utils/medicationHelpers";
 import ChronicleMark from "../components/ChronicleMark";
 import TrendsMetricsChart from "../components/TrendsMetricsChart";
 import { formatFlareRange, localToday } from "../utils/flareHelpers";
+import TipsOverlay from "../components/TipsOverlay";
+import { useScreenTips } from "../lib/tipsStore";
 import {
   TREND_RANGES, DEFAULT_RANGE_DAYS, COMPARE_METRICS, rangeWindow, dayIndex, buildAnnotations, formatComparison,
   comparisonTitle, comparisonFootnote, emptyRangeText, COMPARISON_CAPTION, COMPARISON_NONE,
@@ -41,6 +43,7 @@ function TrendsPage() {
   const [reload, setReload] = useState(0);
   const [insights, setInsights] = useState(null);
   const requestId = useRef(0);
+  const tips = useScreenTips("trends", { blocked: loading || showFlares });
 
   const fetchFlares = async () => {
     try {
@@ -195,7 +198,7 @@ function TrendsPage() {
           <>
             {/* Insights */}
             {insights && (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3" data-tip="trends.insights">
                 <p className="text-xs uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>
                   Insights
                 </p>
@@ -236,12 +239,12 @@ function TrendsPage() {
                 style={{ opacity: refreshing ? 0.55 : 1 }}
                 aria-busy={refreshing}
               >
-                <div className="p-4 rounded-2xl" style={card}>
+                <div className="p-4 rounded-2xl" style={card} data-tip="trends.chart">
                   <div className="flex justify-between items-center flex-wrap gap-2 mb-4">
                     <p className="text-sm font-medium" style={{ color: "white" }}>
                       Energy · Mood · Pain · Anxiety · Appetite · Sleep
                     </p>
-                    <div className="flex gap-2" role="group" aria-label="Range">
+                    <div className="flex gap-2" role="group" aria-label="Range" data-tip="trends.range">
                       {TREND_RANGES.map((r) => (
                         <button
                           key={r.days}
@@ -403,6 +406,8 @@ function TrendsPage() {
       </div>
 
       <Navigation />
+
+      {tips.show && <TipsOverlay screen="trends" tipsSeen={tips.tipsSeen} onDone={tips.done} />}
 
       {showFlares && (
         <FlaresModal

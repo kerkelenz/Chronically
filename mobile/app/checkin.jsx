@@ -25,6 +25,10 @@ const NOTE_MAX = 280;
 const NOTE_COUNTER_FROM = 240;
 import LavenderConfetti from "../components/LavenderConfetti";
 import LevelButtons from "../components/LevelButtons";
+import TipAnchor from "../components/TipAnchor";
+import TipsOverlay from "../components/TipsOverlay";
+import { useScreenTips } from "../lib/tipsStore";
+import { useTipScroll } from "../lib/tipAnchors";
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { track } from "../lib/analytics";
@@ -310,6 +314,13 @@ export default function CheckInScreen() {
   );
 
   const toastOpacity = useRef(new Animated.Value(0)).current;
+
+  // first-visit tips: a fresh check-in only, on its first question, never
+  // under a toast or the confetti — and never over "Same as last time"
+  const tipScroll = useTipScroll();
+  const tips = useScreenTips("checkin", {
+    blocked: prefilled || step !== firstStep || !!toastMessage || step === 8 || submitting,
+  });
   const toastTimerRef = useRef(null);
   const toastAnimRef = useRef(null);
 
@@ -555,6 +566,9 @@ export default function CheckInScreen() {
             behavior={Platform.OS === "ios" ? "padding" : undefined}
           >
           <ScrollView
+            ref={tipScroll.scrollRef}
+            onScroll={tipScroll.onScroll}
+            scrollEventThrottle={16}
             style={{ flex: 1 }}
             contentContainerStyle={{ flexGrow: 1 }}
             keyboardShouldPersistTaps="handled"
@@ -569,13 +583,16 @@ export default function CheckInScreen() {
                   <>
                     <Text style={styles.heading}>How did you sleep?</Text>
                     <LevelButtons
+                      tipAnchor="checkin.levels"
                       labels={METRIC_LABELS.sleep}
                       selected={sleepLevel}
                       onSelect={(level) => chooseMetric("sleep", level)}
                     />
-                    <TouchableOpacity onPress={skipSleepStep}>
-                      <Text style={styles.skipLink}>Skip</Text>
-                    </TouchableOpacity>
+                    <TipAnchor id="checkin.skip" style={styles.skipAnchor}>
+                      <TouchableOpacity onPress={skipSleepStep}>
+                        <Text style={styles.skipLink}>Skip</Text>
+                      </TouchableOpacity>
+                    </TipAnchor>
                   </>
                 )}
 
@@ -584,6 +601,7 @@ export default function CheckInScreen() {
                   <>
                     <Text style={styles.heading}>How is your pain right now?</Text>
                     <LevelButtons
+                      tipAnchor="checkin.levels"
                       labels={METRIC_LABELS.pain}
                       selected={painLevel}
                       onSelect={(level) => chooseMetric("pain", level)}
@@ -599,6 +617,7 @@ export default function CheckInScreen() {
                   <>
                     <Text style={styles.heading}>How is your mood right now?</Text>
                     <LevelButtons
+                      tipAnchor="checkin.levels"
                       labels={METRIC_LABELS.mood}
                       selected={moodLevel}
                       onSelect={(level) => chooseMetric("mood", level)}
@@ -613,6 +632,7 @@ export default function CheckInScreen() {
                       How is your energy right now?
                     </Text>
                     <LevelButtons
+                      tipAnchor="checkin.levels"
                       labels={METRIC_LABELS.energy}
                       selected={energyLevel}
                       onSelect={(level) => chooseMetric("energy", level)}
@@ -627,6 +647,7 @@ export default function CheckInScreen() {
                       How is your anxiety right now?
                     </Text>
                     <LevelButtons
+                      tipAnchor="checkin.levels"
                       labels={METRIC_LABELS.anxiety}
                       selected={anxietyLevel}
                       onSelect={(level) => chooseMetric("anxiety", level)}
@@ -641,6 +662,7 @@ export default function CheckInScreen() {
                       How is your appetite right now?
                     </Text>
                     <LevelButtons
+                      tipAnchor="checkin.levels"
                       labels={METRIC_LABELS.appetite}
                       selected={appetiteLevel}
                       onSelect={(level) => chooseMetric("appetite", level)}
@@ -704,6 +726,7 @@ export default function CheckInScreen() {
                       <View style={styles.sleepRowBox}>
                         <Text style={styles.reviewLabel}>How did you sleep?</Text>
                         <LevelButtons
+                      tipAnchor="checkin.levels"
                           labels={METRIC_LABELS.sleep}
                           selected={sleepLevel}
                           onSelect={(level) => setSleepLevel(level)}
@@ -908,9 +931,11 @@ export default function CheckInScreen() {
                       <Text style={styles.navLink}>back</Text>
                     </TouchableOpacity>
                   )}
-                  <TouchableOpacity onPress={dismiss}>
-                    <Text style={styles.navLink}>cancel</Text>
-                  </TouchableOpacity>
+                  <TipAnchor id="checkin.cancel">
+                    <TouchableOpacity onPress={dismiss}>
+                      <Text style={styles.navLink}>cancel</Text>
+                    </TouchableOpacity>
+                  </TipAnchor>
                 </View>
               )}
             </View>
@@ -918,7 +943,10 @@ export default function CheckInScreen() {
           </KeyboardAvoidingView>
         )}
         {step === 8 && <LavenderConfetti />}
-      </ScreenBackground>
+        {tips.show && (
+        <TipsOverlay screen="checkin" tipsSeen={tips.tipsSeen} onDone={tips.done} scroll={tipScroll} bottomInset={0} />
+      )}
+    </ScreenBackground>
     </>
   );
 }
@@ -1202,6 +1230,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "rgba(255,255,255,0.6)",
   },
+  skipAnchor: { alignSelf: "center" },
   skipLink: {
     fontFamily: "Lato_400Regular",
     fontSize: 14,

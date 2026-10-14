@@ -10,6 +10,8 @@ import { loadReportPrefs, prefsToOptions } from "../utils/reportPrefs";
 import { prefsSummary } from "../utils/reportOptions";
 import { localToday } from "../utils/flareHelpers";
 import ReportOptionsModal from "../components/ReportOptionsModal";
+import TipsOverlay from "../components/TipsOverlay";
+import { useScreenTips } from "../lib/tipsStore";
 import Navigation from "../components/Navigation";
 import PageHeader from "../components/PageHeader";
 import FormModal, { ModalFooter, labelClass, ConfirmDialog, PLUM, PLUM_TINT, SOFT_ERROR } from "../components/FormModal";
@@ -107,6 +109,11 @@ function AppointmentsPage() {
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [popoverAppointment, setPopoverAppointment] = useState(null);
+
+  const tips = useScreenTips("appointments", {
+    blocked: loading || showModal || prepFor !== null || outcomeFor !== null || showDoctors ||
+      customizeOpen || cancelConfirmId !== null || deleteConfirmId !== null,
+  });
 
   const hdrs = { Authorization: `Bearer ${token}` };
 
@@ -444,12 +451,14 @@ function AppointmentsPage() {
           actions={
             <>
               <button
+                data-tip="appts.doctors"
                 onClick={() => { ensureDoctors(); setShowDoctors(true); }}
                 className="text-sm text-white/70 hover:text-white transition-colors"
               >
                 My doctors
               </button>
               <button
+                data-tip="appts.add"
                 onClick={openAdd}
                 className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:opacity-90"
                 style={{ background: "rgba(255,255,255,0.25)", color: "white", border: "1px solid rgba(255,255,255,0.4)" }}
@@ -561,6 +570,7 @@ function AppointmentsPage() {
 
             {/* Doctor report card */}
             <div
+              data-tip="appts.report"
               className="rounded-2xl p-5 flex flex-col gap-2"
               style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
             >
@@ -1278,6 +1288,8 @@ function AppointmentsPage() {
       />
 
       <Navigation />
+
+      {tips.show && <TipsOverlay screen="appointments" tipsSeen={tips.tipsSeen} onDone={tips.done} />}
     </div>
   );
 }
