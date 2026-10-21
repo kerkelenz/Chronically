@@ -11,6 +11,8 @@ const ALLOWED = new Set([
   "spoon_day_planned",
   // once per tips sequence; which screen and how it ended ride as metadata
   "tips_closed",
+  // the phone's one-time notification primer; the answer rides as metadata
+  "notifications_prompt_answered",
 ]);
 
 const MAX_BATCH = 20;

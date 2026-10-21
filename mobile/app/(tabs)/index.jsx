@@ -752,12 +752,23 @@ export default function DashboardScreen() {
                   return (
                     <View key={c.id}>
                       {line ? <Text style={styles.weatherLine}>{line}</Text> : null}
-                      <CheckInRow
-                        checkIn={c}
-                        onEdit={setEditingCheckIn}
-                        onDelete={handleDeleteCheckIn}
-                        isLatest={i === 0}
-                      />
+                      {i === 0 ? (
+                        <TipAnchor id="dashboard.history">
+                          <CheckInRow
+                            checkIn={c}
+                            onEdit={setEditingCheckIn}
+                            onDelete={handleDeleteCheckIn}
+                            isLatest
+                          />
+                        </TipAnchor>
+                      ) : (
+                        <CheckInRow
+                          checkIn={c}
+                          onEdit={setEditingCheckIn}
+                          onDelete={handleDeleteCheckIn}
+                          isLatest={false}
+                        />
+                      )}
                     </View>
                   );
                 })

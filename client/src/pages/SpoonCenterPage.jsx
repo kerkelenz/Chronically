@@ -1411,6 +1411,7 @@ export default function SpoonCenterPage() {
               <div
                 className="rounded-2xl px-5 py-4 flex flex-col gap-3"
                 style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)" }}
+                data-tip="spoons.reflection"
               >
                 <div>
                   <p className="text-white" style={{ fontSize: 15 }}>

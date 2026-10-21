@@ -203,8 +203,8 @@ function TrendsPage() {
                   Insights
                 </p>
                 {insights.cards.length > 0 ? (
-                  insights.cards.map((c) => (
-                    <div key={c.id} className="p-4 rounded-2xl" style={card}>
+                  insights.cards.map((c, i) => (
+                    <div key={c.id} className="p-4 rounded-2xl" style={card} data-tip={i === 0 ? "trends.insightCard" : undefined}>
                       <p className="font-bold text-white" style={{ fontSize: "15px" }}>{c.headline}</p>
                       <p className="mt-1" style={{ fontSize: "14px", color: "rgba(255,255,255,0.8)" }}>{c.body}</p>
                       <p className="mt-1.5" style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)" }}>{c.evidence}</p>

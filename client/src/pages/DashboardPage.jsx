@@ -715,6 +715,7 @@ function DashboardPage() {
                       <div
                         className="flex items-start gap-3 p-3 rounded-xl"
                         style={{ background: "rgba(255,255,255,0.1)" }}
+                        data-tip={i === 0 ? "dashboard.history" : undefined}
                       >
                         <div className="flex-1 min-w-0">
                           <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>

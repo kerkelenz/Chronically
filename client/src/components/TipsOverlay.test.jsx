@@ -46,6 +46,7 @@ function renderTips(ids, onDone = vi.fn()) {
   return onDone;
 }
 const puts = () => axios.put.mock.calls.map((c) => c[0]);
+const marked = () => axios.put.mock.calls.flatMap((c) => c[1]?.ids || []);
 const setReducedMotion = (on) => {
   window.matchMedia = (q) => ({
     matches: on && q.includes("reduce"), media: q, onchange: null,
@@ -62,7 +63,7 @@ beforeEach(async () => {
 afterEach(() => setTipsToken(null));
 
 describe("TipsOverlay", () => {
-  it("shows the first tip as a dialog named by its text, with its count, and marks the screen seen", async () => {
+  it("shows the first tip as a dialog named by its text, with its count, and marks that tip seen", async () => {
     // a ref callback stubs the geometry after first render, so mount in two steps
     render(<Anchors ids={["trends.range", "trends.insights", "trends.chart"]} />);
     render(<TipsOverlay screen="trends" tipsSeen={{}} onDone={vi.fn()} />);
@@ -70,7 +71,8 @@ describe("TipsOverlay", () => {
     expect(dialog.getAttribute("aria-modal")).toBe("true");
     expect(screen.getByText("Tip 1 of 3")).toBeTruthy();
     expect(dialog.getAttribute("aria-describedby")).toBe(screen.getByText("Tip 1 of 3").id);
-    expect(puts()).toEqual([expect.stringContaining("/api/users/tips/trends")]);
+    expect(puts()).toEqual([expect.stringMatching(/\/api\/users\/tips$/)]);
+    expect(marked()).toEqual(["trends.range"]);
   });
 
   it("Next steps through; the last button reads Got it and completes", async () => {
@@ -83,18 +85,36 @@ describe("TipsOverlay", () => {
     await userEvent.click(screen.getByRole("button", { name: "Next tip" }));
     await userEvent.click(screen.getByRole("button", { name: "Got it" }));
     expect(onDone).toHaveBeenCalledWith("completed");
-    expect(track).toHaveBeenCalledWith("tips_closed", { screen: "trends", outcome: "completed" });
-    expect(puts()).toHaveLength(1); // marked once, when the first tip showed
+    expect(track).toHaveBeenCalledWith("tips_closed", { screen: "trends", outcome: "completed", count: 3 });
+    // each tip marked as it showed
+    expect(marked()).toEqual(["trends.range", "trends.insights", "trends.chart"]);
   });
 
-  it("Skip tips closes and is counted as skipped", async () => {
+  it("Skip tips closes, is counted as skipped, and declines the rest of the sequence", async () => {
     render(<Anchors ids={["trends.range", "trends.insights"]} />);
     const onDone = vi.fn();
     render(<TipsOverlay screen="trends" tipsSeen={{}} onDone={onDone} />);
     await userEvent.click(screen.getByRole("button", { name: "Skip tips" }));
     expect(onDone).toHaveBeenCalledWith("skipped");
-    expect(track).toHaveBeenCalledWith("tips_closed", { screen: "trends", outcome: "skipped" });
-    expect(puts()).toHaveLength(1);
+    expect(track).toHaveBeenCalledWith("tips_closed", { screen: "trends", outcome: "skipped", count: 2 });
+    expect(new Set(marked())).toEqual(new Set(["trends.range", "trends.insights"]));
+  });
+
+  it("a tip that arrives on its own has no count and no Skip — just Got it", () => {
+    render(<Anchors ids={["trends.chart"]} />);
+    render(<TipsOverlay screen="trends" tipsSeen={{ "trends.range": true }} onDone={vi.fn()} />);
+    const dialog = screen.getByRole("dialog", { name: TRENDS[2] });
+    expect(dialog.getAttribute("aria-describedby")).toBeNull();
+    expect(screen.queryByText(/Tip 1 of/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Skip tips" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Got it" })).toBeTruthy();
+  });
+
+  it("tips already seen are left out", () => {
+    render(<Anchors ids={["trends.range", "trends.insights", "trends.chart"]} />);
+    render(<TipsOverlay screen="trends" tipsSeen={{ "trends.range": true }} onDone={vi.fn()} />);
+    expect(screen.getByRole("dialog", { name: TRENDS[1] })).toBeTruthy();
+    expect(screen.getByText("Tip 1 of 2")).toBeTruthy();
   });
 
   it("Escape skips", async () => {
@@ -111,7 +131,7 @@ describe("TipsOverlay", () => {
     expect(screen.getByText("Tip 1 of 2")).toBeTruthy();
   });
 
-  it("no anchor at all: nothing shows and the screen is not marked", () => {
+  it("no anchor at all: nothing shows and nothing is marked", () => {
     const onDone = renderTips([]);
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(onDone).toHaveBeenCalledWith("empty");
@@ -136,11 +156,11 @@ describe("TipsOverlay", () => {
 });
 
 describe("useScreenTips", () => {
-  function Screen({ blocked }) {
+  function Screen({ blocked, ids = ["trends.range"] }) {
     const tips = useScreenTips("trends", { blocked });
     return (
       <>
-        <Anchors ids={["trends.range"]} />
+        <Anchors ids={ids} />
         {tips.show && <TipsOverlay screen="trends" tipsSeen={tips.tipsSeen} onDone={tips.done} />}
       </>
     );
@@ -162,6 +182,29 @@ describe("useScreenTips", () => {
     axios.get.mockResolvedValueOnce({ data: { tipsSeen: null } });
     await act(async () => { setTipsToken("t"); });
     render(<Screen blocked={false} />);
+    await new Promise((r) => setTimeout(r, 900));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("a feature that appears later brings its own tip, alone; the first one never repeats", async () => {
+    const { rerender } = render(<Screen blocked={false} ids={["trends.range"]} />);
+    await screen.findByRole("dialog", { name: TRENDS[0] }, { timeout: 1500 });
+    await userEvent.click(screen.getByRole("button", { name: "Got it" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    // e.g. the chart arrives once there's data
+    rerender(<Screen blocked={false} ids={["trends.range", "trends.chart"]} />);
+    const dialog = await screen.findByRole("dialog", { name: TRENDS[2] }, { timeout: 1500 });
+    expect(dialog).toBeTruthy();
+    expect(screen.queryByText(/Tip 1 of/)).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Got it" }));
+    expect(marked()).toEqual(["trends.range", "trends.chart"]);
+  });
+
+  it("a closed screen (older builds, or every tip seen) shows nothing, even for a new feature", async () => {
+    axios.get.mockResolvedValueOnce({ data: { tipsSeen: { trends: true } } });
+    await act(async () => { setTipsToken("t"); });
+    render(<Screen blocked={false} ids={["trends.range", "trends.chart"]} />);
     await new Promise((r) => setTimeout(r, 900));
     expect(screen.queryByRole("dialog")).toBeNull();
   });

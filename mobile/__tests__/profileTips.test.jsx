@@ -50,7 +50,7 @@ describe("Profile: tips row (phone)", () => {
   test("a tap resets tips and says when they'll appear", async () => {
     await open({ dashboard: true });
     fireEvent.press(screen.getByRole("button", { name: "Show tips again" }));
-    expect(await screen.findByText("Tips will appear the next time you open each screen.")).toBeTruthy();
+    expect(await screen.findByText("Tips will appear again as you meet each part of the app.")).toBeTruthy();
     expect(mockApi.deletes).toEqual(["/api/users/tips"]);
     expect(screen.getByRole("button", { name: "Show tips" })).toBeTruthy();
   });

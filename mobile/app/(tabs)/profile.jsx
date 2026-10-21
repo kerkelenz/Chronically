@@ -36,6 +36,7 @@ import {
 } from "../../lib/pushNotifications";
 import { setPushDeclined } from "../../lib/storage";
 import TipAnchor from "../../components/TipAnchor";
+import WelcomeModal from "../../components/WelcomeModal";
 import TipsOverlay from "../../components/TipsOverlay";
 import { useScreenTips, useTipsState, resetTips } from "../../lib/tipsStore";
 import { useTipScroll } from "../../lib/tipAnchors";
@@ -165,8 +166,9 @@ export default function ProfileScreen() {
 
   // ── First-visit tips ──────────────────────────────────────────────────────
   const tipScroll = useTipScroll();
+  const [showWelcome, setShowWelcome] = useState(false);
   const tips = useScreenTips("profile", {
-    blocked: showTracking || showWeather || showDeleteModal || showReport,
+    blocked: showTracking || showWeather || showDeleteModal || showReport || showWelcome,
   });
   const tipsState = useTipsState();
   const [tipsNote, setTipsNote] = useState(null); // { ok, text }
@@ -176,7 +178,7 @@ export default function ProfileScreen() {
     clearTimeout(tipsNoteTimer.current);
     try {
       await resetTips();
-      setTipsNote({ ok: true, text: "Tips will appear the next time you open each screen." });
+      setTipsNote({ ok: true, text: "Tips will appear again as you meet each part of the app." });
     } catch {
       setTipsNote({ ok: false, text: "Couldn't do that just now. Please try again." });
     }
@@ -657,6 +659,15 @@ export default function ProfileScreen() {
                   {tipsNote.text}
                 </Text>
               ) : null}
+              <TouchableOpacity
+                style={[styles.legalRow, styles.chevronRow]}
+                onPress={() => setShowWelcome(true)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+              >
+                <Text style={styles.legalText}>Replay the welcome</Text>
+                <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.4)" />
+              </TouchableOpacity>
             </TipAnchor>
             <TouchableOpacity
               style={styles.legalRow}
@@ -783,6 +794,9 @@ export default function ProfileScreen() {
       />
       {tips.show && (
         <TipsOverlay screen="profile" tipsSeen={tips.tipsSeen} onDone={tips.done} scroll={tipScroll} />
+      )}
+      {showWelcome && (
+        <WelcomeModal replay onTrackingChange={setTrackingMode} onClose={() => setShowWelcome(false)} />
       )}
     </ScreenBackground>
   );

@@ -19,13 +19,15 @@ const SCRIM = "rgba(20,12,40,0.55)";
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Chronicle's first-visit tips for one screen: a scrim with a ringed cut-out
- * around the thing being described, and a small card beside it. It sits in
- * its own Modal, so every tap — the cut-out included — lands on the overlay,
- * never the screen: a tip can't press a button or answer a question.
+ * Chronicle's tips for one screen: a scrim with a ringed cut-out around the
+ * thing being described, and a small card beside it. It sits in its own
+ * Modal, so every tap — the cut-out included — lands on the overlay, never
+ * the screen: a tip can't press a button or answer a question. Each tip is
+ * marked seen as it shows; "Skip tips" marks the rest of this sequence too.
  * `scroll` is the screen's useTipScroll(), used to bring an anchor into view.
- * `onDone(outcome)` gets "completed", "skipped", or "empty" when none of the
- * anchors could be shown (the screen is then left unmarked).
+ * `onDone(outcome, unshown)` gets "completed", "skipped", or "empty" when none
+ * of the unseen tips could be shown (nothing marked), plus the ids of any tips
+ * left out because they didn't fit on screen.
  * Web twin: client/src/components/TipsOverlay.jsx.
  */
 export default function TipsOverlay({ screen, tipsSeen, onDone, scroll, bottomInset = TAB_BAR }) {
@@ -39,12 +41,16 @@ export default function TipsOverlay({ screen, tipsSeen, onDone, scroll, bottomIn
   const fade = useRef(new Animated.Value(1)).current;
   const textRef = useRef(null);
   const finished = useRef(false);
+  const leftOut = useRef([]);
+  const shown = useRef(0);
 
   const finish = (outcome) => {
     if (finished.current) return;
     finished.current = true;
-    if (outcome !== "empty") track("tips_closed", { screen, outcome });
-    onDone(outcome);
+    // skipping declines this whole sequence, not just the tip on screen
+    if (outcome === "skipped" && tips) markTipsSeen(tips.slice(index).map((t) => t.id));
+    if (outcome !== "empty") track("tips_closed", { screen, outcome, count: tips ? tips.length : 0 });
+    onDone(outcome, leftOut.current);
   };
 
   useEffect(() => {
@@ -65,7 +71,6 @@ export default function TipsOverlay({ screen, tipsSeen, onDone, scroll, bottomIn
       if (!alive) return;
       const list = tipsToShow(screen, tipsSeen, present);
       if (list.length === 0) { finish("empty"); return; }
-      markTipsSeen(screen);
       setTips(list);
     })();
     return () => { alive = false; };
@@ -92,12 +97,15 @@ export default function TipsOverlay({ screen, tipsSeen, onDone, scroll, bottomIn
       }
       if (!alive) return;
       if (!visible(r)) {
-        // can't be shown on this screen size: leave it out
+        // can't be shown on this screen size: leave it out, for another visit
+        leftOut.current = [...leftOut.current, tip.id];
         const rest = tips.filter((t) => t !== tip);
-        if (rest.length === 0) finish("empty");
+        if (rest.length === 0) finish(shown.current > 0 ? "completed" : "empty");
         else { setTips(rest); setIndex((i) => Math.min(i, rest.length - 1)); }
         return;
       }
+      markTipsSeen([tip.id]);
+      shown.current += 1;
       setRect(r);
     })();
     return () => { alive = false; };
@@ -136,6 +144,7 @@ export default function TipsOverlay({ screen, tipsSeen, onDone, scroll, bottomIn
       : { bottom: Math.max(insets.bottom + GUTTER, H - hole.y + GAP) }),
   };
   const count = tipCountLabel(index, tips.length);
+  const spoken = count ? `${count}. ${tip.text}` : tip.text;
 
   return (
     <Modal transparent visible statusBarTranslucent animationType="none" onRequestClose={() => finish("skipped")}>
@@ -158,22 +167,26 @@ export default function TipsOverlay({ screen, tipsSeen, onDone, scroll, bottomIn
           <View style={styles.row}>
             <ChronicleMark size={28} />
             <View style={{ flex: 1 }}>
-              <Text ref={textRef} accessible accessibilityLabel={`${count}. ${tip.text}`} style={styles.text}>
+              <Text ref={textRef} accessible accessibilityLabel={spoken} style={styles.text}>
                 {tip.text}
               </Text>
-              <Text style={styles.count} importantForAccessibility="no" accessibilityElementsHidden>{count}</Text>
+              {!!count && (
+                <Text style={styles.count} importantForAccessibility="no" accessibilityElementsHidden>{count}</Text>
+              )}
             </View>
           </View>
           <View style={styles.actions}>
-            <TouchableOpacity
-              onPress={() => finish("skipped")}
-              style={styles.skip}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Skip tips"
-            >
-              <Text style={styles.skipText}>Skip tips</Text>
-            </TouchableOpacity>
+            {tips.length > 1 && (
+              <TouchableOpacity
+                onPress={() => finish("skipped")}
+                style={styles.skip}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Skip tips"
+              >
+                <Text style={styles.skipText}>Skip tips</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               onPress={() => {
                 if (last) { finish("completed"); return; }

@@ -48,7 +48,7 @@ describe("Profile: tips row", () => {
     await open({ dashboard: true, trends: true });
     await userEvent.click(screen.getByRole("button", { name: "Show tips again" }));
     expect(axios.delete).toHaveBeenCalledWith(expect.stringMatching(/\/api\/users\/tips$/), expect.anything());
-    expect(await screen.findByText("Tips will appear the next time you open each screen.")).toBeTruthy();
+    expect(await screen.findByText("Tips will appear again as you meet each part of the app.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Show tips" })).toBeTruthy();
   });
 
@@ -57,5 +57,14 @@ describe("Profile: tips row", () => {
     await open(null);
     await userEvent.click(screen.getByRole("button", { name: "Show tips" }));
     expect(await screen.findByText("Couldn't do that just now. Please try again.")).toBeTruthy();
+  });
+
+  it("Replay the welcome opens it again, without re-enrolling anything", async () => {
+    await open({ dashboard: true });
+    await userEvent.click(screen.getByRole("button", { name: /Replay the welcome/ }));
+    expect(screen.getByRole("dialog", { name: "Welcome to Chronically" })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog", { name: "Welcome to Chronically" })).toBeNull();
+    expect(axios.put).not.toHaveBeenCalledWith(expect.stringMatching(/\/api\/users\/welcome$/), expect.anything(), expect.anything());
   });
 });

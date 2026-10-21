@@ -34,11 +34,12 @@ const KEYFRAMES = `
 `;
 
 /**
- * Chronicle's first-visit tips for one screen: a scrim with a ringed cut-out
- * around the thing being described, and a small card beside it. The whole
- * screen, cut-out included, swallows taps — a tip can never press a button
- * or answer a question. `onDone(outcome)` gets "completed", "skipped", or
- * "empty" when none of the screen's anchors were on screen (nothing marked).
+ * Chronicle's tips for one screen: a scrim with a ringed cut-out around the
+ * thing being described, and a small card beside it. The whole screen,
+ * cut-out included, swallows taps — a tip can never press a button or answer
+ * a question. Each tip is marked seen as it shows; "Skip tips" marks the rest
+ * of this sequence too. `onDone(outcome)` gets "completed", "skipped", or
+ * "empty" when none of the unseen tips' anchors were on screen (nothing marked).
  */
 export default function TipsOverlay({ screen, tipsSeen, onDone }) {
   // the anchors were rendered before this mounted (it waits 600 ms), so the
@@ -58,14 +59,15 @@ export default function TipsOverlay({ screen, tipsSeen, onDone }) {
   const finish = (outcome) => {
     if (finished.current) return;
     finished.current = true;
-    if (outcome !== "empty") track("tips_closed", { screen, outcome });
+    // skipping declines this whole sequence, not just the tip on screen
+    if (outcome === "skipped") markTipsSeen(tips.slice(index).map((t) => t.id));
+    if (outcome !== "empty") track("tips_closed", { screen, outcome, count: tips.length });
     onDone(outcome);
   };
 
-  // nothing to point at: leave the screen unmarked, it may be ready next time
+  // nothing to point at: leave everything unmarked, it may be ready next time
   useEffect(() => {
     if (tips.length === 0) finish("empty");
-    else markTipsSeen(screen);
     const focusBack = returnFocus.current;
     return () => { if (focusBack && typeof focusBack.focus === "function") focusBack.focus(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -83,6 +85,7 @@ export default function TipsOverlay({ screen, tipsSeen, onDone }) {
   // bring this tip's anchor to the middle of the screen, then measure it
   useEffect(() => {
     if (!tip) return undefined;
+    markTipsSeen([tip.id]);
     const el = anchorEl(tip.anchor);
     if (!el) return undefined;
     let raf = 0;
@@ -160,6 +163,7 @@ export default function TipsOverlay({ screen, tipsSeen, onDone }) {
     }
     : { left: (vw - cardW) / 2, top: vh / 2 - CARD_EST_H / 2 };
 
+  const count = tipCountLabel(index, tips.length);
   const textId = `tip-text-${screen}`;
   const countId = `tip-count-${screen}`;
 
@@ -194,7 +198,7 @@ export default function TipsOverlay({ screen, tipsSeen, onDone }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={textId}
-        aria-describedby={countId}
+        aria-describedby={count ? countId : undefined}
         className={reduced ? undefined : "tips-card-fade"}
         style={{
           position: "absolute",
@@ -218,20 +222,22 @@ export default function TipsOverlay({ screen, tipsSeen, onDone }) {
             >
               {tip.text}
             </p>
-            <p id={countId} className="mt-1.5" style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-              {tipCountLabel(index, tips.length)}
-            </p>
+            {count && (
+              <p id={countId} className="mt-1.5" style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                {count}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center justify-end gap-1 mt-3">
-          <button
+          {tips.length > 1 && <button
             type="button"
             onClick={() => finish("skipped")}
             className="px-3 text-sm"
             style={{ color: "rgba(255,255,255,0.75)", minHeight: 44, minWidth: 44 }}
           >
             Skip tips
-          </button>
+          </button>}
           <button
             type="button"
             onClick={() => (last ? finish("completed") : setIndex((i) => i + 1))}

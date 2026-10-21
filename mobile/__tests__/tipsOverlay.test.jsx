@@ -4,12 +4,12 @@ import TipsOverlay from "../components/TipsOverlay";
 import { registerAnchor } from "../lib/tipAnchors";
 import { setTipsSignedIn, useScreenTips } from "../lib/tipsStore";
 
-const mockApi = { puts: [], tipsSeen: {} };
+const mockApi = { puts: [], ids: [], tipsSeen: {} };
 jest.mock("../lib/api", () => ({
   __esModule: true,
   default: {
     get: jest.fn(async () => ({ data: { tipsSeen: mockApi.tipsSeen } })),
-    put: jest.fn(async (url) => { mockApi.puts.push(url); return { data: {} }; }),
+    put: jest.fn(async (url, body) => { mockApi.puts.push(url); mockApi.ids.push(...(body?.ids || [])); return { data: {} }; }),
     delete: jest.fn(async () => ({ data: { tipsSeen: {} } })),
   },
 }));
@@ -32,11 +32,13 @@ function anchors(ids) {
 
 beforeEach(async () => {
   mockApi.puts = [];
+  mockApi.ids = [];
   mockApi.tipsSeen = {};
   track.mockClear();
   jest.spyOn(AccessibilityInfo, "isReduceMotionEnabled").mockResolvedValue(false);
   await act(async () => { setTipsSignedIn(true); });
   mockApi.puts = [];
+  mockApi.ids = [];
 });
 afterEach(() => {
   unregister.forEach((u) => u());
@@ -45,17 +47,18 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-function show(ids, onDone = jest.fn()) {
+function show(ids, onDone = jest.fn(), tipsSeen = {}) {
   anchors(ids);
-  render(<TipsOverlay screen="trends" tipsSeen={{}} onDone={onDone} />);
+  render(<TipsOverlay screen="trends" tipsSeen={tipsSeen} onDone={onDone} />);
   return onDone;
 }
 
 describe("TipsOverlay (phone)", () => {
-  test("the first tip is read with its count, and the screen is marked seen once", async () => {
+  test("the first tip is read with its count, and that tip is marked seen", async () => {
     show(["trends.range", "trends.insights", "trends.chart"]);
     expect(await screen.findByLabelText(`Tip 1 of 3. ${TRENDS[0]}`)).toBeTruthy();
-    expect(mockApi.puts).toEqual(["/api/users/tips/trends"]);
+    expect(mockApi.puts).toEqual(["/api/users/tips"]);
+    expect(mockApi.ids).toEqual(["trends.range"]);
   });
 
   test("Next tip steps through; the last button is Got it and completes", async () => {
@@ -64,23 +67,32 @@ describe("TipsOverlay (phone)", () => {
     expect(await screen.findByLabelText(`Tip 2 of 3. ${TRENDS[1]}`)).toBeTruthy();
     fireEvent.press(await screen.findByRole("button", { name: "Next tip" }));
     fireEvent.press(await screen.findByRole("button", { name: "Got it" }));
-    expect(onDone).toHaveBeenCalledWith("completed");
-    expect(track).toHaveBeenCalledWith("tips_closed", { screen: "trends", outcome: "completed" });
-    expect(mockApi.puts).toHaveLength(1);
+    expect(onDone).toHaveBeenCalledWith("completed", []);
+    expect(track).toHaveBeenCalledWith("tips_closed", { screen: "trends", outcome: "completed", count: 3 });
+    expect(mockApi.ids).toEqual(["trends.range", "trends.insights", "trends.chart"]);
   });
 
   test("Skip tips closes and is counted as skipped", async () => {
     const onDone = show(["trends.range", "trends.insights"]);
     fireEvent.press(await screen.findByRole("button", { name: "Skip tips" }));
-    expect(onDone).toHaveBeenCalledWith("skipped");
-    expect(track).toHaveBeenCalledWith("tips_closed", { screen: "trends", outcome: "skipped" });
+    expect(onDone).toHaveBeenCalledWith("skipped", []);
+    expect(track).toHaveBeenCalledWith("tips_closed", { screen: "trends", outcome: "skipped", count: 2 });
+    // skipping declines the rest of the sequence too
+    expect(new Set(mockApi.ids)).toEqual(new Set(["trends.range", "trends.insights"]));
+  });
+
+  test("a tip that arrives on its own: no count, no Skip — just Got it", async () => {
+    show(["trends.range", "trends.chart"], jest.fn(), { "trends.range": true });
+    expect(await screen.findByLabelText(TRENDS[2])).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Skip tips" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Got it" })).toBeTruthy();
   });
 
   test("Android back skips", async () => {
     const onDone = show(["trends.range"]);
     await screen.findByRole("button", { name: "Got it" });
     act(() => { screen.UNSAFE_getByType(Modal).props.onRequestClose(); });
-    expect(onDone).toHaveBeenCalledWith("skipped");
+    expect(onDone).toHaveBeenCalledWith("skipped", []);
   });
 
   test("a missing anchor is skipped: of 2", async () => {
@@ -88,9 +100,9 @@ describe("TipsOverlay (phone)", () => {
     expect(await screen.findByLabelText(`Tip 1 of 2. ${TRENDS[0]}`)).toBeTruthy();
   });
 
-  test("no anchor at all: nothing shows and the screen is not marked", async () => {
+  test("no anchor at all: nothing shows and nothing is marked", async () => {
     const onDone = show([]);
-    await waitFor(() => expect(onDone).toHaveBeenCalledWith("empty"));
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith("empty", []));
     expect(screen.queryByRole("button", { name: "Skip tips" })).toBeNull();
     expect(mockApi.puts).toEqual([]);
     expect(track).not.toHaveBeenCalled();
@@ -137,6 +149,30 @@ describe("useScreenTips (phone)", () => {
     mockApi.tipsSeen = null;
     await act(async () => { setTipsSignedIn(true); });
     anchors(["trends.range"]);
+    render(<Screen blocked={false} />);
+    await act(async () => { await new Promise((r) => setTimeout(r, 900)); });
+    expect(screen.queryByRole("button", { name: "Got it" })).toBeNull();
+  });
+
+  test("a feature that appears later brings its own tip, alone; the first one never repeats", async () => {
+    anchors(["trends.range"]);
+    render(<Screen blocked={false} />);
+    fireEvent.press(await screen.findByRole("button", { name: "Got it" }, { timeout: 1500 }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Got it" })).toBeNull());
+
+    // the chart arrives once there's data
+    act(() => {
+      unregister.push(registerAnchor("trends.chart", { current: { measureInWindow: (cb) => cb(20, 300, 200, 40) } }));
+    });
+    expect(await screen.findByLabelText(TRENDS[2], {}, { timeout: 1500 })).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Got it" }));
+    expect(mockApi.ids).toEqual(["trends.range", "trends.chart"]);
+  });
+
+  test("a closed screen shows nothing, even for a new feature", async () => {
+    mockApi.tipsSeen = { trends: true };
+    await act(async () => { setTipsSignedIn(true); });
+    anchors(["trends.range", "trends.chart"]);
     render(<Screen blocked={false} />);
     await act(async () => { await new Promise((r) => setTimeout(r, 900)); });
     expect(screen.queryByRole("button", { name: "Got it" })).toBeNull();

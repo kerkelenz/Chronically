@@ -15,6 +15,7 @@ import { SUPPORT_ROW_LABEL } from "../utils/supportResources";
 import TrackingFocusModal from "../components/TrackingFocusModal";
 import { trackingLabel } from "../utils/trackingFocus";
 import TipsOverlay from "../components/TipsOverlay";
+import WelcomeModal from "../components/WelcomeModal";
 import { useScreenTips, useTipsState, resetTips } from "../lib/tipsStore";
 import { tipsRowLabel } from "../utils/tips";
 
@@ -165,8 +166,9 @@ function ProfilePage() {
   const [cropError, setCropError] = useState("");
 
   // ── First-visit tips ─────────────────────────────────────────────────────
+  const [showWelcome, setShowWelcome] = useState(false);
   const tips = useScreenTips("profile", {
-    blocked: showTracking || showWeather || showDeleteModal || showReportModal || showCropModal,
+    blocked: showTracking || showWeather || showDeleteModal || showReportModal || showCropModal || showWelcome,
   });
   const tipsState = useTipsState();
   const [tipsNote, setTipsNote] = useState(null); // { ok, text }
@@ -175,7 +177,7 @@ function ProfilePage() {
     clearTimeout(tipsNoteTimer.current);
     try {
       await resetTips();
-      setTipsNote({ ok: true, text: "Tips will appear the next time you open each screen." });
+      setTipsNote({ ok: true, text: "Tips will appear again as you meet each part of the app." });
     } catch {
       setTipsNote({ ok: false, text: "Couldn't do that just now. Please try again." });
     }
@@ -609,6 +611,14 @@ function ProfilePage() {
             >
               {tipsNote?.text || ""}
             </p>
+            <button
+              onClick={() => setShowWelcome(true)}
+              className="w-full px-4 py-3 text-left text-sm flex justify-between items-center transition-colors hover:bg-white/10"
+              style={{ color: "rgba(255,255,255,0.8)", borderTop: "1px solid rgba(255,255,255,0.2)" }}
+            >
+              Replay the welcome
+              <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
+            </button>
           </div>
           <button
             onClick={() => navigate("/privacy")}
@@ -872,6 +882,9 @@ function ProfilePage() {
       <Navigation />
 
       {tips.show && <TipsOverlay screen="profile" tipsSeen={tips.tipsSeen} onDone={tips.done} />}
+      {showWelcome && (
+        <WelcomeModal replay onTrackingChange={setTrackingMode} onClose={() => setShowWelcome(false)} />
+      )}
     </div>
   );
 }

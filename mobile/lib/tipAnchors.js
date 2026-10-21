@@ -2,13 +2,36 @@
 // its view here while mounted; the overlay measures them. Also the scroll
 // helper each screen spreads onto its ScrollView, so the overlay can bring an
 // anchor into view.
-import { useRef } from "react";
+import { useRef, useSyncExternalStore } from "react";
 
 const anchors = new Map();
+const listeners = new Set();
+let snapshot = "";
+const changed = () => {
+  snapshot = [...anchors.keys()].sort().join(",");
+  listeners.forEach((fn) => fn());
+};
 
 export function registerAnchor(id, ref) {
   anchors.set(id, ref);
-  return () => { if (anchors.get(id) === ref) anchors.delete(id); };
+  changed();
+  return () => {
+    if (anchors.get(id) === ref) {
+      anchors.delete(id);
+      changed();
+    }
+  };
+}
+
+const subscribe = (fn) => {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+};
+const getSnapshot = () => snapshot;
+
+/** Every mounted anchor id, comma-joined — so a tip can wait for its feature to appear. */
+export function useMountedAnchors() {
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
 /** → { x, y, width, height } in window coordinates, or null when not measurable. */

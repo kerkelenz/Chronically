@@ -1405,6 +1405,7 @@ export default function SpoonCenterScreen() {
 
             {/* End-of-day reflection */}
             {showReflection && (
+              <TipAnchor id="spoons.reflection">
               <Card>
                 <Text style={styles.reflectHeading}>
                   {selectedDate === today
@@ -1466,6 +1467,7 @@ export default function SpoonCenterScreen() {
 
                 {reflectError ? <Text style={styles.reflectError}>{reflectError}</Text> : null}
               </Card>
+              </TipAnchor>
             )}
           </>
         )}

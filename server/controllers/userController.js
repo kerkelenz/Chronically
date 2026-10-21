@@ -2,7 +2,7 @@ const crypto = require("crypto");
 const { Resend } = require("resend");
 const User = require("../models/User");
 const { sequelize } = require("../config/db");
-const { TIP_SCREENS, normalizeTipsSeen, markScreenSeen, resetTips } = require("../lib/tips");
+const { TIP_SCREENS, normalizeTipsSeen, markScreenSeen, markTipIdsSeen, resetTips } = require("../lib/tips");
 const { searchPlaces, roundCoord, placeLabel } = require("../lib/weather");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -352,6 +352,33 @@ const markTipsSeen = async (req, res) => {
   }
 };
 
+// Current clients mark tips one at a time, as each feature first appears.
+// Body: { ids: [...] }. Unknown ids are ignored; a screen whose every tip is
+// marked closes too (server/lib/tips.js).
+const markTipIds = async (req, res) => {
+  const { ids } = req.body || {};
+  if (!Array.isArray(ids) || ids.length === 0 || ids.length > 50 || !ids.every((id) => typeof id === "string")) {
+    return res.status(400).json({ error: "ids must be a non-empty array of tip ids" });
+  }
+  try {
+    const tipsSeen = await sequelize.transaction(async (t) => {
+      const user = await User.findByPk(req.user.id, {
+        attributes: ["id", "tipsSeen"], transaction: t, lock: t.LOCK.UPDATE,
+      });
+      if (!user) return undefined;
+      const next = markTipIdsSeen(user.tipsSeen, ids);
+      // a null state stays null — marking never enrols anyone
+      if (next !== null) await User.update({ tipsSeen: next }, { where: { id: req.user.id }, transaction: t });
+      return next;
+    });
+    if (tipsSeen === undefined) return res.status(404).json({ error: "User not found" });
+    res.status(200).json({ tipsSeen });
+  } catch (error) {
+    console.error("Mark tip ids error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
 // Profile's "Show tips": enrols (or re-enrols) this account with nothing seen
 const resetTipsSeen = async (req, res) => {
   try {
@@ -366,4 +393,4 @@ const resetTipsSeen = async (req, res) => {
   }
 };
 
-module.exports = { getTips, markTipsSeen, resetTipsSeen, getProfile, updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen, updateNotificationPrefs, updateTimezone, searchWeatherLocation, clearWeatherLocation, updateTrackingMode };
+module.exports = { getTips, markTipsSeen, markTipIds, resetTipsSeen, getProfile, updateProfile, deleteAccount, updateAvatar, deleteAvatar, updateMilestones, markWelcomeSeen, updateNotificationPrefs, updateTimezone, searchWeatherLocation, clearWeatherLocation, updateTrackingMode };

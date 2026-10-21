@@ -994,6 +994,13 @@ function MedicationsPage() {
   const todayLogged = doses.filter((d) => d.log).length;
   const allLogged = todayExpected > 0 && todayLogged === todayExpected;
 
+  // tips point at one dose row (the first still to log) and the first "Did it help?"
+  const shownDoses = groups.flatMap((g) => g.doses);
+  const tipDoseKey = (shownDoses.find((d) => !d.log) || shownDoses[0])?.doseKey;
+  const tipHelpedLogId = prnMeds
+    .map((m) => todayLogs.find((l) => l.medicationId === m.id))
+    .find(Boolean)?.id;
+
   // ── Dose row renderer ───────────────────────────────────────────────────────
 
   const renderDoseRow = (dose) => {
@@ -1016,6 +1023,7 @@ function MedicationsPage() {
         key={doseKey}
         className="p-3 rounded-xl"
         style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)" }}
+        data-tip={doseKey === tipDoseKey ? "meds.dose" : undefined}
       >
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -1328,6 +1336,7 @@ function MedicationsPage() {
                                 role="radiogroup"
                                 aria-label={`Did it help? ${med.name}, taken at ${formatTakenAt(l.takenAt)}`}
                                 className="flex items-center gap-1.5 mt-1 flex-wrap"
+                                data-tip={l.id === tipHelpedLogId ? "meds.helped" : undefined}
                               >
                                 <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>
                                   Did it help?

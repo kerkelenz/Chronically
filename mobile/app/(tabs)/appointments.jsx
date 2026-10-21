@@ -580,6 +580,8 @@ export default function AppointmentsScreen() {
 
   // the soonest upcoming appointment gets the "export a report to bring" nudge
   const soonestUpcomingId = upcoming.length > 0 ? upcoming[0].id : null;
+  // the after-visit tip points at the first past visit still waiting on an answer or notes
+  const tipAfterVisitId = past.find((a) => a.status === "upcoming" || (a.status === "completed" && !a.notesAfter))?.id ?? null;
 
   const saveDisabled = saving || !form.doctorName.trim() || !form.date;
 
@@ -910,7 +912,7 @@ export default function AppointmentsScreen() {
                     </View>
 
                     {/* Prepare + report-to-bring */}
-                    <View style={styles.prepRow}>
+                    <TipAnchor id={appt.id === soonestUpcomingId ? "appts.prep" : null} style={styles.prepRow}>
                       <TouchableOpacity
                         style={styles.prepBtn}
                         onPress={() => openPrep(appt)}
@@ -947,7 +949,7 @@ export default function AppointmentsScreen() {
                         </TouchableOpacity>
                       )}
                       {summaryButton(appt)}
-                    </View>
+                    </TipAnchor>
 
                     {/* Inline cancel confirm */}
                     {cancelConfirmId === appt.id && (
@@ -1069,7 +1071,7 @@ export default function AppointmentsScreen() {
 
                       {/* Past-due: did this visit happen? */}
                       {isPastDue && (
-                        <View style={styles.happenRow}>
+                        <TipAnchor id={appt.id === tipAfterVisitId ? "appts.afterVisit" : null} style={styles.happenRow}>
                           <Text style={styles.happenText}>Did this visit happen?</Text>
                           <View style={styles.happenBtns}>
                             <TouchableOpacity
@@ -1091,7 +1093,7 @@ export default function AppointmentsScreen() {
                               <Text style={styles.happenNoText}>Cancelled</Text>
                             </TouchableOpacity>
                           </View>
-                        </View>
+                        </TipAnchor>
                       )}
 
                       {/* Inline cancel confirm (shared with the chip) */}
@@ -1121,7 +1123,7 @@ export default function AppointmentsScreen() {
 
                       {/* Completed: add visit notes link when empty, and the summary */}
                       {isCompleted && (
-                        <View style={styles.completedActions}>
+                        <TipAnchor id={appt.id === tipAfterVisitId ? "appts.afterVisit" : null} style={styles.completedActions}>
                           {!appt.notesAfter && (
                             <TouchableOpacity
                               style={styles.addNotesLink}
@@ -1135,7 +1137,7 @@ export default function AppointmentsScreen() {
                             </TouchableOpacity>
                           )}
                           {summaryButton(appt)}
-                        </View>
+                        </TipAnchor>
                       )}
 
                       {/* Completed: follow-up chained */}

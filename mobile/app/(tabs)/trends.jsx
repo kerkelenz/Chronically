@@ -247,12 +247,14 @@ export default function TrendsScreen() {
           <View style={styles.insightsSection}>
             <Text style={styles.adherenceHeader}>Insights</Text>
             {insights.cards.length > 0 ? (
-              insights.cards.map((card) => (
-                <View key={card.id} style={styles.card}>
-                  <Text style={styles.insightHeadline}>{card.headline}</Text>
-                  <Text style={styles.insightBody}>{card.body}</Text>
-                  <Text style={styles.insightEvidence}>{card.evidence}</Text>
-                </View>
+              insights.cards.map((card, i) => (
+                <TipAnchor key={card.id} id={i === 0 ? "trends.insightCard" : null}>
+                  <View style={styles.card}>
+                    <Text style={styles.insightHeadline}>{card.headline}</Text>
+                    <Text style={styles.insightBody}>{card.body}</Text>
+                    <Text style={styles.insightEvidence}>{card.evidence}</Text>
+                  </View>
+                </TipAnchor>
               ))
             ) : (
               /* Chronicle keeps the empty state company. He appears only here —

@@ -1315,6 +1315,13 @@ export default function MedicationsScreen() {
   const todayLogged = doses.filter((d) => d.log).length;
   const allLogged = todayExpected > 0 && todayLogged === todayExpected;
 
+  // tips point at one dose row (the first still to log) and the first "Did it help?"
+  const shownDoses = groups.flatMap((g) => g.doses);
+  const tipDoseKey = (shownDoses.find((d) => !d.log) || shownDoses[0])?.doseKey;
+  const tipHelpedLogId = prnMeds
+    .map((m) => todayLogs.find((l) => l.medicationId === m.id))
+    .find(Boolean)?.id;
+
   // ── Loading ───────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -1416,19 +1423,20 @@ export default function MedicationsScreen() {
                     </Text>
                   </View>
                   {g.doses.map((dose) => (
-                    <DoseRow
-                      key={dose.doseKey}
-                      dose={dose}
-                      reasonEditKey={reasonEditKey}
-                      onTake={handleTake}
-                      onSkip={handleSkip}
-                      onReasonOpen={setReasonEditKey}
-                      onReasonPick={handleReasonPick}
-                      onReasonCancel={() => setReasonEditKey(null)}
-                      onUndo={handleUndo}
-                      actionLoading={actionLoading}
-                      actionError={actionError}
-                    />
+                    <TipAnchor key={dose.doseKey} id={dose.doseKey === tipDoseKey ? "meds.dose" : null}>
+                      <DoseRow
+                        dose={dose}
+                        reasonEditKey={reasonEditKey}
+                        onTake={handleTake}
+                        onSkip={handleSkip}
+                        onReasonOpen={setReasonEditKey}
+                        onReasonPick={handleReasonPick}
+                        onReasonCancel={() => setReasonEditKey(null)}
+                        onUndo={handleUndo}
+                        actionLoading={actionLoading}
+                        actionError={actionError}
+                      />
+                    </TipAnchor>
                   ))}
                 </View>
               ))}
@@ -1493,31 +1501,33 @@ export default function MedicationsScreen() {
                         </View>
                         {/* Their own note on how it went. Optional, and tapping
                             the chosen one again clears it. */}
-                        <View
-                          style={styles.helpedRow}
-                          accessibilityRole="radiogroup"
-                          accessibilityLabel={`Did it help? ${med.name}, taken at ${formatTakenAt(l.takenAt)}`}
-                        >
-                          <Text style={styles.helpedPrompt}>Did it help?</Text>
-                          {HELPED_CHOICES.map((choice) => {
-                            const selected = l.helped === choice.value;
-                            return (
-                              <TouchableOpacity
-                                key={choice.value}
-                                onPress={() => handleHelped(l, choice.value)}
-                                style={[styles.helpedChip, selected && styles.helpedChipOn]}
-                                activeOpacity={0.8}
-                                accessibilityRole="radio"
-                                accessibilityState={{ selected }}
-                                accessibilityLabel={choice.label}
-                              >
-                                <Text style={[styles.helpedChipText, selected && styles.helpedChipTextOn]}>
-                                  {choice.label}
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
+                        <TipAnchor id={l.id === tipHelpedLogId ? "meds.helped" : null}>
+                          <View
+                            style={styles.helpedRow}
+                            accessibilityRole="radiogroup"
+                            accessibilityLabel={`Did it help? ${med.name}, taken at ${formatTakenAt(l.takenAt)}`}
+                          >
+                            <Text style={styles.helpedPrompt}>Did it help?</Text>
+                            {HELPED_CHOICES.map((choice) => {
+                              const selected = l.helped === choice.value;
+                              return (
+                                <TouchableOpacity
+                                  key={choice.value}
+                                  onPress={() => handleHelped(l, choice.value)}
+                                  style={[styles.helpedChip, selected && styles.helpedChipOn]}
+                                  activeOpacity={0.8}
+                                  accessibilityRole="radio"
+                                  accessibilityState={{ selected }}
+                                  accessibilityLabel={choice.label}
+                                >
+                                  <Text style={[styles.helpedChipText, selected && styles.helpedChipTextOn]}>
+                                    {choice.label}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                        </TipAnchor>
                         {actionError === `helped-${l.id}` ? (
                           <Text style={styles.doseError}>Couldn't save, try again</Text>
                         ) : null}

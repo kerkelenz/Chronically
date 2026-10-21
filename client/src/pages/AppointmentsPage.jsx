@@ -426,6 +426,8 @@ function AppointmentsPage() {
 
   // the soonest upcoming appointment gets the "export a report to bring" nudge
   const soonestUpcomingId = upcoming.length > 0 ? upcoming[0].id : null;
+  // the after-visit tip points at the first past visit still waiting on an answer or notes
+  const tipAfterVisitId = past.find((a) => a.status === "upcoming" || (a.status === "completed" && !a.notesAfter))?.id ?? null;
 
   const calendarDays = loading ? [] : buildCalendarDays();
 
@@ -780,7 +782,7 @@ function AppointmentsPage() {
                         </div>
 
                         {/* Prepare + report-to-bring */}
-                        <div className="flex items-center flex-wrap gap-2">
+                        <div className="flex items-center flex-wrap gap-2" data-tip={appt.id === soonestUpcomingId ? "appts.prep" : undefined}>
                           <button
                             onClick={() => openPrep(appt)}
                             className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 hover:opacity-80"
@@ -935,7 +937,7 @@ function AppointmentsPage() {
 
                           {/* Past-due: did this visit happen? */}
                           {isPastDue && (
-                            <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center justify-between flex-wrap gap-2" data-tip={appt.id === tipAfterVisitId ? "appts.afterVisit" : undefined}>
                               <p className="text-xs" style={{ color: "rgba(255,255,255,0.75)" }}>Did this visit happen?</p>
                               <div className="flex gap-2">
                                 <button
@@ -988,7 +990,7 @@ function AppointmentsPage() {
 
                           {/* Completed: add visit notes link when empty, and the summary */}
                           {isCompleted && (
-                            <div className="flex items-center flex-wrap gap-3">
+                            <div className="flex items-center flex-wrap gap-3" data-tip={appt.id === tipAfterVisitId ? "appts.afterVisit" : undefined}>
                               {!appt.notesAfter && (
                                 <button
                                   onClick={() => openOutcome(appt)}
