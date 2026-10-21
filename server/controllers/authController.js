@@ -2,10 +2,9 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { Op } = require("sequelize");
-const { Resend } = require("resend");
 const User = require("../models/User");
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = require("../config/mailer");
 
 // bcrypt recommends 10 salt rounds as a good balance between security and performance
 // the higher the number the slower the hash - which is actually intentional to slow down hackers

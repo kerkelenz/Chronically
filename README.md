@@ -53,39 +53,31 @@ chronically/
 ### Prerequisites
 
 - Node.js 18+ and npm
-- A PostgreSQL database (local, or a hosted one such as Supabase)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/), for the local database
 - For mobile: the [Expo](https://docs.expo.dev/get-started/set-up-your-environment/) toolchain (and Xcode / Android Studio for native builds)
+
+Local development runs against its own Docker Postgres, never a hosted
+database. Deployment (local → staging → production), migrations and the full
+environment reference are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ### 1. Backend — `server/`
 
 ```bash
 cd server
 npm install
-cp .env.example .env   # then fill in the values below
-npm run dev            # starts on PORT (default 5000) with nodemon
+cp .env.example .env   # local defaults: Docker database, emails print to the terminal
+npm run db:reset       # start Postgres, apply migrations, seed test accounts
+npm run dev            # http://localhost:3001
 ```
 
-`.env`:
-
-| Variable         | Purpose                                                                            |
-| ---------------- | ---------------------------------------------------------------------------------- |
-| `DATABASE_URL`   | PostgreSQL connection string                                                       |
-| `JWT_SECRET`     | Secret for signing auth tokens (required — the server won't boot without it)       |
-| `PORT`           | API port (default `5000`)                                                          |
-| `NODE_ENV`       | `development` locally; `production` in deployment                                  |
-| `FRONTEND_URL`   | Web app origin, for CORS                                                           |
-| `RESEND_API_KEY` | Resend key for verification / password-reset email                                 |
-| `DB_CA_CERT`     | _(optional)_ PEM CA cert for full DB TLS verification                              |
-| `DB_SYNC_ALTER`  | _(optional)_ set `true` for one boot to apply schema changes via Sequelize `alter` |
-
-> Schema note: in production the server runs a plain `sequelize.sync()` (creates missing tables only). Applying column/enum changes requires booting once with `DB_SYNC_ALTER=true`, then removing it.
+Test accounts: `new@chronically.local` and `settled@chronically.local`, password `chronically`.
 
 ### 2. Web — `client/`
 
 ```bash
 cd client
 npm install
-echo "VITE_API_URL=http://localhost:5000" > .env   # point at your API
+cp .env.example .env   # VITE_API_URL=http://localhost:3001
 npm run dev            # Vite dev server
 npm run build          # production build -> dist/
 ```
@@ -95,11 +87,11 @@ npm run build          # production build -> dist/
 ```bash
 cd mobile
 npm install
-# set EXPO_PUBLIC_API_URL to your API base URL (e.g. in .env or app config)
+cp .env.example .env   # set EXPO_PUBLIC_API_URL to your computer's LAN address
 npx expo start         # then press i (iOS), a (Android), or scan with Expo Go
 ```
 
-The mobile app reads its API base URL from `EXPO_PUBLIC_API_URL`.
+EAS `preview` builds talk to staging and `production` builds to production (`mobile/eas.json`).
 
 ---
 

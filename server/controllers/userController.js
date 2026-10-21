@@ -1,11 +1,10 @@
 const crypto = require("crypto");
-const { Resend } = require("resend");
 const User = require("../models/User");
 const { sequelize } = require("../config/db");
 const { TIP_SCREENS, normalizeTipsSeen, markScreenSeen, resetTips } = require("../lib/tips");
 const { searchPlaces, roundCoord, placeLabel } = require("../lib/weather");
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = require("../config/mailer");
 
 const ALLOWED_MILESTONES = [3, 7, 14, 30, 60, 90, 100, 180, 365];
 

@@ -3,8 +3,11 @@ node_modules/
 client/node_modules/
 server/node_modules/
 
-# Environment variables
+# Environment variables — every .env variant, in any folder; only the
+# committed templates (.env.example) are allowed through
 .env
+.env.*
+!.env.example
 server/.env
 client/.env
 

@@ -1,7 +1,6 @@
-const { Resend } = require("resend");
 const User = require("../models/User");
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = require("../config/mailer");
 const SUPPORT_EMAIL = "kevin@erkelenz.tech";
 
 const submitFeedback = async (req, res) => {

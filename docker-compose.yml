@@ -1,0 +1,27 @@
+# The local database: Postgres 17, the same major version as Supabase.
+#   cd server && npm run db:up      start it (and wait until it's ready)
+#   cd server && npm run db:reset   wipe it, migrate, and seed test accounts
+#   cd server && npm run db:down    stop it (data is kept in the volume)
+#
+# These credentials only ever exist on your machine; they guard nothing real.
+# Port 5433, not 5432, so it can't collide with any other Postgres you run.
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: chronically-postgres
+    environment:
+      POSTGRES_USER: chronically
+      POSTGRES_PASSWORD: chronically
+      POSTGRES_DB: chronically
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - chronically-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chronically -d chronically"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  chronically-pg:

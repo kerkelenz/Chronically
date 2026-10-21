@@ -1,5 +1,4 @@
-const { Resend } = require("resend");
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = require("../config/mailer");
 const SUPPORT_EMAIL = "kevin@erkelenz.tech";
 
 const requestAccountDeletion = async (req, res) => {
