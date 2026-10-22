@@ -134,3 +134,20 @@ describe("period comparison", () => {
     expect(screen.getByText("Not enough days to compare yet for pain, anxiety, appetite, and sleep.")).toBeTruthy();
   });
 });
+
+describe("Your flares", () => {
+  test("carries the trends.flares tip anchor", async () => {
+    await open();
+    const anchors = screen.UNSAFE_root.findAll((n) => n.props?.id === "trends.flares" && typeof n.type === "function");
+    expect(anchors.length).toBeGreaterThan(0);
+    expect(within(anchors[0]).getByRole("button", { name: "Your flares" })).toBeTruthy();
+  });
+
+  test("with no flares: says where flares come from, and adding a past one is right there", async () => {
+    await open();
+    fireEvent.press(screen.getByRole("button", { name: "Your flares" }));
+    expect(await screen.findByText("When a flare starts, you can mark it here or at the end of a check-in. I'll shade it on your charts.")).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Add a past flare" }));
+    expect(await screen.findByText("Add a past flare")).toBeTruthy();
+  });
+});

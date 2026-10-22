@@ -1,5 +1,5 @@
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react-native";
-import { StyleSheet } from "react-native";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react-native";
+import { router } from "expo-router";
 import DashboardScreen from "../app/(tabs)/index";
 
 // ── a fake API: just the reads the dashboard makes on load ──────────────────
@@ -56,13 +56,6 @@ async function open() {
 }
 const flareLinks = () => screen.queryAllByRole("button", { name: "Having a flare?" });
 const promptShown = () => screen.queryByText("How are you feeling right now?") !== null;
-// the nearest enclosing row: where the quiet links sit side by side
-function rowOf(el) {
-  for (let n = el.parent; n; n = n.parent) {
-    if (StyleSheet.flatten(n.props?.style)?.flexDirection === "row") return n;
-  }
-  return null;
-}
 
 beforeEach(() => {
   // fake only the clock; everything that schedules work stays real
@@ -76,66 +69,57 @@ beforeEach(() => {
 });
 afterEach(() => jest.useRealTimers());
 
-describe("check-in prompt and the flare link", () => {
-  it("a first-time user gets the flare link inside the prompt, once", async () => {
+describe("flares on the dashboard", () => {
+  // every load lands in one Promise.all, so open() returns with flares loaded
+
+  test("a first-time user: the check-in prompt, and no flare link", async () => {
     await open();
     expect(promptShown()).toBe(true);
-    expect(flareLinks()).toHaveLength(1);
+    expect(flareLinks()).toHaveLength(0);
     expect(screen.queryByRole("button", { name: "Same as last time" })).toBeNull();
   });
 
-  it("with a recent check-in, both quiet links share one row in the prompt", async () => {
+  test("with a recent check-in: Same as last time stays, on its own", async () => {
     mockApi.checkIns = [checkInAgo(30 * HOUR)];
     await open();
-    const same = screen.getByRole("button", { name: "Same as last time" });
-    expect(flareLinks()).toHaveLength(1);
-    const row = rowOf(same);
-    expect(row).not.toBeNull();
-    expect(within(row).getByRole("button", { name: "Having a flare?" })).toBeTruthy();
-    // the separator is decoration: hidden from screen readers, present on screen
-    expect(screen.queryByText("·")).toBeNull();
-    expect(within(row).getByText("·", { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Same as last time" })).toBeTruthy();
+    expect(flareLinks()).toHaveLength(0);
+    expect(screen.queryByText("·", { includeHiddenElements: true })).toBeNull(); // no separator dot
   });
 
-  it("both quiet links keep a full 44pt touch target", async () => {
+  test("Same as last time still opens the check-in with the last answers", async () => {
     mockApi.checkIns = [checkInAgo(30 * HOUR)];
     await open();
-    for (const name of ["Same as last time", "Having a flare?"]) {
-      const btn = screen.getByRole("button", { name });
-      expect(StyleSheet.flatten(btn.props.style).minHeight).toBeGreaterThanOrEqual(44);
-    }
+    fireEvent.press(screen.getByRole("button", { name: "Same as last time" }));
+    expect(router.push).toHaveBeenCalledWith(expect.objectContaining({
+      pathname: "/checkin",
+      params: expect.objectContaining({ prefill: expect.any(String) }),
+    }));
   });
 
-  it("the flare link in the prompt opens the start-a-flare sheet", async () => {
-    await open();
-    fireEvent.press(flareLinks()[0]);
-    expect(await screen.findByText("Start a flare")).toBeTruthy();
-  });
-
-  it("once today's check-in is done, the prompt goes and the flare link stands alone", async () => {
+  test("after today's check-in: no prompt and still no flare link", async () => {
     mockApi.checkIns = [checkInAgo(1 * HOUR)];
     await open();
     expect(promptShown()).toBe(false);
-    expect(flareLinks()).toHaveLength(1);
-    expect(screen.queryByRole("button", { name: "Same as last time" })).toBeNull();
+    expect(flareLinks()).toHaveLength(0);
   });
 
-  it("an ongoing flare means no link anywhere — the prompt shows without it", async () => {
+  test("an ongoing flare: the card, with It's eased working", async () => {
     mockApi.checkIns = [checkInAgo(30 * HOUR)];
     mockApi.flares = [ONGOING_FLARE];
     await open();
     expect(screen.getByText(/^Flare since/)).toBeTruthy();
     expect(flareLinks()).toHaveLength(0);
-    expect(screen.getByRole("button", { name: "Same as last time" })).toBeTruthy();
-    expect(screen.queryByText("·", { includeHiddenElements: true })).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "End this flare" }));
+    expect(await screen.findByText("Glad it's easing")).toBeTruthy();
   });
 
-  it("if flares fail to load, no flare link is offered at all", async () => {
+  test("if flares fail to load, nothing flare-related renders", async () => {
     mockApi.checkIns = [checkInAgo(30 * HOUR)];
     mockApi.failFlares = true;
     await open();
-    expect(promptShown()).toBe(true);
-    expect(screen.getByRole("button", { name: "Same as last time" })).toBeTruthy();
     expect(flareLinks()).toHaveLength(0);
+    expect(screen.queryByText(/^Flare since/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Same as last time" })).toBeTruthy();
   });
 });

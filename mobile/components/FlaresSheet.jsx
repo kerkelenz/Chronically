@@ -19,7 +19,8 @@ const NOTE_COUNTER_FROM = 240;
  * different combinations and the server's validation messages have to surface
  * identically whichever one you came from:
  *
- *  - "start": Home's Having a flare? → Started + Note
+ *  - "start": Started + Note. Nothing opens it now: flares start at the end
+ *             of a check-in, or from the list below
  *  - "ease":  the ongoing card's It's eased → Ended
  *  - "list":  Trends → Your flares → the history, and from it the full editor
  *             (Started, Ended, Still going, Note) and Add a past flare
@@ -181,7 +182,7 @@ export default function FlaresSheet({
           {view === "list" ? (
             flares.length === 0 ? (
               <Text style={styles.empty}>
-                When you mark a flare from Home, it shows up here.
+                When a flare starts, you can mark it here or at the end of a check-in. I'll shade it on your charts.
               </Text>
             ) : (
               <View style={styles.list}>

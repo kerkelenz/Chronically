@@ -72,7 +72,7 @@ function DashboardPage() {
   // null and the whole block renders nothing — we never offer to start a
   // second flare without knowing whether one is already going.
   const [flares, setFlares] = useState(null);
-  const [flareView, setFlareView] = useState(null); // "start" | "ease" | "edit"
+  const [flareView, setFlareView] = useState(null); // "ease" | "edit", from the ongoing card
 
   const [appointments, setAppointments] = useState([]);
   const [announcement, setAnnouncement] = useState(null);
@@ -275,12 +275,9 @@ function DashboardPage() {
     checkIns[0] &&
     Date.now() - new Date(checkIns[0].createdAt).getTime() >= 60 * 60 * 1000;
 
-  // "Having a flare?" sits beside "Same as last time" while the check-in prompt
-  // is up, and on its own line once it is not. An ongoing flare is a card, not
-  // a link, and stays where it is. flares === null means the fetch failed: no
-  // control at all beats offering to start a second flare blind.
+  // A flare is started at the end of a check-in or from Trends → Your flares;
+  // the dashboard shows one only while it's ongoing, as the card below.
   const showCheckInPrompt = checkIns.length === 0 || !todaysDone;
-  const offerFlare = flares !== null && !flares.some((f) => !f.endDate);
 
   // First-visit tips wait for everything that already competes for this screen:
   // the welcome, a milestone, an announcement, and any dialog or sheet.
@@ -366,31 +363,14 @@ function DashboardPage() {
             >
               Start Check-in
             </button>
-            {(repeatPrefill || offerFlare) && (
-              // two quiet ways to tell the app how today is going, on one line;
-              // each keeps a full 44px touch target
-              <div className="flex items-center justify-center">
-                {repeatPrefill && (
-                  <button
-                    onClick={() => { setCheckInPrefill(repeatPrefill); setShowCheckIn(true); }}
-                    className="text-sm text-white/70 hover:text-white transition-colors min-h-[44px] px-3"
-                  >
-                    Same as last time
-                  </button>
-                )}
-                {repeatPrefill && offerFlare && (
-                  <span aria-hidden="true" className="text-sm text-white/40">·</span>
-                )}
-                {offerFlare && (
-                  <button
-                    data-tip="dashboard.flare"
-                    onClick={() => setFlareView("start")}
-                    className="text-sm text-white/70 hover:text-white transition-colors min-h-[44px] px-3"
-                  >
-                    Having a flare?
-                  </button>
-                )}
-              </div>
+            {repeatPrefill && (
+              // a quieter secondary action, with a full 44px touch target
+              <button
+                onClick={() => { setCheckInPrefill(repeatPrefill); setShowCheckIn(true); }}
+                className="text-sm text-white/70 hover:text-white transition-colors min-h-[44px] px-3"
+              >
+                Same as last time
+              </button>
             )}
           </div>
         )}
@@ -410,26 +390,13 @@ function DashboardPage() {
           </div>
         )}
 
-        {/* Flares. Nothing renders if the fetch failed (flares === null): better
-            no control than offering to start a second flare blind. */}
+        {/* An ongoing flare. Nothing otherwise: starting one lives at the end of
+            a check-in and in Trends → Your flares. Nothing renders if the fetch
+            failed (flares === null). */}
         {flares !== null && (() => {
           const ongoing = flares.find((f) => !f.endDate);
           const today = localToday();
-          if (!ongoing) {
-            // while the check-in prompt is up, the link lives inside it
-            if (showCheckInPrompt) return null;
-            return (
-              <div className="flex justify-center">
-                <button
-                  data-tip="dashboard.flare"
-                  onClick={() => setFlareView("start")}
-                  className="text-sm text-white/70 hover:text-white transition-colors min-h-[44px] px-4"
-                >
-                  Having a flare?
-                </button>
-              </div>
-            );
-          }
+          if (!ongoing) return null;
           return (
             <div
               data-tip="dashboard.flare"
@@ -1054,6 +1021,8 @@ function DashboardPage() {
           onComplete={async () => {
             setShowCheckIn(false);
             setCheckInPrefill(null);
+            // the check-in may have started a flare: the ongoing card shows now
+            fetchFlares();
             const response = await axios.get(
               `${import.meta.env.VITE_API_URL}/api/checkins`,
               { headers: { Authorization: `Bearer ${token}` } },

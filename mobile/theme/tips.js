@@ -24,7 +24,7 @@ export const TIP_WORD_MAX = 25;
 export const TIPS = {
   dashboard: [
     { id: "dashboard.checkin", anchor: "dashboard.checkin", text: "This is where today's check-in lives. Thirty seconds is plenty — and skipping a day is completely fine." },
-    { id: "dashboard.flare", anchor: "dashboard.flare", text: "Rough stretch? You can mark a flare here, and I'll keep it alongside your days so you can see it in context later." },
+    { id: "dashboard.flare", anchor: "dashboard.flare", text: "While a flare's going, it lives here. Tell me when it eases — there's no rush." },
     { id: "dashboard.dials", anchor: "dashboard.dials", text: "Your last two weeks gather here as you check in. Just averages — no grades, no judgement." },
     { id: "dashboard.history", anchor: "dashboard.history", text: "Your recent check-ins land here. Tap the pencil to adjust one — second thoughts are welcome." },
   ],
@@ -35,6 +35,7 @@ export const TIPS = {
   ],
   trends: [
     { id: "trends.range", anchor: "trends.range", text: "Choose how far back to look. Shorter shows the texture of this week; longer shows the shape of things." },
+    { id: "trends.flares", anchor: "trends.flares", text: "Rough stretches can be marked as flares — here, or at the end of a check-in. I'll shade them on your charts." },
     { id: "trends.insights", anchor: "trends.insights", text: "When two things keep turning up together, I'll mention it here — always with how many days it's based on." },
     { id: "trends.insightCard", anchor: "trends.insightCard", text: "This is a pattern, not a cause. The line underneath shows how many days it rests on, so you can weigh it yourself." },
     { id: "trends.chart", anchor: "trends.chart", text: "All six measures, side by side. Higher is always better here, even for pain and anxiety." },

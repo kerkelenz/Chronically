@@ -153,7 +153,7 @@ export default function DashboardScreen() {
   // null means "we don't know" — the fetch failed, so the block renders nothing
   // rather than offering to start a second flare blind.
   const [flares, setFlares] = useState(null);
-  const [flareView, setFlareView] = useState(null); // "start" | "ease" | "edit"
+  const [flareView, setFlareView] = useState(null); // "ease" | "edit", from the ongoing card
   const [celebration, setCelebration] = useState(null);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showPrimer, setShowPrimer] = useState(false);
@@ -466,13 +466,9 @@ export default function DashboardScreen() {
 
   // ── Main screen ───────────────────────────────────────────────────────────
 
-  // "Having a flare?" sits beside "Same as last time" while the check-in prompt
-  // is up, and on its own line once it is not. An ongoing flare is a card, not
-  // a link, and stays where it is. flares === null means the fetch failed: no
-  // control at all beats offering to start a second flare blind.
+  // A flare is started at the end of a check-in or from Trends → Your flares;
+  // the dashboard shows one only while it's ongoing, as the card below.
   const showCheckInPrompt = !error && (checkIns.length === 0 || !todaysDone);
-  const offerFlare =
-    !error && !loading && flares !== null && !flares.some((f) => !f.endDate);
 
   return (
     <ScreenBackground edges={["top", "left", "right"]}>
@@ -534,44 +530,17 @@ export default function DashboardScreen() {
                 <Text style={styles.checkInPromptBtnText}>Start Check-in</Text>
               </TouchableOpacity>
             </TipAnchor>
-            {(repeatPrefill || offerFlare) && (
-              // two quiet ways to tell the app how today is going, on one line;
-              // each keeps a full 44pt touch target
-              <View style={styles.promptLinkRow}>
-                {repeatPrefill && (
-                  <TouchableOpacity
-                    onPress={() => openCheckIn(askSleep, repeatPrefill)}
-                    style={styles.promptLinkBtn}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel="Same as last time"
-                  >
-                    <Text style={styles.promptLinkText}>Same as last time</Text>
-                  </TouchableOpacity>
-                )}
-                {repeatPrefill && offerFlare && (
-                  <Text
-                    style={styles.promptLinkDot}
-                    accessibilityElementsHidden
-                    importantForAccessibility="no-hide-descendants"
-                  >
-                    ·
-                  </Text>
-                )}
-                {offerFlare && (
-                  <TipAnchor id="dashboard.flare">
-                    <TouchableOpacity
-                      onPress={() => setFlareView("start")}
-                      style={styles.promptLinkBtn}
-                      activeOpacity={0.7}
-                      accessibilityRole="button"
-                      accessibilityLabel="Having a flare?"
-                    >
-                      <Text style={styles.promptLinkText}>Having a flare?</Text>
-                    </TouchableOpacity>
-                  </TipAnchor>
-                )}
-              </View>
+            {repeatPrefill && (
+              // a quieter secondary action, with a full 44pt touch target
+              <TouchableOpacity
+                onPress={() => openCheckIn(askSleep, repeatPrefill)}
+                style={styles.promptLinkBtn}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Same as last time"
+              >
+                <Text style={styles.promptLinkText}>Same as last time</Text>
+              </TouchableOpacity>
             )}
           </View>
         )}
@@ -590,32 +559,14 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* Flares. Hidden while loading or in the error state, and hidden
-            entirely if the fetch failed — better no control than offering to
-            start a second flare blind. */}
+        {/* An ongoing flare. Nothing otherwise: starting one lives at the end of
+            a check-in and in Trends → Your flares. Hidden while loading, in
+            the error state, or if the fetch failed. */}
         {!error && !loading && flares !== null ? (
           (() => {
             const ongoing = flares.find((f) => !f.endDate);
             const today = localToday();
-            if (!ongoing) {
-              // while the check-in prompt is up, the link lives inside it
-              if (showCheckInPrompt) return null;
-              return (
-                <View style={styles.flareLinkWrap}>
-                  <TipAnchor id="dashboard.flare">
-                    <TouchableOpacity
-                      onPress={() => setFlareView("start")}
-                      style={styles.flareLinkBtn}
-                      activeOpacity={0.7}
-                      accessibilityRole="button"
-                      accessibilityLabel="Having a flare?"
-                    >
-                      <Text style={styles.flareLinkText}>Having a flare?</Text>
-                    </TouchableOpacity>
-                  </TipAnchor>
-                </View>
-              );
-            }
+            if (!ongoing) return null;
             return (
               <TipAnchor id="dashboard.flare">
               <View
@@ -1055,18 +1006,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "white",
   },
-  // quieter secondary actions — never compete with the primary button
-  promptLinkRow: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  // a quieter secondary action — never competes with the primary button
   promptLinkBtn: { minHeight: 44, justifyContent: "center", paddingHorizontal: 12 },
   promptLinkText: {
     fontFamily: "Lato_400Regular",
     fontSize: 14,
     color: "rgba(255,255,255,0.7)",
-  },
-  promptLinkDot: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.4)",
   },
   cardTitle: {
     fontFamily: "Lato_700Bold",
@@ -1359,14 +1304,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 16,
     gap: 8,
-  },
-  // a quiet text link, not a second button competing with the check-in prompt
-  flareLinkWrap: { alignItems: "center" },
-  flareLinkBtn: { minHeight: 44, justifyContent: "center", paddingHorizontal: 16 },
-  flareLinkText: {
-    fontFamily: "Lato_400Regular",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.7)",
   },
   flareCard: {
     backgroundColor: "rgba(52,38,86,0.98)",

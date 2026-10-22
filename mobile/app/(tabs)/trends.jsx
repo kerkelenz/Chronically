@@ -199,15 +199,17 @@ export default function TrendsScreen() {
         <View style={styles.pageHeader}>
           <View style={styles.pageTitleRow}>
             <Text style={styles.pageTitle}>Trends</Text>
-            <TouchableOpacity
-              onPress={() => { fetchFlares(); setShowFlares(true); }}
-              style={styles.flareLinkBtn}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Your flares"
-            >
-              <Text style={styles.flareLinkText}>Your flares</Text>
-            </TouchableOpacity>
+            <TipAnchor id="trends.flares">
+              <TouchableOpacity
+                onPress={() => { fetchFlares(); setShowFlares(true); }}
+                style={styles.flareLinkBtn}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Your flares"
+              >
+                <Text style={styles.flareLinkText}>Your flares</Text>
+              </TouchableOpacity>
+            </TipAnchor>
           </View>
         </View>
         <TipAnchor id="trends.range">
