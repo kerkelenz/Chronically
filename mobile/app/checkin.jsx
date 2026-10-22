@@ -298,6 +298,10 @@ export default function CheckInScreen() {
   // same reasoning that leaves sleep out of the quick path.
   const [note, setNote] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
+  // "This is the start of a flare" — offered only once we know no flare is
+  // ongoing; unknown (still loading, or the fetch failed) means no offer
+  const [canStartFlare, setCanStartFlare] = useState(false);
+  const [startsFlare, setStartsFlare] = useState(false);
   // open once asked for, and stay open if there is already text to show
   const noteExpanded = noteOpen || note.trim() !== "";
   const [recentSymptoms, setRecentSymptoms] = useState([]);
@@ -328,6 +332,20 @@ export default function CheckInScreen() {
     if (!consumeDeliberateOpen()) {
       router.replace("/(tabs)");
     }
+  }, []);
+
+  // is a flare already going? only a clear "no" offers to start one
+  useEffect(() => {
+    let active = true;
+    api
+      .get("/api/flares")
+      .then((res) => {
+        if (active) setCanStartFlare(!(res.data?.flares || []).some((f) => !f.endDate));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, []);
 
   // fetch the user's personal recent symptoms; silent-fail to none
@@ -512,6 +530,16 @@ export default function CheckInScreen() {
         date: today,
         note: note.trim() || null,
       });
+      // The check-in is saved. Starting the flare is a second, separate step:
+      // if it fails (or one was started elsewhere meanwhile, a 409) the
+      // check-in still stands and the user sees nothing about it.
+      if (canStartFlare && startsFlare) {
+        try {
+          await api.post("/api/flares", { startDate: today });
+        } catch (flareErr) {
+          console.warn("Couldn't start the flare from the check-in:", flareErr?.response?.status || flareErr?.message);
+        }
+      }
       track("checkin_completed");
       setStep(8);
     } catch (err) {
@@ -872,6 +900,28 @@ export default function CheckInScreen() {
                       </TouchableOpacity>
                     )}
 
+                    {canStartFlare ? (
+                      <TouchableOpacity
+                        style={styles.flareCheckRow}
+                        onPress={() => setStartsFlare((v) => !v)}
+                        activeOpacity={0.75}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: startsFlare }}
+                        accessibilityLabel="This is the start of a flare"
+                        accessibilityHint="I'll mark it from today. You can end it whenever it eases."
+                      >
+                        <View style={[styles.flareBox, startsFlare && styles.flareBoxChecked]}>
+                          {startsFlare ? <Text style={styles.flareTick}>✓</Text> : null}
+                        </View>
+                        <View style={{ flexShrink: 1 }}>
+                          <Text style={styles.flareCheckLabel}>This is the start of a flare</Text>
+                          <Text style={styles.flareCheckHelp}>
+                            I'll mark it from today. You can end it whenever it eases.
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ) : null}
+
                     <TouchableOpacity
                       style={[
                         styles.primaryBtn,
@@ -1231,6 +1281,30 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.6)",
   },
   skipAnchor: { alignSelf: "center" },
+  // "This is the start of a flare": the same quiet weight as "+ add a note"
+  flareCheckRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    minHeight: 44,
+    paddingVertical: 6,
+    alignSelf: "stretch",
+  },
+  flareBox: {
+    width: 20,
+    height: 20,
+    marginTop: 1,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  flareBoxChecked: { backgroundColor: "white", borderColor: "white" },
+  flareTick: { color: "#7C6BAE", fontSize: 13, fontWeight: "700", lineHeight: 16 },
+  flareCheckLabel: { fontFamily: "Lato_400Regular", fontSize: 14, color: "rgba(255,255,255,0.85)" },
+  flareCheckHelp: { fontFamily: "Lato_400Regular", fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 2 },
   skipLink: {
     fontFamily: "Lato_400Regular",
     fontSize: 14,

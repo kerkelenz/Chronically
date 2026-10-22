@@ -20,7 +20,7 @@ const TIP_SCREENS = ["dashboard", "checkin", "trends", "medications", "appointme
 const TIP_IDS = {
   dashboard: ["dashboard.checkin", "dashboard.flare", "dashboard.dials", "dashboard.history"],
   checkin: ["checkin.levels", "checkin.skip", "checkin.cancel"],
-  trends: ["trends.range", "trends.insights", "trends.insightCard", "trends.chart"],
+  trends: ["trends.range", "trends.flares", "trends.insights", "trends.insightCard", "trends.chart"],
   medications: ["meds.add", "meds.today", "meds.dose", "meds.helped", "meds.cabinet"],
   appointments: ["appts.add", "appts.report", "appts.doctors", "appts.prep", "appts.afterVisit"],
   spoons: ["spoons.ring", "spoons.activities", "spoons.calendar", "spoons.reflection"],
