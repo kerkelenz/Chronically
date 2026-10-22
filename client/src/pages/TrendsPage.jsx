@@ -171,6 +171,7 @@ function TrendsPage() {
           actions={
             <>
               <button
+                data-tip="trends.flares"
                 onClick={() => setShowFlares(true)}
                 className="text-sm text-white/70 hover:text-white transition-colors"
               >

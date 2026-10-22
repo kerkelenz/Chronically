@@ -158,3 +158,18 @@ describe("period comparison", () => {
     expect(screen.getByText("Averages on the 1–5 scale, where 5 is best for every metric.")).toBeTruthy();
   });
 });
+
+describe("Your flares", () => {
+  it("carries the trends.flares tip anchor", async () => {
+    await open();
+    expect(screen.getByRole("button", { name: "Your flares" }).getAttribute("data-tip")).toBe("trends.flares");
+  });
+
+  it("with no flares: says where flares come from, and adding a past one is right there", async () => {
+    await open();
+    await userEvent.click(screen.getByRole("button", { name: "Your flares" }));
+    expect(await screen.findByText("When a flare starts, you can mark it here or at the end of a check-in. I'll shade it on your charts.")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Add a past flare" }));
+    expect(await screen.findByLabelText("Started")).toBeTruthy();
+  });
+});

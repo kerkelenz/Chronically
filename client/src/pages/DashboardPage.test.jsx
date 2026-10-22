@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
+import axios from "axios";
 import DashboardPage from "./DashboardPage";
 import { exportDoctorReport } from "../utils/exportReport";
 import { SECTION_KEYS } from "../utils/reportOptions";
@@ -68,60 +69,64 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-describe("check-in prompt and the flare link", () => {
-  it("a first-time user gets the flare link inside the prompt, once", async () => {
+describe("flares on the dashboard", () => {
+  // "no link" proves nothing until the flares response has landed
+  const flaresLoaded = () => vi.waitFor(() =>
+    expect(axios.get.mock.calls.some(([url]) => url.endsWith("/api/flares"))).toBe(true));
+
+  it("a first-time user: the check-in prompt, and no flare link", async () => {
     await open();
-    await vi.waitFor(() => expect(flareLinks()).toHaveLength(1));
-    expect(within(prompt()).getByRole("button", { name: "Having a flare?" })).toBeTruthy();
+    await flaresLoaded();
+    await act(async () => {});
+    expect(prompt()).toBeTruthy();
+    expect(flareLinks()).toHaveLength(0);
     expect(screen.queryByRole("button", { name: "Same as last time" })).toBeNull();
   });
 
-  it("with a recent check-in, both quiet links share one line in the prompt", async () => {
+  it("with a recent check-in: Same as last time stays, on its own", async () => {
     api.checkIns = [checkInAgo(30 * HOUR)];
     await open();
-    await vi.waitFor(() => expect(flareLinks()).toHaveLength(1));
-    const same = within(prompt()).getByRole("button", { name: "Same as last time" });
-    const flare = within(prompt()).getByRole("button", { name: "Having a flare?" });
-    expect(same.parentElement).toBe(flare.parentElement);
-    // the separator is decoration, not something a screen reader announces
-    expect(same.parentElement.querySelector('[aria-hidden="true"]')?.textContent).toBe("·");
+    await flaresLoaded();
+    await act(async () => {});
+    expect(within(prompt()).getByRole("button", { name: "Same as last time" })).toBeTruthy();
+    expect(flareLinks()).toHaveLength(0);
+    expect(prompt().querySelector('[aria-hidden="true"]')).toBeNull(); // no separator dot
   });
 
-  it("the flare link in the prompt opens the start-a-flare form", async () => {
+  it("Same as last time still opens the check-in on its review step", async () => {
+    api.checkIns = [checkInAgo(30 * HOUR)];
     await open();
-    await vi.waitFor(() => expect(flareLinks()).toHaveLength(1));
-    await userEvent.click(flareLinks()[0]);
-    expect(await screen.findByText("Start a flare")).toBeTruthy();
+    await userEvent.click(await screen.findByRole("button", { name: "Same as last time" }));
+    expect(await screen.findByRole("button", { name: "Submit Check-in" })).toBeTruthy();
   });
 
-  it("once today's check-in is done, the prompt goes and the flare link stands alone", async () => {
+  it("after today's check-in: no prompt and still no flare link", async () => {
     api.checkIns = [checkInAgo(1 * HOUR)];
     await open();
-    await vi.waitFor(() => expect(flareLinks()).toHaveLength(1));
+    await flaresLoaded();
+    await act(async () => {});
     expect(prompt()).toBeUndefined();
-    expect(screen.queryByRole("button", { name: "Same as last time" })).toBeNull();
+    expect(flareLinks()).toHaveLength(0);
   });
 
-  it("an ongoing flare means no link anywhere — the prompt shows without it", async () => {
+  it("an ongoing flare: the card, with It's eased and Edit working", async () => {
     api.checkIns = [checkInAgo(30 * HOUR)];
     api.flares = [ONGOING_FLARE];
     await open();
-    // wait for the flare card, or "no link" would pass before flares even load
     await screen.findByText(/^Flare since/);
     expect(flareLinks()).toHaveLength(0);
-    expect(within(prompt()).getByRole("button", { name: "Same as last time" })).toBeTruthy();
-    expect(prompt().querySelector('[aria-hidden="true"]')).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "End this flare" }));
+    expect(await screen.findByText("Glad it's easing")).toBeTruthy();
   });
 
-  it("if flares fail to load, no flare link is offered at all", async () => {
+  it("if flares fail to load, nothing flare-related renders", async () => {
     api.checkIns = [checkInAgo(30 * HOUR)];
     api.failFlares = true;
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     await open();
-    await screen.findByRole("button", { name: "Same as last time" });
-    // the failure has to have landed, or "no link" proves nothing
     await vi.waitFor(() => expect(logged).toHaveBeenCalledWith("Failed to fetch flares:", expect.any(Error)));
     expect(flareLinks()).toHaveLength(0);
+    expect(screen.queryByText(/^Flare since/)).toBeNull();
     logged.mockRestore();
   });
 });

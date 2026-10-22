@@ -540,6 +540,10 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
   // same reasoning that leaves sleep out of the quick path.
   const [note, setNote] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
+  // "This is the start of a flare" — offered only once we know no flare is
+  // ongoing; unknown (still loading, or the fetch failed) means no offer
+  const [canStartFlare, setCanStartFlare] = useState(false);
+  const [startsFlare, setStartsFlare] = useState(false);
   // open once asked for, and stay open if there is already text to show
   const noteExpanded = noteOpen || note.trim() !== "";
   const [recentSymptoms, setRecentSymptoms] = useState([]);
@@ -557,6 +561,23 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
   const tips = useScreenTips("checkin", {
     blocked: prefilled || step !== firstStep || !!toastMessage || step === 8,
   });
+
+  // is a flare already going? only a clear "no" offers to start one
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+    axios
+      .get(`${import.meta.env.VITE_API_URL}/api/flares`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        if (active) setCanStartFlare(!(res.data?.flares || []).some((f) => !f.endDate));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [token]);
 
   // fetch the user's personal recent symptoms; silent-fail to none
   useEffect(() => {
@@ -731,6 +752,20 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
         },
         { headers: { Authorization: `Bearer ${token}` } },
       );
+      // The check-in is saved. Starting the flare is a second, separate step:
+      // if it fails (or one was started elsewhere meanwhile, a 409) the
+      // check-in still stands and the user sees nothing about it.
+      if (canStartFlare && startsFlare) {
+        try {
+          await axios.post(
+            `${import.meta.env.VITE_API_URL}/api/flares`,
+            { startDate: today },
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+        } catch (flareErr) {
+          console.warn("Couldn't start the flare from the check-in:", flareErr?.response?.status || flareErr?.message);
+        }
+      }
       track("checkin_completed");
       setStep(8);
     } catch (err) {
@@ -1046,6 +1081,29 @@ function CheckInModal({ onClose, onComplete, askSleep = true, prefill = null }) 
               >
                 + add a note
               </button>
+            )}
+
+            {canStartFlare && (
+              <div className="w-full text-left">
+                <label
+                  htmlFor="checkin-starts-flare"
+                  className="flex items-center gap-2.5 cursor-pointer"
+                  style={{ minHeight: 44 }}
+                >
+                  <input
+                    id="checkin-starts-flare"
+                    type="checkbox"
+                    checked={startsFlare}
+                    onChange={(e) => setStartsFlare(e.target.checked)}
+                    aria-describedby="checkin-starts-flare-help"
+                    className="w-4 h-4 flex-shrink-0 accent-white cursor-pointer"
+                  />
+                  <span className="text-sm text-white/85">This is the start of a flare</span>
+                </label>
+                <p id="checkin-starts-flare-help" className="text-xs text-white/60 -mt-2 pl-[26px]">
+                  I'll mark it from today. You can end it whenever it eases.
+                </p>
+              </div>
             )}
 
             <button
