@@ -4,9 +4,11 @@ name: CI
 # is new work — it is `npm test`, `npm run build` and `npm run lint`, plus the
 # paired-file invariant from CLAUDE.md, run on every push instead of whenever
 # somebody remembers.
+# develop deploys to staging and main to production (see docs/DEPLOYMENT.md);
+# Render waits for these checks to pass before deploying either.
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
   workflow_dispatch:
 
@@ -38,6 +40,46 @@ jobs:
       # the suite is pure unit tests over server/lib — no database, no network,
       # so it needs none of the real secrets
       - run: npm test
+        working-directory: server
+
+  database:
+    name: migrations
+    runs-on: ubuntu-latest
+    # the same Postgres major version as Supabase
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: chronically
+          POSTGRES_PASSWORD: chronically
+          POSTGRES_DB: chronically
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U chronically -d chronically"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      APP_ENV: local
+      DATABASE_URL: postgres://chronically:chronically@localhost:5433/chronically
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+        working-directory: server
+      # every migration, from an empty database — then again, which must be a no-op
+      - name: Migrate from empty
+        run: npm run db:migrate && npm run db:migrate
+        working-directory: server
+      # fails when a model changed without a migration (or the other way round)
+      - name: Migrations match the models
+        run: npm run db:check
+        working-directory: server
+      - name: Seed runs on the migrated schema
+        run: npm run db:seed
         working-directory: server
 
   client:

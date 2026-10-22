@@ -1,24 +1,18 @@
 const { Sequelize } = require("sequelize");
+const { sslOptions } = require("../lib/environment");
 
-// Sequelize needs to know how to talk to our database
-// We're pulling the connection string from .env so we never hardcode secrets
-// with rejectUnauthorized: false the connection is encrypted but the server's
-// certificate is never checked, which leaves it open to man-in-the-middle attacks.
-// set DB_CA_CERT to the Supabase CA certificate (Dashboard -> Settings -> Database
-// -> SSL Configuration -> Download certificate, paste the PEM contents into the
-// env var) to get full verification in production
-const ssl = process.env.DB_CA_CERT
-  ? { require: true, rejectUnauthorized: true, ca: process.env.DB_CA_CERT }
-  : { require: true, rejectUnauthorized: false };
+// One connection string per stage (see lib/environment.js): the Docker Postgres
+// locally, the staging Supabase on `develop`, the production Supabase on `main`.
+// SSL is on for any remote database and off for the local one. Without
+// DB_CA_CERT the connection is encrypted but the certificate isn't checked —
+// set it to the Supabase CA (Dashboard -> Settings -> Database -> SSL
+// Configuration) for full verification.
+const ssl = sslOptions(process.env);
 
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
-  // telling Sequelize we're using postgres specifically
   dialect: "postgres",
-  dialectOptions: {
-    // Supabase won't let us connect without SSL
-    ssl,
-  },
-  // Sequelize logs every SQL query it runs which is really noisy - turning it off for now
+  dialectOptions: ssl ? { ssl } : {},
+  // Sequelize logs every SQL query it runs which is really noisy
   logging: false,
 });
 
@@ -31,11 +25,8 @@ const connectDB = async () => {
   } catch (error) {
     console.error("Database connection error:", error.message);
     // if we can't connect to the database there's no point running the server
-    // process.exit(1) shuts everything down
     process.exit(1);
   }
 };
 
-// exporting both so server.js can run connectDB() on startup
-// and our models can use the same sequelize instance to define tables
 module.exports = { sequelize, connectDB };

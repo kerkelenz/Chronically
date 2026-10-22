@@ -5,17 +5,19 @@ require("dotenv").config();
 // so local dev needs nothing. Initialised as early as possible so it can wrap
 // everything that follows. tracesSampleRate 0 = no performance data, errors only.
 const Sentry = require("@sentry/node");
+const { resolveStage, bootProblem, jobsToStart, corsOrigins } = require("./lib/environment");
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   enabled: !!process.env.SENTRY_DSN,
   tracesSampleRate: 0,
-  environment: process.env.NODE_ENV,
+  environment: resolveStage(process.env) || "unknown",
 });
 
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const { connectDB, sequelize } = require("./config/db");
+const { migrateUp } = require("./db/migrator");
 const authRoutes = require("./routes/authRoutes");
 const checkInRoutes = require("./routes/checkInRoutes");
 const authenticateToken = require("./middleware/auth");
@@ -37,8 +39,8 @@ const { startNotificationScheduler } = require("./jobs/notificationScheduler");
 const { startWeatherBackfill } = require("./jobs/weatherCapture");
 const rateLimit = require("express-rate-limit");
 
-// importing the models here so Sequelize knows about them before we call sync
-// if we don't import them they won't get created in the database
+// every model registered up front, so associations are all in place before
+// the first request (the schema itself comes from migrations, never sync)
 require("./models/User");
 require("./models/CheckIn");
 require("./models/Medication");
@@ -67,38 +69,27 @@ app.set("trust proxy", 1);
 // wrapping everything in an async function so we can use await for the database connection
 // we want to make sure the database is ready before the server starts accepting requests
 const startServer = async () => {
-  // without a JWT secret every login would fail at runtime - better to refuse to boot
-  if (!process.env.JWT_SECRET) {
-    console.error("JWT_SECRET is not set - refusing to start");
+  // refuse to boot rather than run half-configured — and never let a local
+  // server touch a remote database by accident (see lib/environment.js)
+  const problem = bootProblem(process.env);
+  if (problem) {
+    console.error(`Refusing to start: ${problem}`);
     process.exit(1);
   }
+  const stage = resolveStage(process.env);
+  console.log(`Stage: ${stage}`);
 
   await connectDB();
 
-  // sync tells Sequelize to look at our models and make sure the database tables match
-  // alter: true updates existing tables if we've made changes to our models - handy in
-  // development, but running DDL on every production boot risks data loss and slow deploys.
-  // for a production deploy that changes the schema, set DB_SYNC_ALTER=true once, then remove it
-  const alterSchema =
-    process.env.NODE_ENV !== "production" ||
-    process.env.DB_SYNC_ALTER === "true";
-  await sequelize.sync(alterSchema ? { alter: true } : {});
-  console.log(`Database synced${alterSchema ? " (alter)" : ""}`);
+  // the schema only ever changes through migrations (server/migrations), applied
+  // here on every boot — so staging runs each one before production does
+  const applied = await migrateUp(sequelize, { logger: undefined });
+  console.log(applied.length ? `Migrations applied: ${applied.join(", ")}` : "Schema up to date");
 
   // helmet automatically sets a bunch of security headers on every response
   app.use(helmet());
-  // cors allows our React frontend on render to talk to this backend
-  app.use(
-    cors({
-      origin: [
-        "http://localhost:5173",
-        "https://mychronically.app",
-        "https://www.mychronically.app",
-        "https://chronically-frontend.onrender.com",
-      ],
-      credentials: true,
-    }),
-  );
+  // each stage only accepts its own web front end (plus CORS_ORIGINS)
+  app.use(cors({ origin: corsOrigins(process.env), credentials: true }));
   // this lets us read JSON from the request body - without it req.body would be undefined
   // the limit is raised from the 100kb default so avatar data-URLs (up to ~400kb) fit
   app.use(express.json({ limit: "500kb" }));
@@ -188,15 +179,13 @@ const startServer = async () => {
   });
 
   // Both of these ride on this process, so they only tick while the web service
-  // is awake — fine on an always-on instance, not on one that sleeps. Each has
-  // its own kill switch: they fail in different ways and a flag named for
-  // notifications has no business silencing weather.
-  if (process.env.DISABLE_NOTIFICATION_SCHEDULER !== "true") {
-    startNotificationScheduler();
-  }
-  if (process.env.DISABLE_WEATHER_BACKFILL !== "true") {
-    startWeatherBackfill();
-  }
+  // is awake — fine on an always-on instance, not on one that sleeps. They're
+  // off on a local machine unless ENABLE_JOBS=true (a dev server must never
+  // send a real push), and each keeps its own DISABLE_* kill switch.
+  const jobs = jobsToStart(process.env);
+  if (jobs.notifications) startNotificationScheduler();
+  if (jobs.weather) startWeatherBackfill();
+  console.log(`Jobs: notifications ${jobs.notifications ? "on" : "off"}, weather ${jobs.weather ? "on" : "off"}`);
 };
 
 startServer();

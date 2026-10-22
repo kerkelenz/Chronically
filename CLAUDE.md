@@ -22,9 +22,15 @@ mobile/   Expo SDK 54 + expo-router (iOS + Android)
 | Server tests        | `cd server && npm test`                      |
 | Mobile dev          | `cd mobile && npx expo start`                |
 | Mobile health check | `cd mobile && npx expo-doctor`               |
+| Local database      | `cd server && npm run db:reset` (Docker)     |
+| New migration       | `cd server && npm run db:migration -- <name>` |
 
-Schema changes apply via `sequelize.sync({ alter: true })` on a local server
-boot against the real database. There are no migration files.
+Three stages: local (Docker Postgres) → staging (`develop`) → production
+(`main`). See `docs/DEPLOYMENT.md`.
+
+Schema changes are **migrations** in `server/migrations/`, applied at boot on
+every stage. A model change without a migration fails `npm run db:check` and
+CI. Never use `sequelize.sync` in the app, and never edit the baseline SQL.
 
 ## Workflow
 
@@ -66,6 +72,10 @@ boot against the real database. There are no migration files.
   never advice. Loosening a threshold to surface more cards is never the fix.
 - **The server is the source of truth.** Never trust a client-supplied flag.
   Admin endpoints re-read `isAdmin` from the database and fail closed.
+- **Local never touches real data.** A local server refuses a remote
+  `DATABASE_URL`, runs no jobs and sends no email (`server/lib/environment.js`).
+  Don't weaken those guards, and never point local work at staging or
+  production.
 - **Notifications must not double-send.** The unique constraint on
   `NotificationLog` is what guarantees it; `DeviceNotRegistered` receipts delete
   the token.
