@@ -26,11 +26,19 @@ mobile/   Expo SDK 54 + expo-router (iOS + Android)
 | New migration       | `cd server && npm run db:migration -- <name>` |
 
 Three stages: local (Docker Postgres) → staging (`develop`) → production
-(`main`). See `docs/DEPLOYMENT.md`.
+(`main`). See `docs/DEPLOYMENT.md`. Work reaches `main` only by way of
+`develop` and a green staging deploy; the one exception is a hotfix branched
+from `main`, which is then merged back into `develop`. Local work runs against
+the Docker database (`npm run db:reset` gives two test accounts), never a
+Supabase one.
 
 Schema changes are **migrations** in `server/migrations/`, applied at boot on
 every stage. A model change without a migration fails `npm run db:check` and
 CI. Never use `sequelize.sync` in the app, and never edit the baseline SQL.
+Migrations run against a live table while the old code is still serving, so:
+new columns are nullable or have a default; a column is renamed or dropped
+only in a release after the code stopped using it; never edit a migration
+that has run anywhere but your machine — write a new one.
 
 ## Workflow
 
@@ -118,6 +126,10 @@ who notices things, never as a product announcing features.
 
 - **Public repo.** No secrets in files, ever. `server/scripts/seedDemo.js` is
   gitignored and holds demo credentials — never commit it or suggest doing so.
+- **The seed scripts write to whatever `DATABASE_URL` is set** — they don't go
+  through the local-only guard. With the local `.env` that's Docker. The demo
+  account lives in production, so reseeding it means deliberately pointing a
+  one-off run at production; never do that as part of routine work.
 - **The demo account is App Review's account.** It is seeded to 89 distinct
   check-in days so a reviewer's first check-in triggers the 90-day milestone,
   with correlations engineered so all five insight families appear. Never create
