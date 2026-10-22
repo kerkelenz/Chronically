@@ -79,9 +79,10 @@ function usePresentAnchors(screen) {
     .join(",");
   const [present, setPresent] = useState("");
   useEffect(() => {
-    setPresent(read());
-    if (typeof MutationObserver === "undefined") return undefined;
-    let raf = 0;
+    // read after the page has committed its anchors, a frame later like every
+    // update below, rather than setting state synchronously in the effect
+    let raf = requestAnimationFrame(() => setPresent(read()));
+    if (typeof MutationObserver === "undefined") return () => cancelAnimationFrame(raf);
     const obs = new MutationObserver(() => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => setPresent(read()));
